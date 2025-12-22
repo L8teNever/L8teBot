@@ -63,33 +63,21 @@
                 </select>
             </div>
 
-            <div>
-                <label class="block text-text-secondary text-sm mb-2">Lobby-Thread (Alle Suchen werden hier
-                    gepostet)</label>
-                <select name="lobby_thread" required
-                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
-                    <option value="" disabled {% if not settings.lobby_thread_id %}selected{% endif %}>Thread wählen...
-                    </option>
-                    {% for thread in guild.threads %}
-                    <option value="{{ thread.id }}" {% if thread.id==settings.get('lobby_thread_id') %}selected{% endif
-                        %}>{{ thread.name }}</option>
-                    {% endfor %}
-                </select>
-                <p class="text-xs text-text-secondary mt-1">Tipp: Erstelle einen öffentlichen Thread in einem Kanal</p>
-            </div>
+            <p class="text-xs text-text-secondary mt-1">Der Lobby-Thread wird automatisch unter der Start-Nachricht
+                erstellt.</p>
+    </div>
 
-            <div>
-                <label class="block text-text-secondary text-sm mb-2">Max. Suchen pro Benutzer</label>
-                <input type="number" name="max_searches" value="{{ settings.get('max_searches_per_user', 3) }}" min="1"
-                    max="10"
-                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
-            </div>
+    <div>
+        <label class="block text-text-secondary text-sm mb-2">Max. Suchen pro Benutzer</label>
+        <input type="number" name="max_searches" value="{{ settings.get('max_searches_per_user', 3) }}" min="1" max="10"
+            class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+    </div>
 
-            <button type="submit"
-                class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
-                Speichern
-            </button>
-        </form>
+    <button type="submit"
+        class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+        Speichern
+    </button>
+    </form>
     </div>
 </section>
 

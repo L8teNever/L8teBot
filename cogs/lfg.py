@@ -404,7 +404,6 @@ class LFGCog(commands.Cog, name="LFG"):
         self,
         guild_id: int,
         start_channel_id: Optional[int],
-        lobby_thread_id: Optional[int],
         max_searches: int
     ) -> Tuple[bool, str]:
         """Configure LFG system via web interface"""
@@ -421,12 +420,18 @@ class LFGCog(commands.Cog, name="LFG"):
             if not isinstance(channel, TextChannel):
                 return False, "Start-Kanal ungültig."
             
-            # Delete old start message if exists
+            # Cleanup old messages and threads if they exist
             old_msg_id = config.get('start_message_id')
             if old_msg_id:
                 try:
                     old_channel = guild.get_channel(config.get('start_channel_id'))
                     if old_channel:
+                        # Try to archive old thread
+                        old_thread_id = config.get('lobby_thread_id')
+                        if old_thread_id:
+                            old_thread = guild.get_thread(old_thread_id)
+                            if old_thread: await old_thread.edit(archived=True)
+                        
                         old_msg = await old_channel.fetch_message(old_msg_id)
                         await old_msg.delete()
                 except:
@@ -434,30 +439,32 @@ class LFGCog(commands.Cog, name="LFG"):
             
             # Create new start message
             embed = Embed(
-                title="🎮 Spieler suchen",
-                description="Klicke auf den Button, um eine Gruppe zu erstellen und Mitspieler zu finden!",
+                title="🎮 Mitspieler-Suche",
+                description="Du suchst jemanden zum Zocken? Klicke auf den Button unten!\n\nAlle aktiven Suchen findest du direkt im Thread unter dieser Nachricht.",
                 color=Color.blue()
             )
             try:
                 view = LFGStartView(self, guild_id)
                 start_msg = await channel.send(embed=embed, view=view)
+                
+                # Create automatic lobby thread
+                lobby_thread = await start_msg.create_thread(
+                    name="🎮 Aktive Suchen",
+                    reason="Automatischer LFG Lobby-Thread"
+                )
+                
                 config['start_channel_id'] = start_channel_id
                 config['start_message_id'] = start_msg.id
-            except:
-                return False, "Konnte Start-Nachricht nicht senden."
-        
-        # Set lobby thread
-        if lobby_thread_id:
-            lobby = guild.get_channel_or_thread(lobby_thread_id)
-            if not lobby:
-                return False, "Lobby-Thread ungültig."
-            config['lobby_thread_id'] = lobby_thread_id
+                config['lobby_thread_id'] = lobby_thread.id
+            except Exception as e:
+                print(f"Error in LFG config: {e}")
+                return False, f"Fehler beim Erstellen der Start-Nachricht: {e}"
         
         # Set max searches
         config['max_searches_per_user'] = max(1, min(max_searches, 10))
         
         self._save_lfg_config(guild_id, config)
-        return True, "LFG-Konfiguration gespeichert."
+        return True, "LFG-Konfiguration gespeichert und Lobby-Thread erstellt."
 
 
 async def setup(bot: commands.Bot):

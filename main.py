@@ -1500,10 +1500,9 @@ def manage_lfg(guild_id):
 
         if action == 'set_config':
             start_channel_id = int(request.form.get('start_channel')) if request.form.get('start_channel') else None
-            lobby_thread_id = int(request.form.get('lobby_thread')) if request.form.get('lobby_thread') else None
             max_searches = int(request.form.get('max_searches', 3))
             future = asyncio.run_coroutine_threadsafe(
-                cog.web_set_config(guild_id, start_channel_id, lobby_thread_id, max_searches),
+                cog.web_set_config(guild_id, start_channel_id, max_searches),
                 bot.loop
             )
 
