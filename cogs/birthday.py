@@ -165,26 +165,39 @@ class BirthdayCog(commands.Cog, name="Geburtstage"):
         
         all_birthdays = []
         birthdays_data = config.get("birthdays", {})
+        users_to_remove = []  # Track users that no longer exist
+        
         for user_id, bday_data in birthdays_data.items():
             member = guild.get_member(int(user_id))
-            if member:
-                try:
-                    # Handle new and old format of bday_data
-                    date_str = None
-                    year = None
-                    if isinstance(bday_data, dict):
-                        date_str = bday_data.get("date")
-                        year = bday_data.get("year")
-                    elif isinstance(bday_data, str): # Old format compatibility
-                        date_str = bday_data
-                    
-                    if not date_str or not validate_birthday_format(date_str):
-                        continue
-
-                    dt_obj = datetime.datetime.strptime(date_str, "%m-%d")
-                    all_birthdays.append((dt_obj.month, dt_obj.day, member, year))
-                except (ValueError, KeyError, AttributeError):
+            if not member:
+                # User no longer on server or account deleted - mark for removal
+                users_to_remove.append(user_id)
+                continue
+                
+            try:
+                # Handle new and old format of bday_data
+                date_str = None
+                year = None
+                if isinstance(bday_data, dict):
+                    date_str = bday_data.get("date")
+                    year = bday_data.get("year")
+                elif isinstance(bday_data, str): # Old format compatibility
+                    date_str = bday_data
+                
+                if not date_str or not validate_birthday_format(date_str):
                     continue
+
+                dt_obj = datetime.datetime.strptime(date_str, "%m-%d")
+                all_birthdays.append((dt_obj.month, dt_obj.day, member, year))
+            except (ValueError, KeyError, AttributeError):
+                continue
+        
+        # Clean up users that no longer exist
+        if users_to_remove:
+            for user_id in users_to_remove:
+                del birthdays_data[user_id]
+            self.bot.data.save_guild_data(guild.id, "birthday", config)
+            print(f"[Birthday] Cleaned up {len(users_to_remove)} non-existent users from {guild.name}")
         
         all_birthdays.sort()
 
