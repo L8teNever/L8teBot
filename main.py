@@ -1443,7 +1443,8 @@ async def on_ready():
         'cogs.settings', 'cogs.utility', 'cogs.birthday', 'cogs.counting', 
         'cogs.level_system', 'cogs.moderation', 'cogs.ticket_system', 'cogs.twitch', 
         'cogs.twitch_live_alert', 'cogs.temp_channel', 'cogs.twitch_clips', 'cogs.streak', 
-        'cogs.gatekeeper', 'cogs.guard', 'cogs.global_ban', 'cogs.maintenance', 'cogs.wrapped'
+        'cogs.gatekeeper', 'cogs.guard', 'cogs.global_ban', 'cogs.maintenance', 'cogs.wrapped',
+        'cogs.lfg'
     ]
     for cog in cogs_to_load:
         try:
