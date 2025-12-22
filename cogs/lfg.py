@@ -209,15 +209,15 @@ class LFGCog(commands.Cog, name="LFG"):
         """Create a new LFG search"""
         
         config = self._get_lfg_config(guild.id)
-        lobby_thread_id = config.get('lobby_thread_id')
+        lobby_channel_id = config.get('lobby_channel_id')
         
-        if not lobby_thread_id:
+        if not lobby_channel_id:
             return False, "❌ LFG-System ist nicht konfiguriert. Bitte kontaktiere einen Admin."
         
         try:
-            lobby_thread = await self.bot.fetch_channel(lobby_thread_id)
+            lobby_channel = await self.bot.fetch_channel(lobby_channel_id)
         except:
-            return False, "❌ Lobby-Thread nicht gefunden. Bitte kontaktiere einen Admin."
+            return False, "❌ Lobby-Kanal nicht gefunden. Bitte kontaktiere einen Admin."
         
         # Generate unique search ID
         search_id = self._get_next_search_id(guild.id)
@@ -234,9 +234,9 @@ class LFGCog(commands.Cog, name="LFG"):
         except:
             return False, "❌ Konnte Rolle nicht erstellen. Bitte kontaktiere einen Admin."
         
-        # Create private thread
+        # Create private thread in lobby channel
         try:
-            private_thread = await lobby_thread.parent.create_thread(
+            private_thread = await lobby_channel.create_thread(
                 name=f"🎮 {game_name} - {creator.display_name}",
                 type=discord.ChannelType.private_thread,
                 reason=f"LFG Search by {creator}"
@@ -380,8 +380,8 @@ class LFGCog(commands.Cog, name="LFG"):
         # Delete lobby message
         try:
             config = self._get_lfg_config(guild.id)
-            lobby_thread = await self.bot.fetch_channel(config.get('lobby_thread_id'))
-            lobby_message = await lobby_thread.fetch_message(search_data['lobby_message_id'])
+            lobby_channel = await self.bot.fetch_channel(config.get('lobby_channel_id'))
+            lobby_message = await lobby_channel.fetch_message(search_data['lobby_message_id'])
             await lobby_message.delete()
         except:
             pass
@@ -393,8 +393,8 @@ class LFGCog(commands.Cog, name="LFG"):
         
         try:
             config = self._get_lfg_config(guild.id)
-            lobby_thread = await self.bot.fetch_channel(config.get('lobby_thread_id'))
-            lobby_message = await lobby_thread.fetch_message(search_data['lobby_message_id'])
+            lobby_channel = await self.bot.fetch_channel(config.get('lobby_channel_id'))
+            lobby_message = await lobby_channel.fetch_message(search_data['lobby_message_id'])
             
             embed = lobby_message.embeds[0]
             
@@ -416,6 +416,7 @@ class LFGCog(commands.Cog, name="LFG"):
         self,
         guild_id: int,
         start_channel_id: Optional[int],
+        lobby_channel_id: Optional[int],
         participation_role_id: Optional[int],
         max_searches: int
     ) -> Tuple[bool, str]:
@@ -433,51 +434,60 @@ class LFGCog(commands.Cog, name="LFG"):
             if not role:
                 return False, "Teilnehmer-Rolle ungültig."
             config['participation_role_id'] = participation_role_id
+        if participation_role_id:
+            role = guild.get_role(participation_role_id)
+            if not role:
+                return False, "Teilnehmer-Rolle ungültig."
+            config['participation_role_id'] = participation_role_id
         
+        # Set lobby channel
+        if lobby_channel_id:
+            lobby_channel = guild.get_channel(lobby_channel_id)
+            if not isinstance(lobby_channel, TextChannel):
+                return False, "Lobby-Kanal ungültig."
+            
+            config['lobby_channel_id'] = lobby_channel_id
+            
+            # Set permissions for lobby channel
+            try:
+                # Private: Hide for everyone, show for participation role
+                await lobby_channel.set_permissions(guild.default_role, view_channel=False)
+                if participation_role_id:
+                    role = guild.get_role(participation_role_id)
+                    if role:
+                        await lobby_channel.set_permissions(role, view_channel=True)
+            except Exception as e:
+                print(f"Error setting channel permissions: {e}")
+
         # Set start channel
         if start_channel_id:
             channel = guild.get_channel(start_channel_id)
             if not isinstance(channel, TextChannel):
                 return False, "Start-Kanal ungültig."
             
-            # Cleanup old messages and threads if they exist
+            # Cleanup old start message
             old_msg_id = config.get('start_message_id')
             if old_msg_id:
                 try:
                     old_channel = guild.get_channel(config.get('start_channel_id'))
                     if old_channel:
-                        # Try to archive old thread
-                        old_thread_id = config.get('lobby_thread_id')
-                        if old_thread_id:
-                            old_thread = guild.get_thread(old_thread_id)
-                            if old_thread: await old_thread.edit(archived=True)
-                        
                         old_msg = await old_channel.fetch_message(old_msg_id)
                         await old_msg.delete()
                 except:
                     pass
             
             # Create new start message
+            lobby_channel = guild.get_channel(config.get('lobby_channel_id'))
+            lobby_mention = lobby_channel.mention if lobby_channel else "Lobby"
+            
             embed = Embed(
                 title="🎮 Mitspieler-Suche",
-                description="Du suchst jemanden zum Zocken? Klicke auf den Button unten!\n\n*Hinweis: Nur Teilnehmer mit der entsprechenden Rolle sehen den Lobby-Bereich.*",
+                description=f"Du suchst jemanden zum Zocken? Klicke auf den Button unten!\n\n📍 **Lobby:** {lobby_mention}\n\n*Hinweis: Nur Teilnehmer mit der entsprechenden Rolle sehen den Lobby-Bereich.*",
                 color=Color.blue()
             )
             try:
                 view = LFGStartView(self, guild_id)
                 start_msg = await channel.send(embed=embed, view=view)
-                
-                # Create automatic PRIVATE lobby thread
-                lobby_thread = await channel.create_thread(
-                    name="🎮 Aktive Suchen",
-                    type=discord.ChannelType.private_thread,
-                    invitable=False,
-                    reason="Automatischer privater LFG Lobby-Thread"
-                )
-                
-                # Update embed with thread link
-                embed.description += f"\n\n📍 **Lobby:** {lobby_thread.mention}"
-                await start_msg.edit(embed=embed)
                 
                 # Pin the message to keep it accessible
                 try:
@@ -487,21 +497,6 @@ class LFGCog(commands.Cog, name="LFG"):
                 
                 config['start_channel_id'] = start_channel_id
                 config['start_message_id'] = start_msg.id
-                config['lobby_thread_id'] = lobby_thread.id
-                
-                # Add existing role members to the thread
-                target_role = guild.get_role(participation_role_id)
-                if target_role:
-                    # Sync all members of the role
-                    async def add_members():
-                        for member in target_role.members:
-                            try:
-                                await lobby_thread.add_user(member)
-                                await asyncio.sleep(0.5) # Avoid rate limits
-                            except:
-                                continue
-                    self.bot.loop.create_task(add_members())
-                
             except Exception as e:
                 print(f"Error in LFG config: {e}")
                 return False, f"Fehler beim Erstellen der Start-Nachricht: {e}"
@@ -510,68 +505,28 @@ class LFGCog(commands.Cog, name="LFG"):
         config['max_searches_per_user'] = max(1, min(max_searches, 10))
         
         self._save_lfg_config(guild_id, config)
-        return True, "LFG-Konfiguration gespeichert. Privater Lobby-Thread wurde erstellt und Mitglieder synchronisiert."
+        return True, "LFG-Konfiguration gespeichert. Lobby-Kanal wurde konfiguriert."
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        """Delete system messages in the lobby thread to keep it clean"""
+        """Clean up system messages in the lobby channel if configured"""
         if not message.guild:
             return
 
-        # Check if it's the lobby thread
         config = self._get_lfg_config(message.guild.id)
-        lobby_thread_id = config.get('lobby_thread_id')
+        lobby_channel_id = config.get('lobby_channel_id')
         
-        if lobby_thread_id and message.channel.id == lobby_thread_id:
-            # Check for system messages (like member added, etc.)
-            if message.is_system() or message.type in [
-                discord.MessageType.recipient_add,
-                discord.MessageType.thread_starter_message,
-                discord.MessageType.new_member
-            ]:
+        if lobby_channel_id and message.channel.id == lobby_channel_id:
+            if message.is_system():
                 try:
                     await message.delete()
-                    print(f"[LFG] System-Nachricht im Lobby-Thread gelöscht: {message.type}")
-                except Exception as e:
-                    print(f"[LFG] Fehler beim Löschen der System-Nachricht: {e}")
+                except:
+                    pass
 
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
-        """Auto-add/remove members from lobby thread based on role changes"""
-        config = self._get_lfg_config(after.guild.id)
-        role_id = config.get('participation_role_id')
-        thread_id = config.get('lobby_thread_id')
-        
-        if not role_id or not thread_id:
-            return
-            
-        role = after.guild.get_role(role_id)
-        if not role:
-            return
-
-        # Case: Role added
-        if role not in before.roles and role in after.roles:
-            try:
-                thread = await self.bot.fetch_channel(thread_id)
-                if thread:
-                    await thread.add_user(after)
-            except:
-                pass
-        
-        # Case: Role removed
-        elif role in before.roles and role not in after.roles:
-            try:
-                thread = await self.bot.fetch_channel(thread_id)
-                if thread:
-                    # Discord API doesn't have a direct "remove user from thread" without deleting the thread or the user leaving
-                    # But if it's a private thread, they will lose access if they aren't explicitly in it.
-                    # Actually, for private threads, you have to be manually added. 
-                    # If they lose the role, they stay in the thread unless removed.
-                    # Currently discord.py doesn't support removing users from threads easily via add_user's opposite.
-                    # However, we can use the low-level API if needed, but usually just adding is the priority.
-                    pass
-            except:
-                pass
+        """Handle role changes (permissions are handled by role overwrites)"""
+        pass
 
 
 async def setup(bot: commands.Bot):
