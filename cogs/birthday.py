@@ -218,7 +218,7 @@ class BirthdayCog(commands.Cog, name="Geburtstage"):
                     month_lines = []
                 year_str = f" ({year})" if year else ""
                 month_name = months.get(month, "Unbekannt")
-                line = f"{member.mention} → {day:02d}. {month_name}{year_str}"
+                line = f"**{member.display_name}** → {day:02d}. {month_name}{year_str}"
                 month_lines.append(line)
             
             if month_lines:
