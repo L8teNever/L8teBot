@@ -1,0 +1,146 @@
+{% extends "layout.html" %}
+{% block title %}LFG System - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">LFG System</h1>
+        <p class="text-text-secondary text-base">Looking For Group - Spieler-Suche</p>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if is_enabled %}
+        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+        <p class="text-sm font-medium text-green-500">Aktiv</p>
+        {% else %}
+        <span class="h-2 w-2 rounded-full bg-gray-500"></span>
+        <p class="text-sm font-medium text-gray-500">Inaktiv</p>
+        {% endif %}
+    </div>
+</header>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6">
+        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+            <input type="hidden" name="cog_name" value="LFG">
+            <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
+            <input type="hidden" name="redirect_url" value="{{ request.url }}">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <div class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" {% if is_enabled %}checked{% endif %} onchange="this.form.submit()"
+                        class="sr-only peer">
+                    <div
+                        class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                    </div>
+                </div>
+                <span class="text-white">LFG System {{ 'aktiviert' if is_enabled else 'deaktiviert' }}</span>
+            </label>
+        </form>
+    </div>
+</section>
+
+{% if is_enabled %}
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">settings</span>
+            Konfiguration
+        </h2>
+    </div>
+    <div class="p-6">
+        <form action="{{ url_for('manage_lfg', guild_id=guild.id) }}" method="post" class="space-y-4">
+            <input type="hidden" name="action" value="set_config">
+
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Start-Kanal (Button "Spieler suchen")</label>
+                <select name="start_channel" required
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="" disabled {% if not settings.start_channel_id %}selected{% endif %}>Kanal wählen...
+                    </option>
+                    {% for channel in guild.text_channels|sort(attribute='position') %}
+                    <option value="{{ channel.id }}" {% if channel.id==settings.get('start_channel_id') %}selected{%
+                        endif %}>#{{ channel.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Lobby-Thread (Alle Suchen werden hier
+                    gepostet)</label>
+                <select name="lobby_thread" required
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="" disabled {% if not settings.lobby_thread_id %}selected{% endif %}>Thread wählen...
+                    </option>
+                    {% for thread in guild.threads %}
+                    <option value="{{ thread.id }}" {% if thread.id==settings.get('lobby_thread_id') %}selected{% endif
+                        %}>{{ thread.name }}</option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-text-secondary mt-1">Tipp: Erstelle einen öffentlichen Thread in einem Kanal</p>
+            </div>
+
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Max. Suchen pro Benutzer</label>
+                <input type="number" name="max_searches" value="{{ settings.get('max_searches_per_user', 3) }}" min="1"
+                    max="10"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+            </div>
+
+            <button type="submit"
+                class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                Speichern
+            </button>
+        </form>
+    </div>
+</section>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">info</span>
+            Wie funktioniert's?
+        </h2>
+    </div>
+    <div class="p-6 space-y-4 text-text-secondary text-sm">
+        <div class="flex gap-3">
+            <span class="material-symbols-outlined text-primary">looks_one</span>
+            <div>
+                <p class="text-white font-bold mb-1">Suche erstellen</p>
+                <p>User klicken im Start-Kanal auf "Spieler suchen" und füllen das Formular aus.</p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <span class="material-symbols-outlined text-primary">looks_two</span>
+            <div>
+                <p class="text-white font-bold mb-1">Automatische Gruppe</p>
+                <p>Der Bot erstellt eine einzigartige Rolle und einen privaten Thread für die Gruppe.</p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <span class="material-symbols-outlined text-primary">looks_3</span>
+            <div>
+                <p class="text-white font-bold mb-1">Beitreten</p>
+                <p>Andere User sehen die Suche im Lobby-Thread und können beitreten.</p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <span class="material-symbols-outlined text-primary">looks_4</span>
+            <div>
+                <p class="text-white font-bold mb-1">Automatisches Cleanup</p>
+                <p>Wenn die Suche beendet wird, werden Rolle und Thread automatisch gelöscht/archiviert.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% else %}
+<div class="rounded-lg p-6 bg-yellow-500/10 border border-yellow-500/30">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-yellow-400 text-3xl">info</span>
+        <div>
+            <h3 class="text-white font-bold mb-1">Modul deaktiviert</h3>
+            <p class="text-yellow-200 text-sm">Aktiviere das LFG-System, um Einstellungen zu sehen.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

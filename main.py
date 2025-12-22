@@ -1476,9 +1476,48 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 # ... (omitted lines) ...
 
-if __name__ == "__main__":
-    # Lock-Logik entfernt
 
+@app.route('/guild/<int:guild_id>/lfg', methods=['GET', 'POST'])
+@requires_authorization
+def manage_lfg(guild_id):
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung für diesen Server.", "danger")
+        return redirect(url_for('dashboard'))
+
+    guild = bot.get_guild(guild_id)
+    guild_config = bot.data.get_server_config(guild_id)
+    is_enabled = 'LFG' in guild_config.get('enabled_cogs', [])
+
+    if request.method == 'POST':
+        cog = bot.get_cog('LFG')
+        if not is_enabled or not cog:
+            flash("Das LFG-Modul ist nicht aktiv.", "danger")
+            return redirect(url_for('manage_lfg', guild_id=guild_id))
+
+        action = request.form.get('action')
+        future = None
+
+        if action == 'set_config':
+            start_channel_id = int(request.form.get('start_channel')) if request.form.get('start_channel') else None
+            lobby_thread_id = int(request.form.get('lobby_thread')) if request.form.get('lobby_thread') else None
+            max_searches = int(request.form.get('max_searches', 3))
+            future = asyncio.run_coroutine_threadsafe(
+                cog.web_set_config(guild_id, start_channel_id, lobby_thread_id, max_searches),
+                bot.loop
+            )
+
+        if future:
+            success, message = future.result()
+            flash(message, 'success' if success else 'danger')
+
+        return redirect(url_for('manage_lfg', guild_id=guild_id))
+
+    settings = bot.data.get_guild_data(guild_id, "lfg_config")
+    return render_template('lfg.html', guild=guild, settings=settings, is_enabled=is_enabled, admin_guilds=get_admin_guilds())
+
+
+if __name__ == "__main__":
+    pass  # Lock-Logik entfernt
 
 
     def run_flask():
