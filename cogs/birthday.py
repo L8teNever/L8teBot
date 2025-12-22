@@ -199,7 +199,7 @@ class BirthdayCog(commands.Cog, name="Geburtstage"):
             self.bot.data.save_guild_data(guild.id, "birthday", config)
             print(f"[Birthday] Cleaned up {len(users_to_remove)} non-existent users from {guild.name}")
         
-        all_birthdays.sort()
+        all_birthdays.sort(key=lambda x: (x[0], x[1]))  # Sort by month and day only
 
         if not all_birthdays:
             embed.description = "Noch keine Geburtstage eingetragen!"
