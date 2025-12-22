@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>L8teBot Wrapped {{ data.year }}</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111722",
+                        "card-dark": "#1c2536",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        scaleUp: {
+                            '0%': { transform: 'scale(0.95)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        }
+                    },
+                    animation: {
+                        fadeIn: 'fadeIn 0.6s ease-out forwards',
+                        scaleUp: 'scaleUp 0.5s ease-out forwards',
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        .glass-panel {
+            background: rgba(28, 37, 54, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Story Overlay Styles */
+        #story-overlay {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #story-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .story-slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            transform: scale(0.95);
+        }
+
+        .story-slide.active {
+            display: flex;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            width: 100%;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #fff;
+            width: 0%;
+            transform-origin: left;
+            /* Important for pausing/resuming smoothly */
+        }
+
+        /* Background Circles Animation */
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: transparent;
+            z-index: 0;
+            pointer-events: none;
+            animation: floatCircle 20s infinite ease-in-out;
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes floatCircle {
+            0% {
+                transform: translate(0, 0) rotate(0deg) scale(1);
+                opacity: 0.3;
+            }
+
+            33% {
+                transform: translate(50px, -50px) rotate(120deg) scale(1.2);
+                opacity: 0.5;
+            }
+
+            66% {
+                transform: translate(-30px, 40px) rotate(240deg) scale(0.9);
+                opacity: 0.4;
+            }
+
+            100% {
+                transform: translate(0, 0) rotate(360deg) scale(1);
+                opacity: 0.3;
+            }
+        }
+
+        /* Text Readability Strokes */
+        .story-slide h2,
+        .story-slide p,
+        .story-slide span {
+            text-shadow: 0 2px 15px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Mobile Optimization */
+        @media (max-width: 768px) {
+
+            /* Reduce visual noise from circles on small screens */
+            .bg-circle {
+                border-width: 2px !important;
+                border-color: rgba(255, 255, 255, 0.15) !important;
+                box-shadow: 0 0 20px rgba(255, 255, 255, 0.05) !important;
+            }
+
+            /* Stronger shadow for small text */
+            .story-slide p {
+                text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+            }
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark font-display text-white overflow-x-hidden min-h-screen flex flex-col">
+
+    <!-- Story Overlay -->
+    <div id="story-overlay"
+        class="fixed inset-0 z-50 bg-[#111722] flex flex-col items-center justify-center p-6 select-none touch-none overflow-hidden">
+
+        <!-- Animated Background Circles (Hollow) -->
+        <!-- Big top-left -->
+        <div class="bg-circle w-[600px] h-[600px] -top-20 -left-20 border-white/30 border-4"
+            style="animation-duration: 45s;"></div>
+        <!-- Medium bottom-right -->
+        <div class="bg-circle w-[400px] h-[400px] bottom-10 -right-20 border-primary/60 border-[6px]"
+            style="animation-duration: 35s; animation-delay: -5s;"></div>
+        <!-- Small floating -->
+        <div class="bg-circle w-[200px] h-[200px] top-1/4 right-1/4 border-white/40 border-4"
+            style="animation-duration: 25s; animation-delay: -15s;"></div>
+        <!-- Huge bottom-left -->
+        <div class="bg-circle w-[800px] h-[800px] -bottom-40 -left-20 border-white/20 border-[6px]"
+            style="animation-duration: 60s; animation-delay: -10s;"></div>
+
+        <!-- Touch Areas for Navigation (Invisible) -->
+        <div class="absolute inset-y-0 left-0 w-[30%] z-20" style="cursor: w-resize;"></div>
+        <div class="absolute inset-y-0 right-0 w-[70%] z-20" style="cursor: e-resize;"></div>
+
+        <!-- Progress Bars -->
+        <div class="absolute top-4 left-4 right-4 flex gap-2 z-30" id="story-progress-container">
+            <!-- Bars will be injected via JS -->
+        </div>
+
+        <!-- Close Button -->
+        <button onclick="endStory()" class="absolute top-8 right-6 text-gray-400 hover:text-white z-40 p-2">
+            <span class="material-symbols-outlined text-3xl">close</span>
+        </button>
+
+        <!-- Pause Indicator (Centered) -->
+        <div id="pause-indicator"
+            class="absolute z-50 pointer-events-none opacity-0 transition-opacity duration-300 flex items-center justify-center p-6 rounded-full bg-black/40 backdrop-blur-sm top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            <span class="material-symbols-outlined text-6xl text-white">pause</span>
+        </div>
+
+        <!-- Slides -->
+        <div class="w-full max-w-2xl h-full flex items-center justify-center relative pointer-events-none z-10">
+
+            <!-- Slide 1: Welcome -->
+            <div class="story-slide flex-col items-center text-center gap-6" data-duration="4000">
+                <div class="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center mb-4 animate-bounce">
+                    <span class="material-symbols-outlined text-5xl text-primary">auto_awesome</span>
+                </div>
+                <!-- Adding Server Name here -->
+                <h2 class="text-4xl md:text-6xl font-black">Dein Jahr<br>auf {{ data.guild_name }}</h2>
+                <p class="text-xl text-gray-400">Lehn dich zurück. Hier kommt dein Recap.</p>
+            </div>
+
+            <!-- Slide 2: Messages -->
+            <div class="story-slide flex-col items-center text-center gap-6" data-duration="5000">
+                <div class="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-4xl text-blue-400">chat</span>
+                </div>
+                <p class="text-gray-200 text-xl font-bold uppercase tracking-widest">Du hast</p>
+                <h2
+                    class="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-indigo-600">
+                    {{ "{:,}".format(data.total_messages|default(0)) }}
+                </h2>
+                <p class="text-gray-200 text-xl font-bold uppercase tracking-widest">Nachrichten gesendet</p>
+                <p class="text-lg text-white font-medium mt-4 max-w-md">Deine Finger müssen glühen! 🔥</p>
+            </div>
+
+            <!-- Slide 3: Voice -->
+            <div class="story-slide flex-col items-center text-center gap-6" data-duration="5000">
+                <div class="w-20 h-20 rounded-full bg-purple-500/20 flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-4xl text-purple-400">mic</span>
+                </div>
+                <p class="text-gray-200 text-xl font-bold uppercase tracking-widest">Im Voice warst du</p>
+                <div class="flex items-baseline gap-2 justify-center">
+                    <h2 class="text-6xl md:text-8xl font-black text-white">
+                        {{ ((data.voice_minutes|default(0)) / 60)|round(1) }}
+                    </h2>
+                    <span class="text-2xl text-purple-400 font-bold">Stunden</span>
+                </div>
+                <p class="text-gray-200 text-xl font-bold uppercase tracking-widest">aktiv</p>
+            </div>
+
+            <!-- Slide 4: Favorite Stats (Channel) -->
+            {% if data.top_channel %}
+            <div class="story-slide flex-col items-center text-center gap-8" data-duration="5000">
+                <div class="w-24 h-24 rounded-full bg-orange-500/20 flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-5xl text-orange-400">tag</span>
+                </div>
+                <p class="text-gray-200 text-xl font-bold uppercase tracking-widest">Dein 2. zu Hause</p>
+                <div
+                    class="glass-panel p-10 rounded-3xl flex flex-col items-center min-w-[320px] border-orange-500/20 bg-orange-500/5">
+                    <p class="text-4xl md:text-5xl font-black text-white mb-2">#{{
+                        data.top_channel_name|default('Unknown') }}</p>
+                    <p class="text-orange-200/60 text-sm font-bold uppercase tracking-wider">Meistgenutzter Kanal</p>
+                </div>
+                <p class="text-white font-medium max-w-md">Hier hast du dich wohlgefühlt.</p>
+            </div>
+            {% endif %}
+
+            <!-- Slide 4b: Favorite Stats (Emoji) -->
+            {% if data.top_emoji %}
+            <div class="story-slide flex-col items-center text-center gap-8" data-duration="5000">
+                <div class="w-24 h-24 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-5xl text-red-500">favorite</span>
+                </div>
+                <p class="text-gray-200 text-xl font-bold uppercase tracking-widest">Dein Markenzeichen</p>
+
+                <div
+                    class="glass-panel p-12 rounded-3xl flex flex-col items-center min-w-[280px] border-red-500/20 bg-red-500/5">
+                    <div
+                        class="text-[80px] md:text-[120px] leading-none mb-4 drop-shadow-2xl hover:scale-110 transition-transform cursor-default">
+                        {{ data.top_emoji }}
+                    </div>
+                    <p class="text-red-200/60 text-sm font-bold uppercase tracking-wider">Top Emoji</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Slide 5: Best Buddy -->
+            {% if data.best_buddy_id %}
+            <div class="story-slide flex-col items-center text-center gap-6" data-duration="5000">
+
+                {% if data.best_buddy_avatar %}
+                <div
+                    class="w-32 h-32 rounded-full p-1 bg-gradient-to-br from-pink-500 to-purple-600 mb-4 animate-scaleUp shadow-lg shadow-pink-500/30">
+                    <img src="{{ data.best_buddy_avatar }}" alt="Best Buddy"
+                        class="w-full h-full rounded-full object-cover border-4 border-[#111722]">
+                </div>
+                {% else %}
+                <div class="w-24 h-24 rounded-full bg-pink-500/20 flex items-center justify-center mb-4 animate-pulse">
+                    <span class="material-symbols-outlined text-5xl text-pink-400">handshake</span>
+                </div>
+                {% endif %}
+
+                <p class="text-gray-200 text-xl font-bold uppercase tracking-widest">Dein Best Buddy</p>
+
+                <div class="flex flex-col items-center gap-2">
+                    <h2 class="text-4xl md:text-5xl font-black text-white">
+                        <span class="text-pink-400">@</span>{{ data.best_buddy_id }}
+                    </h2>
+                </div>
+
+                <div class="glass-panel px-10 py-6 rounded-2xl mt-2 border-pink-500/20 bg-pink-500/5">
+                    <p class="text-4xl font-black text-white">{{ data.best_buddy_count }}</p>
+                    <p class="text-pink-200 text-sm font-bold uppercase tracking-wider mt-1">Interaktionen</p>
+                </div>
+                <p class="text-white font-medium max-w-md mt-2">Ihr wart quasi unzertrennlich! 💕</p>
+            </div>
+            {% endif %}
+
+            <!-- Slide: Streak -->
+            {% if data.streak > 0 %}
+            <div class="story-slide flex-col items-center text-center gap-6" data-duration="4000">
+                <div
+                    class="w-24 h-24 rounded-full bg-orange-500/20 flex items-center justify-center mb-4 animate-bounce">
+                    <span class="material-symbols-outlined text-5xl text-orange-500">local_fire_department</span>
+                </div>
+                <p class="text-gray-200 text-xl font-bold uppercase tracking-widest">Die Flamme lodert</p>
+                <div class="flex flex-col items-center">
+                    <h2 class="text-6xl md:text-8xl font-black text-orange-500">
+                        {{ data.streak }}
+                    </h2>
+                    <p class="text-2xl font-bold mt-2">Tage Streak</p>
+                </div>
+                <p class="text-white font-medium max-w-md mt-4">Seit {{ data.streak_since }}. Keep it lit! 🔥</p>
+            </div>
+            {% endif %}
+
+            <!-- Slide 6: Tickets (New Feature) -->
+            {% if data.tickets_processed|default(0) > 0 %}
+            <div class="story-slide flex-col items-center text-center gap-6" data-duration="5000">
+                <div class="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-4xl text-green-400">confirmation_number</span>
+                </div>
+                <p class="text-gray-200 text-xl font-bold uppercase tracking-widest">Du bist ein Held!</p>
+                <div class="flex flex-col items-center">
+                    <h2 class="text-6xl md:text-8xl font-black text-green-400">
+                        {{ data.tickets_processed }}
+                    </h2>
+                    <p class="text-2xl font-bold mt-2">Tickets bearbeitet</p>
+                </div>
+                <p class="text-white font-medium mt-4 max-w-md">Danke für deinen unermüdlichen Support! 🤝</p>
+            </div>
+            {% endif %}
+
+            <!-- Slide 6: Outro -->
+            <div class="story-slide flex-col items-center text-center gap-6" data-duration="4000">
+                <h2 class="text-4xl md:text-6xl font-black">Danke, dass du Teil von<br><span class="text-primary">{{
+                        data.guild_name }}</span> bist!</h2>
+                <p class="text-xl text-gray-300 mb-8">{{ data.year + 1 }} wird noch besser.</p>
+                <button onclick="endStory()"
+                    class="px-8 py-3 bg-white text-black font-bold rounded-full hover:scale-105 transition-transform pointer-events-auto">
+                    Zusammenfassung ansehen
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col items-center w-full">
+
+        <!-- Hero Section (Visible initially if not seen, or always visible as header) -->
+        <section
+            class="w-full relative flex flex-col items-center justify-center min-h-[90vh] py-10 px-4 transition-all duration-700"
+            id="hero-section">
+            <div class="absolute inset-0 z-0 overflow-hidden">
+                <div
+                    class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px]">
+                </div>
+            </div>
+            <div
+                class="layout-content-container flex flex-col max-w-[960px] z-10 w-full items-center text-center gap-8 animate-fadeIn">
+                <div
+                    class="rounded-full bg-white/5 border border-white/10 px-4 py-1.5 flex items-center gap-2 backdrop-blur-md">
+                    <span class="material-symbols-outlined text-primary text-sm">auto_awesome</span>
+                    <span class="text-xs font-medium tracking-wide uppercase text-gray-300">{{ data.year }}
+                        Wrapped</span>
+                </div>
+                <h1
+                    class="text-5xl md:text-7xl font-black leading-tight tracking-[-0.03em] bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60">
+                    DEIN {{ data.year }}<br />MIT L8TEBOT<br />
+                    <span class="text-3xl md:text-4xl text-primary font-bold block mt-2">auf {{ data.guild_name
+                        }}</span>
+                </h1>
+                <p class="text-lg md:text-xl text-gray-400 font-light max-w-2xl">
+                    Willkommen zurück, <span class="text-white font-medium">{{ data.username }}</span>. Es war ein
+                    wildes Jahr. Schau dir an, was du erreicht hast.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 mt-8">
+                    <button onclick="startStory()"
+                        class="h-14 px-10 rounded-full bg-primary hover:bg-blue-600 text-white font-bold text-lg flex items-center gap-2 transition-all shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:scale-105">
+                        <span class="material-symbols-outlined">play_arrow</span>
+                        Start Recap
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scroll Indicator -->
+            <div id="scroll-indicator"
+                class="absolute bottom-10 animate-bounce transition-opacity duration-500 opacity-0 pointer-events-none">
+                <span class="material-symbols-outlined text-gray-500">keyboard_arrow_down</span>
+            </div>
+        </section>
+
+        <!-- Summary Section (Hidden initially if new) -->
+        <div id="summary-section"
+            class="w-full flex flex-col items-center transition-all duration-1000 opacity-0 translate-y-20 hidden">
+
+            <!-- Summary Grid -->
+            <section class="w-full max-w-[1200px] mt-8 px-4 md:px-10 z-10 mb-12">
+                <h2 class="text-2xl font-bold mb-6 text-center">Deine Zusammenfassung</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div
+                        class="glass-panel p-6 rounded-xl flex flex-col gap-3 hover:bg-white/5 transition-colors group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 text-sm font-medium">Nachrichten</span>
+                            <span
+                                class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">chat</span>
+                        </div>
+                        <div>
+                            <p class="text-3xl font-bold tracking-tight">{{
+                                "{:,}".format(data.total_messages|default(0)) }}</p>
+                            <p class="text-gray-400 text-xs font-medium mt-1">gesendet</p>
+                        </div>
+                    </div>
+                    <div
+                        class="glass-panel p-6 rounded-xl flex flex-col gap-3 hover:bg-white/5 transition-colors group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 text-sm font-medium">Voice Zeit</span>
+                            <span
+                                class="material-symbols-outlined text-purple-400 group-hover:scale-110 transition-transform">mic</span>
+                        </div>
+                        <div>
+                            <p class="text-3xl font-bold tracking-tight">{{ ((data.voice_minutes|default(0)) /
+                                60)|round(1) }}h</p>
+                            <p class="text-gray-400 text-xs font-medium mt-1">{{ data.voice_minutes|default(0) }}
+                                Minuten</p>
+                        </div>
+                    </div>
+
+                    {% if data.tickets_processed|default(0) > 0 %}
+                    <div
+                        class="glass-panel p-6 rounded-xl flex flex-col gap-3 hover:bg-white/5 transition-colors group border-green-500/30 bg-green-500/5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 text-sm font-medium">Tickets</span>
+                            <span
+                                class="material-symbols-outlined text-green-400 group-hover:scale-110 transition-transform">confirmation_number</span>
+                        </div>
+                        <div>
+                            <p class="text-3xl font-bold tracking-tight text-green-400">{{ data.tickets_processed }}</p>
+                            <p class="text-gray-400 text-xs font-medium mt-1">bearbeitet</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if data.best_buddy_id %}
+                    <div
+                        class="glass-panel p-6 rounded-xl flex flex-col gap-3 hover:bg-white/5 transition-colors group border-pink-500/30 bg-pink-500/5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 text-sm font-medium">Best Buddy</span>
+                            <span
+                                class="material-symbols-outlined text-pink-400 group-hover:scale-110 transition-transform">handshake</span>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold tracking-tight text-white mb-1 truncate">@{{ data.best_buddy_id
+                                }}</p>
+                            <p class="text-gray-400 text-xs font-medium">{{ data.best_buddy_count }} Interaktionen</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if data.top_channel %}
+                    <div
+                        class="glass-panel p-6 rounded-xl flex flex-col gap-3 hover:bg-white/5 transition-colors group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 text-sm font-medium">Lieblingskanal</span>
+                            <span
+                                class="material-symbols-outlined text-orange-400 group-hover:scale-110 transition-transform">tag</span>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold tracking-tight truncate">#{{
+                                data.top_channel_name|default('Unknown') }}</p>
+                            <p class="text-gray-400 text-xs font-medium mt-1">Meiste Nachrichten</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if data.streak > 0 %}
+                    <div
+                        class="glass-panel p-6 rounded-xl flex flex-col gap-3 hover:bg-white/5 transition-colors group border-orange-500/20 bg-orange-500/5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 text-sm font-medium">Streak</span>
+                            <span
+                                class="material-symbols-outlined text-orange-500 group-hover:scale-110 transition-transform">local_fire_department</span>
+                        </div>
+                        <div>
+                            <p class="text-3xl font-bold tracking-tight text-orange-500">{{ data.streak }}</p>
+                            <p class="text-gray-400 text-xs font-medium mt-1">Tage Feuer! 🔥</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+
+        <footer class="w-full border-t border-[#232f48] bg-[#0d111a] py-8 mt-auto">
+            <div class="flex justify-center text-xs text-gray-600 gap-4">
+                <p>© {{ data.year }} L8teBot Wrapped.</p>
+                <p>Snapshot vom: {{ data.snapshot_date }}</p>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        const year = "{{ data.year }}";
+        const storageKey = `wrapped_seen_${year}`;
+        const heroSection = document.getElementById('hero-section');
+        const summarySection = document.getElementById('summary-section');
+        const overlay = document.getElementById('story-overlay');
+
+        let storyInterval;
+        let currentSlideIndex = 0;
+        let slideStartTime;
+        let remainingDuration;
+        let isPaused = false;
+        let pressStartTime;
+        const TAP_THRESHOLD = 250; // ms to consider a tap vs hold
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const hasSeen = localStorage.getItem(storageKey);
+
+            if (hasSeen) {
+                showSummary(false);
+                heroSection.classList.remove('min-h-[90vh]');
+                heroSection.classList.add('min-h-[60vh]');
+            }
+
+            // --- INTERACTION LOGIC ---
+            // We attach listeners to the overlay to handle taps and holds anywhere
+
+            const handleTouchStart = (e) => {
+                if (e.target.closest('button')) return;
+
+                pressStartTime = Date.now();
+                // Standard behavior: Hold to pause. 
+                // We pause immediately on touch down.
+                pauseStory();
+            };
+
+            const handleTouchEnd = (e) => {
+                if (e.target.closest('button')) return;
+
+                const pressDuration = Date.now() - pressStartTime;
+
+                // If it was a SHORT tap...
+                if (pressDuration < TAP_THRESHOLD) {
+                    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+                    const width = window.innerWidth;
+
+                    // Left 30% -> Prev
+                    if (clientX < width * 0.3) {
+                        resumeStory();
+                        prevSlide();
+                    }
+                    // Right 30% -> Next
+                    else if (clientX > width * 0.7) {
+                        resumeStory();
+                        nextSlide();
+                    }
+                    // Middle 40% -> Toggle Pause
+                    else {
+                        // User wants middle click to pause (freeze) or unpause.
+                        // Since 'handleTouchStart' called pauseStory(), we are currently PAUSED.
+                        // If we want to STAY paused (toggle), we just don't resume.
+                        // BUT, if we were already paused before this interaction? 
+
+                        // Let's implement a clean toggle logic:
+                        // If we are currently "effectively" paused (ignoring the touch-down pause), we resume.
+                        // If we were running, we pause.
+
+                        // Simplified approach for "Click to Pause":
+                        // If the user taps middle, we explicitly Toggle the state.
+
+                        // However, 'pauseStory' was called on Down. 
+                        // So currently isPaused = true.
+
+                        // We need a variable to track if we were paused manually via toggle.
+                        if (window.manualPause) {
+                            window.manualPause = false;
+                            setPauseIndicator(false);
+                            resumeStory();
+                        } else {
+                            window.manualPause = true;
+                            setPauseIndicator(true);
+                            // Stay paused
+                        }
+                    }
+                } else {
+                    // Long press (Hold) -> Just resume when let go (unless manual pause was set?)
+                    if (!window.manualPause) {
+                        setPauseIndicator(false); // Ensure it's hidden if we were just holding
+                        resumeStory();
+                    }
+                }
+            };
+
+            // Mobile events
+            overlay.addEventListener('touchstart', handleTouchStart, { passive: true });
+            overlay.addEventListener('touchend', handleTouchEnd);
+
+            // Desktop events
+            overlay.addEventListener('mousedown', handleTouchStart);
+            overlay.addEventListener('mouseup', handleTouchEnd);
+
+            // Safety: if mouse leaves window/overlay, resume
+            overlay.addEventListener('mouseleave', () => {
+                if (isPaused && !window.manualPause) {
+                    setPauseIndicator(false);
+                    resumeStory();
+                }
+            });
+        });
+
+        function setPauseIndicator(show) {
+            const ind = document.getElementById('pause-indicator');
+            if (show) {
+                ind.classList.remove('opacity-0');
+            } else {
+                ind.classList.add('opacity-0');
+            }
+        }
+
+        function showSummary(animate = true) {
+            summarySection.classList.remove('hidden');
+            void summarySection.offsetWidth;
+            summarySection.classList.remove('opacity-0', 'translate-y-20');
+            if (animate) {
+                setTimeout(() => {
+                    summarySection.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+            }
+        }
+
+        function startStory() {
+            window.scrollTo(0, 0);
+            overlay.classList.add('active');
+
+            // Generate Progress Bars
+            const slides = document.querySelectorAll('.story-slide');
+            const progressContainer = document.getElementById('story-progress-container');
+            progressContainer.innerHTML = '';
+
+            slides.forEach((_, index) => {
+                const bar = document.createElement('div');
+                bar.className = 'progress-bar flex-1 bg-white/20 h-1 rounded overflow-hidden';
+                bar.innerHTML = `<div class="progress-fill h-full bg-white w-0" id="fill-${index}"></div>`;
+                progressContainer.appendChild(bar);
+            });
+
+            currentSlideIndex = 0;
+            showSlide(0);
+        }
+
+        function prevSlide() {
+            showSlide(currentSlideIndex - 1);
+        }
+
+        function nextSlide() {
+            showSlide(currentSlideIndex + 1);
+        }
+
+        function showSlide(index) {
+            const slides = document.querySelectorAll('.story-slide');
+
+            if (index < 0) index = 0; // Dont go before 0
+            if (index >= slides.length) {
+                endStory();
+                return;
+            }
+
+            // Cleanup previous state
+            if (storyInterval) clearTimeout(storyInterval);
+            isPaused = false;
+            window.manualPause = false;
+            setPauseIndicator(false); // Reset UI
+
+            // 1. Update Visibility
+            slides.forEach(s => s.classList.remove('active'));
+            slides[index].classList.add('active');
+
+            // 2. Update Progress Bars
+            // Bars before current: Full
+            // Bars after current: Empty
+            for (let i = 0; i < slides.length; i++) {
+                const fill = document.getElementById(`fill-${i}`);
+                fill.style.transition = 'none'; // Instant update
+                if (i < index) fill.style.width = '100%';
+                else fill.style.width = '0%';
+            }
+
+            // 3. Animate Current Bar
+            const currentSlide = slides[index];
+            const duration = parseInt(currentSlide.dataset.duration) || 5000;
+            const currentFill = document.getElementById(`fill-${index}`);
+
+            remainingDuration = duration;
+            currentSlideIndex = index;
+
+            startProgressAnimation(currentFill, duration);
+        }
+
+        function startProgressAnimation(element, duration) {
+            slideStartTime = Date.now();
+
+            // Force Reflow
+            void element.offsetWidth;
+
+            element.style.transition = `width ${duration}ms linear`;
+            element.style.width = '100%';
+
+            storyInterval = setTimeout(() => {
+                nextSlide();
+            }, duration);
+        }
+
+        function pauseStory() {
+            if (isPaused) return;
+            isPaused = true;
+            if (storyInterval) clearTimeout(storyInterval);
+
+            // Compute consumed time
+            const elapsed = Date.now() - slideStartTime;
+            remainingDuration -= elapsed;
+
+            // Stop visual animation at current width
+            const currentFill = document.getElementById(`fill-${currentSlideIndex}`);
+            const computedWidth = window.getComputedStyle(currentFill).width;
+
+            currentFill.style.transition = 'none';
+            currentFill.style.width = computedWidth;
+        }
+
+        function resumeStory() {
+            if (!isPaused) return;
+            isPaused = false;
+
+            const currentFill = document.getElementById(`fill-${currentSlideIndex}`);
+
+            if (remainingDuration <= 0) {
+                nextSlide();
+            } else {
+                startProgressAnimation(currentFill, remainingDuration);
+            }
+        }
+
+        function endStory() {
+            if (storyInterval) clearTimeout(storyInterval);
+            overlay.classList.remove('active');
+            localStorage.setItem(storageKey, 'true');
+            showSummary(true);
+            heroSection.classList.remove('min-h-[90vh]');
+            heroSection.classList.add('min-h-[60vh]');
+        }
+
+    </script>
+</body>
+
+</html>

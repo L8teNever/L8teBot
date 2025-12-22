@@ -1,0 +1,9 @@
+discord.py>=2.3.0
+flask>=3.0.0
+flask-discord>=0.1.69
+flask-cors>=4.0.0
+flask-session>=0.8.0
+markupsafe>=2.1.0
+twitchAPI>=4.0.0
+tzdata
+emoji>=2.0.0

@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+{% block title %}Temp-Channel - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Temp-Channel</h1>
+        <p class="text-text-secondary text-base">Temporäre Sprachkanäle erstellen</p>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if is_enabled %}
+        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+        <p class="text-sm font-medium text-green-500">Aktiv</p>
+        {% else %}
+        <span class="h-2 w-2 rounded-full bg-gray-500"></span>
+        <p class="text-sm font-medium text-gray-500">Inaktiv</p>
+        {% endif %}
+    </div>
+</header>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6">
+        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+            <input type="hidden" name="cog_name" value="Temp-Channel">
+            <input type="hidden" name="is_enabled" value="{{ not is_enabled }}">
+            <input type="hidden" name="redirect_url" value="{{ request.url }}">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <div class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" {% if is_enabled %}checked{% endif %} onchange="this.form.submit()"
+                        class="sr-only peer">
+                    <div
+                        class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                    </div>
+                </div>
+                <span class="text-white">Temp-Channel {{ 'aktiviert' if is_enabled else 'deaktiviert' }}</span>
+            </label>
+        </form>
+    </div>
+</section>
+
+{% if is_enabled %}
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">settings</span>
+            Konfiguration
+        </h2>
+        <p class="text-text-secondary text-sm mt-1">Erstellt temporäre Kanäle beim Beitritt</p>
+    </div>
+    <div class="p-6">
+        <form action="{{ url_for('manage_temp_channel', guild_id=guild.id) }}" method="post" class="space-y-4">
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Trigger-Kanal</label>
+                <p class="text-text-secondary text-xs mb-2">Sprachkanal, der temporäre Kanäle erstellt</p>
+                <select name="trigger_channel_id"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="">Deaktiviert</option>
+                    {% for channel in guild.voice_channels|sort(attribute='position') %}
+                    <option value="{{ channel.id }}" {% if channel.id==config.get('trigger_channel_id') %}selected{%
+                        endif %}>🔊 {{ channel.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Kanalnamen-Format</label>
+                <p class="text-text-secondary text-xs mb-2">Platzhalter: <code
+                        class="bg-black/30 px-2 py-1 rounded">{user}</code></p>
+                <input type="text" name="channel_name_format"
+                    value="{{ config.get('channel_name_format', '🔊 {user}''s Raum') }}"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+            </div>
+            <button type="submit"
+                class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                Speichern
+            </button>
+        </form>
+    </div>
+</section>
+{% else %}
+<div class="rounded-lg p-6 bg-yellow-500/10 border border-yellow-500/30">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-yellow-400 text-3xl">info</span>
+        <div>
+            <h3 class="text-white font-bold mb-1">Modul deaktiviert</h3>
+            <p class="text-yellow-200 text-sm">Aktiviere Temp-Channel, um Einstellungen zu sehen.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

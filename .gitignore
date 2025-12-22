@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+
+# Data and Secrets
+config.json
+data/
+flask_session/
+*.bak
+*.log
+.env
+secret.txt
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

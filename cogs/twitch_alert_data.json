@@ -1,0 +1,23 @@
+{
+    "1139489151343927347": {
+        "twitch_user": "yooja_vt",
+        "display_name": "yooja_vt",
+        "channel_id": 1392140231364575314,
+        "ping_role_id": 1141797883025305620,
+        "notification_role_id": 1139490156659867682,
+        "current_status": "OFFLINE",
+        "message_id": 1392140232765345792,
+        "last_game_name": "Just Chatting",
+        "role_id": 1358190084415033653,
+        "last_live_at": "2025-07-05T13:42:03.286492"
+    },
+    "1281995410042519607": {
+        "twitch_user": "yooja_vt",
+        "display_name": "yooja_vt",
+        "channel_id": 1391931350700916736,
+        "role_id": 1333127324597620737,
+        "current_status": "OFFLINE",
+        "message_id": 1391931352537890847,
+        "last_game_name": "Just Chatting"
+    }
+}

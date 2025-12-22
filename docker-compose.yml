@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  l8tebot:
+    # Use the image from Docker Hub (make sure your repo name matches)
+    # image: l8tenever/l8tebot:latest
+    # For development, we build locally:
+    build: .
+    container_name: l8tebot
+    restart: unless-stopped
+    ports:
+      - "5002:5000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TZ=Europe/Berlin

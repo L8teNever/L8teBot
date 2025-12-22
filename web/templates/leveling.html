@@ -1,0 +1,194 @@
+{% extends "layout.html" %}
+{% block title %}Leveling - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Level-System</h1>
+        <p class="text-text-secondary text-base">XP, Rollen und Leaderboard</p>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if is_enabled %}
+        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+        <p class="text-sm font-medium text-green-500">Aktiv</p>
+        {% else %}
+        <span class="h-2 w-2 rounded-full bg-gray-500"></span>
+        <p class="text-sm font-medium text-gray-500">Inaktiv</p>
+        {% endif %}
+    </div>
+</header>
+
+<!-- Module Toggle -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6">
+        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+            <input type="hidden" name="cog_name" value="Level-System">
+            <input type="hidden" name="is_enabled" value="{{ not is_enabled }}">
+            <input type="hidden" name="redirect_url" value="{{ request.url }}">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <div class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" {% if is_enabled %}checked{% endif %} onchange="this.form.submit()"
+                        class="sr-only peer">
+                    <div
+                        class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                    </div>
+                </div>
+                <span class="text-white">Level-System {{ 'aktiviert' if is_enabled else 'deaktiviert' }}</span>
+            </label>
+        </form>
+    </div>
+</section>
+
+{% if is_enabled %}
+<!-- Configuration -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e]">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined">settings</span>
+                Konfiguration
+            </h2>
+        </div>
+        <div class="p-6">
+            <form action="{{ url_for('manage_leveling', guild_id=guild.id) }}" method="post" class="space-y-4">
+                <input type="hidden" name="action" value="set_config">
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">XP pro Nachricht</label>
+                    <input type="number" name="xp_per_message" value="{{ config.get('xp_per_message', 10) }}" min="0"
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Cooldown (Sekunden)</label>
+                    <input type="number" name="cooldown" value="{{ config.get('cooldown', 60) }}" min="0"
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Täglicher XP-Bonus</label>
+                    <input type="number" name="daily_xp_amount" value="{{ config.get('daily_xp_amount', 50) }}" min="0"
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Level-Up Log-Kanal</label>
+                    <select name="log_channel"
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                        <option value="">Deaktiviert</option>
+                        {% for channel in guild.text_channels|sort(attribute='position') %}
+                        <option value="{{ channel.id }}" {% if channel.id==config.get('log_channel_id') %}selected{%
+                            endif %}>#{{ channel.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit"
+                    class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                    Speichern
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e]">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined">workspace_premium</span>
+                Level-Rollen
+            </h2>
+        </div>
+        <div class="p-6 space-y-4">
+            <form action="{{ url_for('manage_leveling', guild_id=guild.id) }}" method="post" class="flex gap-2">
+                <input type="hidden" name="action" value="add_level_role">
+                <input type="number" name="level" placeholder="Level" required
+                    class="flex-1 px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                <select name="role_id" required
+                    class="flex-1 px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="" disabled selected>Rolle wählen</option>
+                    {% for role in guild.roles|sort(attribute='position', reverse=true) %}
+                    {% if not role.is_default() %}
+                    <option value="{{role.id}}">{{role.name}}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+                <button type="submit"
+                    class="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">+</button>
+            </form>
+
+            <div class="space-y-2">
+                {% set level_roles = config.get('level_roles', {}) %}
+                {% if level_roles %}
+                {% for level, role_id in level_roles.items()|sort %}
+                <div class="flex items-center justify-between p-3 rounded-lg bg-background-dark">
+                    <span class="text-white">Level {{level}} → @{{guild.get_role(role_id).name if
+                        guild.get_role(role_id) else 'Unbekannt'}}</span>
+                    <form action="{{ url_for('manage_leveling', guild_id=guild.id) }}" method="post" class="inline">
+                        <input type="hidden" name="action" value="remove_level_role">
+                        <input type="hidden" name="level_to_remove" value="{{level}}">
+                        <button
+                            class="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors">×</button>
+                    </form>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-text-secondary text-sm">Keine Level-Rollen konfiguriert</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Leaderboard -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">leaderboard</span>
+            Leaderboard
+        </h2>
+    </div>
+    <div class="p-6">
+        {% if leaderboard %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-[#2e3e5e]">
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">#</th>
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Benutzer</th>
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Level</th>
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">XP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user_stats in leaderboard[:20] %}
+                    <tr class="border-b border-[#2e3e5e] hover:bg-white/5 transition-colors">
+                        <td class="py-3 px-4 text-white">{{ loop.index }}</td>
+                        <td class="py-3 px-4">
+                            <div class="flex items-center gap-2">
+                                <img src="{{ user_stats['member'].display_avatar.url }}" class="w-8 h-8 rounded-full"
+                                    alt="Avatar">
+                                <span class="text-white">{{ user_stats['member'].display_name }}</span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-white font-bold">{{ user_stats.get('level', 0) }}</td>
+                        <td class="py-3 px-4 text-text-secondary">{{ "{:,}".format(user_stats.get('xp', 0)).replace(',',
+                            '.') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-text-secondary">Noch keine Daten vorhanden</p>
+        {% endif %}
+    </div>
+</section>
+
+{% else %}
+<div class="rounded-lg p-6 bg-yellow-500/10 border border-yellow-500/30">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-yellow-400 text-3xl">info</span>
+        <div>
+            <h3 class="text-white font-bold mb-1">Modul deaktiviert</h3>
+            <p class="text-yellow-200 text-sm">Aktiviere das Level-System, um Einstellungen zu sehen.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

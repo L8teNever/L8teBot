@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block title %}Custom Commands{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Custom Commands</h1>
+        <p class="text-text-secondary text-base">Eigene Befehle erstellen</p>
+    </div>
+</header>
+
+<div class="rounded-lg p-6 bg-blue-500/10 border border-blue-500/30">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-blue-400 text-3xl">code</span>
+        <div>
+            <h3 class="text-white font-bold mb-1">Custom Commands</h3>
+            <p class="text-blue-200 text-sm">Erstelle eigene Bot-Befehle für deinen Server.</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

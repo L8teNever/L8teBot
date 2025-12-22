@@ -1,0 +1,133 @@
+{% extends "layout.html" %}
+{% block title %}Server Auswahl{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">Server-Auswahl</h1>
+        <p class="text-text-secondary text-base font-normal">Wähle einen Server aus, um die Einstellungen zu verwalten.
+        </p>
+    </div>
+    {% if user %}
+    <div class="flex items-center gap-2">
+        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+        <p class="text-sm font-medium text-green-500">Eingeloggt</p>
+    </div>
+    {% endif %}
+</header>
+
+<!-- Quick Actions -->
+<section class="flex gap-4">
+    <a href="{{ url_for('admin_maintenance') }}"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg bg-card-dark border border-[#2e3e5e] hover:border-primary/50 transition-all text-white">
+        <span class="material-symbols-outlined text-primary">build</span>
+        <div>
+            <p class="text-sm font-bold">Wartung & Backup</p>
+            <p class="text-xs text-text-secondary">System-Verwaltung</p>
+        </div>
+    </a>
+</section>
+
+<!-- Server Grid -->
+<section>
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-white text-xl font-bold">Deine Server</h2>
+        <p class="text-text-secondary text-sm">{{ guilds|length }} Server gefunden</p>
+    </div>
+
+    {% if guilds %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for guild in guilds %}
+        <a href="{{ url_for('guild_settings', guild_id=guild.id) }}"
+            class="group flex flex-col gap-4 rounded-lg p-6 bg-card-dark border border-[#2e3e5e] hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all">
+            <div class="flex items-center gap-4">
+                <div class="relative">
+                    <img src="{{ guild.icon_url or url_for('static', filename='error.png') }}" alt="{{ guild.name }}"
+                        class="w-16 h-16 rounded-lg border-2 border-[#2e3e5e] group-hover:border-primary transition-colors">
+                    <div
+                        class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-card-dark">
+                    </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-white font-bold text-lg truncate group-hover:text-primary transition-colors">{{
+                        guild.name }}</h3>
+                    <p class="text-text-secondary text-sm">{{ guild.member_count or '?' }} Mitglieder</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-3 border-t border-[#2e3e5e]">
+                <span class="text-xs text-text-secondary">Verwalten →</span>
+                <span
+                    class="material-symbols-outlined text-text-secondary group-hover:text-primary transition-colors">arrow_forward</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="rounded-lg p-8 bg-card-dark border border-[#2e3e5e] text-center">
+        <span class="material-symbols-outlined text-6xl text-text-secondary mb-4 block">cloud_off</span>
+        <h3 class="text-white text-lg font-bold mb-2">Keine Server gefunden</h3>
+        <p class="text-text-secondary mb-4">
+            Keine gemeinsamen Server gefunden, auf denen du Administrator bist und der Bot sich befindet.
+        </p>
+        <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
+            target="_blank"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white font-bold hover:bg-blue-600 transition-colors">
+            <span class="material-symbols-outlined">add</span>
+            Bot einladen
+        </a>
+    </div>
+    {% endif %}
+</section>
+
+<!-- Info Cards -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+    <div class="rounded-lg p-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+        <div class="flex items-start gap-4">
+            <div class="h-12 w-12 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-blue-400 text-2xl">info</span>
+            </div>
+            <div>
+                <h3 class="text-white font-bold mb-1">Erste Schritte</h3>
+                <p class="text-text-secondary text-sm">
+                    Wähle einen Server aus, um Module zu aktivieren und Einstellungen anzupassen.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-lg p-6 bg-gradient-to-br from-green-500/10 to-teal-500/10 border border-green-500/20">
+        <div class="flex items-start gap-4">
+            <div class="h-12 w-12 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-green-400 text-2xl">support</span>
+            </div>
+            <div>
+                <h3 class="text-white font-bold mb-1">Hilfe benötigt?</h3>
+                <p class="text-text-secondary text-sm">
+                    Besuche unsere Dokumentation oder kontaktiere den Support.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    section {
+        animation: fadeIn 0.5s ease-out;
+    }
+</style>
+
+{% endblock %}

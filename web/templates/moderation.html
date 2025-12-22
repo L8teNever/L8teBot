@@ -1,0 +1,107 @@
+{% extends "layout.html" %}
+{% block title %}Moderation - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Moderation</h1>
+        <p class="text-text-secondary text-base">Verwarnungen, Bans und Moderations-Befehle</p>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if is_enabled %}
+        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+        <p class="text-sm font-medium text-green-500">Aktiv</p>
+        {% else %}
+        <span class="h-2 w-2 rounded-full bg-gray-500"></span>
+        <p class="text-sm font-medium text-gray-500">Inaktiv</p>
+        {% endif %}
+    </div>
+</header>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">toggle_on</span>
+            Modul-Status
+        </h2>
+    </div>
+    <div class="p-6">
+        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+            <input type="hidden" name="cog_name" value="Moderation">
+            <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
+            <input type="hidden" name="redirect_url" value="{{ request.url }}">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <div class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" {% if is_enabled %}checked{% endif %} onchange="this.form.submit()"
+                        class="sr-only peer">
+                    <div
+                        class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                    </div>
+                </div>
+                <span class="text-white">Moderations-Modul {{ 'aktiviert' if is_enabled else 'deaktiviert' }}</span>
+            </label>
+        </form>
+    </div>
+</section>
+
+{% if is_enabled %}
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">terminal</span>
+            Befehle verwalten
+        </h2>
+    </div>
+    <div class="p-6">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-[#2e3e5e]">
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Befehl</th>
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Beschreibung</th>
+                        <th class="text-right py-3 px-4 text-text-secondary font-medium text-sm">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for command_name, command_data in commands.items() %}
+                    <tr class="border-b border-[#2e3e5e] hover:bg-white/5 transition-colors">
+                        <td class="py-3 px-4">
+                            <code class="text-primary font-mono">/{{ command_name }}</code>
+                        </td>
+                        <td class="py-3 px-4 text-text-secondary text-sm">
+                            {{ command_data.description or 'Keine Beschreibung' }}
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <form action="{{ url_for('manage_moderation', guild_id=guild.id) }}" method="post"
+                                class="inline">
+                                <input type="hidden" name="action" value="toggle_command">
+                                <input type="hidden" name="command_name" value="{{ command_name }}">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" {% if command_data.enabled %}checked{% endif %}
+                                        onchange="this.form.submit()" class="sr-only peer">
+                                    <div
+                                        class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                                    </div>
+                                </label>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% else %}
+<div class="rounded-lg p-6 bg-yellow-500/10 border border-yellow-500/30">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-yellow-400 text-3xl">info</span>
+        <div>
+            <h3 class="text-white font-bold mb-1">Modul deaktiviert</h3>
+            <p class="text-yellow-200 text-sm">Aktiviere das Moderations-Modul, um Befehle zu verwalten.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

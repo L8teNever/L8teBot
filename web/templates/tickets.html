@@ -1,0 +1,161 @@
+{% extends "layout.html" %}
+{% block title %}Tickets - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Ticket-System</h1>
+        <p class="text-text-secondary text-base">Support-Anfragen verwalten</p>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if is_enabled %}
+        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+        <p class="text-sm font-medium text-green-500">Aktiv</p>
+        {% else %}
+        <span class="h-2 w-2 rounded-full bg-gray-500"></span>
+        <p class="text-sm font-medium text-gray-500">Inaktiv</p>
+        {% endif %}
+    </div>
+</header>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6">
+        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+            <input type="hidden" name="cog_name" value="Ticket-System">
+            <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
+            <input type="hidden" name="redirect_url" value="{{ request.url }}">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <div class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" {% if is_enabled %}checked{% endif %} onchange="this.form.submit()"
+                        class="sr-only peer">
+                    <div
+                        class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                    </div>
+                </div>
+                <span class="text-white">Ticket-System {{ 'aktiviert' if is_enabled else 'deaktiviert' }}</span>
+            </label>
+        </form>
+    </div>
+</section>
+
+{% if is_enabled %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e]">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined">settings</span>
+                Konfiguration
+            </h2>
+        </div>
+        <div class="p-6">
+            <form action="{{ url_for('manage_tickets', guild_id=guild.id) }}" method="post" class="space-y-4">
+                <input type="hidden" name="action" value="set_config">
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Ticket-Erstellungs-Kanal</label>
+                    <select name="ticket_channel" required
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                        <option value="" disabled {% if not settings.ticket_channel %}selected{% endif %}>Kanal
+                            wählen...</option>
+                        {% for channel in guild.text_channels|sort(attribute='position') %}
+                        <option value="{{ channel.id }}" {% if channel.id==settings.get('ticket_channel') %}selected{%
+                            endif %}>#{{ channel.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Ticket-Kategorie</label>
+                    <select name="ticket_category" required
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                        <option value="" disabled {% if not settings.ticket_kategorie %}selected{% endif %}>Kategorie
+                            wählen...</option>
+                        {% for category in guild.categories|sort(attribute='position') %}
+                        <option value="{{ category.id }}" {% if category.id==settings.get('ticket_kategorie')
+                            %}selected{% endif %}>{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Log-Kanal</label>
+                    <select name="log_channel"
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                        <option value="">Deaktiviert</option>
+                        {% for channel in guild.text_channels|sort(attribute='position') %}
+                        <option value="{{ channel.id }}" {% if channel.id==settings.get('log_channel') %}selected{%
+                            endif %}>#{{ channel.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Max. Tickets pro Benutzer</label>
+                    <input type="number" name="max_tickets_per_user"
+                        value="{{ settings.get('max_tickets_per_user', 1) }}" min="1"
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                </div>
+                <button type="submit"
+                    class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                    Speichern
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e]">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined">label</span>
+                Ticket-Gründe
+            </h2>
+        </div>
+        <div class="p-6 space-y-4">
+            <form action="{{ url_for('manage_tickets', guild_id=guild.id) }}" method="post" class="space-y-3">
+                <input type="hidden" name="action" value="add_reason">
+                <input type="text" name="reason_name" placeholder="Name (z.B. Support)" required
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                <input type="text" name="reason_desc" placeholder="Beschreibung (optional)"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                <input type="text" name="reason_emoji" placeholder="Emoji" maxlength="2"
+                    class="w-20 px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                <button type="submit"
+                    class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                    Grund hinzufügen
+                </button>
+            </form>
+
+            <div class="space-y-2">
+                {% set reasons = settings.get('ticket_reasons', []) %}
+                {% if reasons %}
+                {% for reason in reasons %}
+                <div class="flex items-center justify-between p-3 rounded-lg bg-background-dark">
+                    <div>
+                        <p class="text-white font-bold">{% if reason.emoji %}{{ reason.emoji }} {% endif %}{{
+                            reason.name }}</p>
+                        <p class="text-text-secondary text-sm">{{ reason.description or 'Keine Beschreibung' }}</p>
+                    </div>
+                    <form action="{{ url_for('manage_tickets', guild_id=guild.id) }}" method="post" class="inline">
+                        <input type="hidden" name="action" value="remove_reason">
+                        <input type="hidden" name="reason_name_to_remove" value="{{ reason.name }}">
+                        <button
+                            class="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors">×</button>
+                    </form>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-text-secondary text-sm">Keine Gründe konfiguriert</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</div>
+{% else %}
+<div class="rounded-lg p-6 bg-yellow-500/10 border border-yellow-500/30">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-yellow-400 text-3xl">info</span>
+        <div>
+            <h3 class="text-white font-bold mb-1">Modul deaktiviert</h3>
+            <p class="text-yellow-200 text-sm">Aktiviere das Ticket-System, um Einstellungen zu sehen.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

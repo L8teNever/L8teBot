@@ -1,0 +1,211 @@
+{% extends "layout.html" %}
+{% block title %}Geburtstage - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Geburtstage</h1>
+        <p class="text-text-secondary text-base">Automatische Glückwünsche & Rollen</p>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if is_enabled %}
+        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+        <p class="text-sm font-medium text-green-500">Aktiv</p>
+        {% else %}
+        <span class="h-2 w-2 rounded-full bg-gray-500"></span>
+        <p class="text-sm font-medium text-gray-500">Inaktiv</p>
+        {% endif %}
+    </div>
+</header>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6">
+        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+            <input type="hidden" name="cog_name" value="Geburtstage">
+            <input type="hidden" name="is_enabled" value="{{ not is_enabled }}">
+            <input type="hidden" name="redirect_url" value="{{ request.url }}">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <div class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" {% if is_enabled %}checked{% endif %} onchange="this.form.submit()"
+                        class="sr-only peer">
+                    <div
+                        class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                    </div>
+                </div>
+                <span class="text-white">Geburtstags-Modul {{ 'aktiviert' if is_enabled else 'deaktiviert' }}</span>
+            </label>
+        </form>
+    </div>
+</section>
+
+{% if is_enabled %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e]">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined">settings</span>
+                Konfiguration
+            </h2>
+        </div>
+        <div class="p-6">
+            <form action="{{ url_for('manage_birthdays', guild_id=guild.id) }}" method="post" class="space-y-4">
+                <input type="hidden" name="action" value="set_config">
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Listen-Kanal</label>
+                    <select name="list_channel"
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                        <option value="">Deaktiviert</option>
+                        {% for channel in guild.text_channels|sort(attribute='position') %}
+                        <option value="{{ channel.id }}" {% if channel.id==settings.get('list_channel_id') %}selected{%
+                            endif %}>#{{ channel.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Ankündigungs-Kanal</label>
+                    <select name="announcement_channel"
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                        <option value="">Deaktiviert</option>
+                        {% for channel in guild.text_channels|sort(attribute='position') %}
+                        <option value="{{ channel.id }}" {% if channel.id==settings.get('announcement_channel_id')
+                            %}selected{% endif %}>#{{ channel.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Geburtstags-Rolle</label>
+                    <select name="birthday_role"
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                        <option value="">Keine Rolle</option>
+                        {% for role in guild.roles|sort(attribute='position', reverse=true) %}
+                        {% if not role.is_default() and not role.is_bot_managed() %}
+                        <option value="{{ role.id }}" {% if role.id==settings.get('role_id') %}selected{% endif %}>{{
+                            role.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit"
+                    class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                    Speichern
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e]">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined">cake</span>
+                Geburtstag hinzufügen
+            </h2>
+        </div>
+        <div class="p-6">
+            <form action="{{ url_for('manage_birthdays', guild_id=guild.id) }}" method="post" class="space-y-4">
+                <input type="hidden" name="action" value="add_bday">
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Benutzer</label>
+                    <select name="user" required
+                        class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                        {% for member in guild.members|sort(attribute='name') %}
+                        {% if not member.bot %}
+                        <option value="{{ member.id }}">{{ member.display_name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Tag</label>
+                        <input type="number" name="day" min="1" max="31" required placeholder="TT"
+                            class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Monat</label>
+                        <input type="number" name="month" min="1" max="12" required placeholder="MM"
+                            class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Jahr</label>
+                        <input type="number" name="year" min="1900" max="2024" placeholder="JJJJ"
+                            class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    </div>
+                </div>
+                <button type="submit"
+                    class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                    Hinzufügen
+                </button>
+            </form>
+        </div>
+    </section>
+</div>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">list</span>
+            Registrierte Geburtstage ({{ birthdays|length }})
+        </h2>
+    </div>
+    <div class="p-6">
+        {% if birthdays %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-[#2e3e5e]">
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Datum</th>
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Benutzer</th>
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Jahr</th>
+                        <th class="text-right py-3 px-4 text-text-secondary font-medium text-sm">Aktion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bday in birthdays %}
+                    <tr class="border-b border-[#2e3e5e] hover:bg-white/5 transition-colors">
+                        <td class="py-3 px-4 text-white">
+                            {% if bday.get('day') is not none and bday.get('month') is not none %}
+                            {{ "%02d.%02d" | format(bday.get('day'), bday.get('month')) }}
+                            {% else %}N/A{% endif %}
+                        </td>
+                        <td class="py-3 px-4">
+                            <div class="flex items-center gap-2">
+                                <img src="{{ bday.member.display_avatar.url }}" class="w-8 h-8 rounded-full"
+                                    alt="Avatar">
+                                <span class="text-white">{{ bday.member.display_name }}</span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-text-secondary">{{ bday.get('year') if bday.get('year') else 'N/A' }}
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <form action="{{ url_for('manage_birthdays', guild_id=guild.id) }}" method="post"
+                                class="inline">
+                                <input type="hidden" name="action" value="remove_bday">
+                                <input type="hidden" name="user_to_remove" value="{{ bday.member.id }}">
+                                <button
+                                    class="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors">×</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-text-secondary">Noch keine Geburtstage eingetragen</p>
+        {% endif %}
+    </div>
+</section>
+
+{% else %}
+<div class="rounded-lg p-6 bg-yellow-500/10 border border-yellow-500/30">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-yellow-400 text-3xl">info</span>
+        <div>
+            <h3 class="text-white font-bold mb-1">Modul deaktiviert</h3>
+            <p class="text-yellow-200 text-sm">Aktiviere das Geburtstags-Modul, um Einstellungen zu sehen.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

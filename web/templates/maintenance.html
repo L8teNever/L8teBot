@@ -1,0 +1,117 @@
+{% extends "layout.html" %}
+{% block title %}Wartung & Backup{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Wartung & Backup</h1>
+        <p class="text-text-secondary text-base">Datenverwaltung für alle Server</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <span class="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></span>
+        <p class="text-sm font-medium text-yellow-500">Admin-Bereich</p>
+    </div>
+</header>
+
+<div class="rounded-lg p-6 bg-yellow-500/10 border border-yellow-500/30 mb-6">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-yellow-400 text-3xl">warning</span>
+        <div>
+            <h3 class="text-white font-bold mb-1">Achtung!</h3>
+            <p class="text-yellow-200 text-sm">Diese Aktionen betreffen den gesamten Bot und alle Server!</p>
+        </div>
+    </div>
+</div>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">backup</span>
+            Vollständiges Backup
+        </h2>
+        <p class="text-text-secondary text-sm mt-1">Backup aller Daten herunterladen oder wiederherstellen</p>
+    </div>
+    <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="rounded-lg p-6 bg-background-dark border border-[#2e3e5e]">
+                <h3 class="text-white font-bold mb-2 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">download</span>
+                    Backup herunterladen
+                </h3>
+                <p class="text-text-secondary text-sm mb-4">Erstellt ein ZIP-Archiv des <code
+                        class="bg-black/30 px-2 py-1 rounded">data/</code> Ordners</p>
+                <a href="{{ url_for('download_backup') }}"
+                    class="block w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold text-center transition-colors">
+                    Download Backup.zip
+                </a>
+            </div>
+
+            <div class="rounded-lg p-6 bg-background-dark border border-[#2e3e5e]">
+                <h3 class="text-white font-bold mb-2 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-red-400">upload</span>
+                    Backup wiederherstellen
+                </h3>
+                <p class="text-text-secondary text-sm mb-4">Lädt ZIP hoch und überschreibt <code
+                        class="bg-black/30 px-2 py-1 rounded">data/</code></p>
+                <form action="{{ url_for('upload_backup') }}" method="POST" enctype="multipart/form-data"
+                    class="space-y-3">
+                    <input type="file" name="backup_file" accept=".zip" required
+                        class="w-full px-4 py-2 rounded-lg bg-card-dark border border-[#2e3e5e] text-white text-sm">
+                    <button type="submit" onclick="return confirm('Bist du sicher? Dies überschreibt aktuelle Daten!');"
+                        class="w-full px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold transition-colors">
+                        Backup hochladen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">sync</span>
+            Legacy-Daten Import
+        </h2>
+        <p class="text-text-secondary text-sm mt-1">Importiere alte JSON-Dateien ins neue System</p>
+    </div>
+    <div class="p-6">
+        <form action="{{ url_for('import_legacy_data') }}" method="POST" enctype="multipart/form-data"
+            class="space-y-4">
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Dateityp</label>
+                <select name="module_name" required
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="">-- Bitte wählen --</option>
+                    <option value="config">Allgemeine Config (config.json)</option>
+                    <option value="birthday">Geburtstage (birthday.json)</option>
+                    <option value="counting">Zähl-Spiel (counting.json)</option>
+                    <option value="milestones">Meilensteine (milestones.json)</option>
+                    <option value="level_config">Level-System Config</option>
+                    <option value="level_users">Level-System User XP</option>
+                    <option value="streamers">Twitch Multi-Stream</option>
+                    <option value="twitch_alerts">Twitch Live Alert</option>
+                    <option value="twitch_clips">Twitch Clips</option>
+                    <option value="ticket_config">Ticket Konfiguration</option>
+                    <option value="tickets">Tickets Daten</option>
+                    <option value="temp_channels">Temp-Channel</option>
+                    <option value="streak">Streak</option>
+                    <option value="gatekeeper">Gatekeeper</option>
+                    <option value="guard">Guard</option>
+                    <option value="global_ban">Global Ban</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">JSON-Datei</label>
+                <input type="file" name="legacy_file" accept=".json" required
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white text-sm">
+            </div>
+            <button type="submit"
+                class="w-full px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-bold transition-colors">
+                Importieren & Migrieren
+            </button>
+        </form>
+    </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends "layout.html" %}
+{% block title %}Counting - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Zähl-Modul</h1>
+        <p class="text-text-secondary text-base">Zähl-Kanäle & Milestones</p>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if is_enabled %}
+        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+        <p class="text-sm font-medium text-green-500">Aktiv</p>
+        {% else %}
+        <span class="h-2 w-2 rounded-full bg-gray-500"></span>
+        <p class="text-sm font-medium text-gray-500">Inaktiv</p>
+        {% endif %}
+    </div>
+</header>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6">
+        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+            <input type="hidden" name="cog_name" value="Zählen">
+            <input type="hidden" name="is_enabled" value="{{ not is_enabled }}">
+            <input type="hidden" name="redirect_url" value="{{ request.url }}">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <div class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" {% if is_enabled %}checked{% endif %} onchange="this.form.submit()"
+                        class="sr-only peer">
+                    <div
+                        class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                    </div>
+                </div>
+                <span class="text-white">Zähl-Modul {{ 'aktiviert' if is_enabled else 'deaktiviert' }}</span>
+            </label>
+        </form>
+    </div>
+</section>
+
+{% if is_enabled %}
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">add</span>
+            Kanal hinzufügen
+        </h2>
+    </div>
+    <div class="p-6">
+        <form action="{{ url_for('manage_counting', guild_id=guild.id) }}" method="post" class="flex gap-2">
+            <input type="hidden" name="action" value="set_channel">
+            <select name="channel" required
+                class="flex-1 px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                <option value="" disabled selected>Kanal wählen...</option>
+                {% for channel in guild.text_channels|sort(attribute='position') %}
+                <option value="{{ channel.id }}">#{{ channel.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit"
+                class="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                Hinzufügen
+            </button>
+        </form>
+    </div>
+</section>
+
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">tag</span>
+            Aktive Kanäle
+        </h2>
+    </div>
+    <div class="p-6">
+        {% if active_channels %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-[#2e3e5e]">
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Kanal</th>
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Stand</th>
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Slowmode</th>
+                        <th class="text-right py-3 px-4 text-text-secondary font-medium text-sm">Aktion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in active_channels %}
+                    {% if item and item.channel %}
+                    <tr class="border-b border-[#2e3e5e] hover:bg-white/5 transition-colors">
+                        <td class="py-3 px-4 text-white">#{{ item.channel.name }}</td>
+                        <td class="py-3 px-4">
+                            <form action="{{ url_for('manage_counting', guild_id=guild.id) }}" method="post"
+                                class="flex gap-2">
+                                <input type="hidden" name="action" value="set_count">
+                                <input type="hidden" name="channel_to_set" value="{{ item.channel.id }}">
+                                <input type="number" name="number" value="{{ item.data.get('current_number', 0) }}"
+                                    class="w-24 px-2 py-1 rounded bg-background-dark border border-[#2e3e5e] text-white text-sm">
+                                <button
+                                    class="px-2 py-1 rounded bg-primary hover:bg-blue-600 text-white text-xs font-bold">Set</button>
+                            </form>
+                        </td>
+                        <td class="py-3 px-4">
+                            <form action="{{ url_for('manage_counting', guild_id=guild.id) }}" method="post"
+                                class="flex gap-2">
+                                <input type="hidden" name="action" value="set_slowmode">
+                                <input type="hidden" name="channel_to_set_slowmode" value="{{ item.channel.id }}">
+                                <input type="number" name="seconds" value="{{ item.data.get('slowmode', 1) }}" min="0"
+                                    max="21600"
+                                    class="w-20 px-2 py-1 rounded bg-background-dark border border-[#2e3e5e] text-white text-sm">
+                                <button
+                                    class="px-2 py-1 rounded bg-primary hover:bg-blue-600 text-white text-xs font-bold">Set</button>
+                            </form>
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <form action="{{ url_for('manage_counting', guild_id=guild.id) }}" method="post"
+                                class="inline">
+                                <input type="hidden" name="action" value="remove_channel">
+                                <input type="hidden" name="channel_to_remove" value="{{ item.channel.id }}">
+                                <button
+                                    class="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-sm font-bold">×</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-text-secondary">Keine aktiven Zähl-Kanäle</p>
+        {% endif %}
+    </div>
+</section>
+
+{% else %}
+<div class="rounded-lg p-6 bg-yellow-500/10 border border-yellow-500/30">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-yellow-400 text-3xl">info</span>
+        <div>
+            <h3 class="text-white font-bold mb-1">Modul deaktiviert</h3>
+            <p class="text-yellow-200 text-sm">Aktiviere das Zähl-Modul, um Einstellungen zu sehen.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
