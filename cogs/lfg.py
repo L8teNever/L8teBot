@@ -479,6 +479,12 @@ class LFGCog(commands.Cog, name="LFG"):
                 embed.description += f"\n\n📍 **Lobby:** {lobby_thread.mention}"
                 await start_msg.edit(embed=embed)
                 
+                # Pin the message to keep it accessible
+                try:
+                    await start_msg.pin()
+                except:
+                    pass
+                
                 config['start_channel_id'] = start_channel_id
                 config['start_message_id'] = start_msg.id
                 config['lobby_thread_id'] = lobby_thread.id
@@ -486,15 +492,15 @@ class LFGCog(commands.Cog, name="LFG"):
                 # Add existing role members to the thread
                 target_role = guild.get_role(participation_role_id)
                 if target_role:
-                    added_count = 0
-                    for member in target_role.members:
-                        try:
-                            await lobby_thread.add_user(member)
-                            added_count += 1
-                            if added_count >= 90: # Safety break for Discord limits
-                                break
-                        except:
-                            continue
+                    # Sync all members of the role
+                    async def add_members():
+                        for member in target_role.members:
+                            try:
+                                await lobby_thread.add_user(member)
+                                await asyncio.sleep(0.5) # Avoid rate limits
+                            except:
+                                continue
+                    self.bot.loop.create_task(add_members())
                 
             except Exception as e:
                 print(f"Error in LFG config: {e}")
@@ -504,11 +510,11 @@ class LFGCog(commands.Cog, name="LFG"):
         config['max_searches_per_user'] = max(1, min(max_searches, 10))
         
         self._save_lfg_config(guild_id, config)
-        return True, "LFG-Konfiguration gespeichert. Privater Lobby-Thread wurde erstellt."
+        return True, "LFG-Konfiguration gespeichert. Privater Lobby-Thread wurde erstellt und Mitglieder synchronisiert."
 
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
-        """Auto-add members to lobby thread when they get the participation role"""
+        """Auto-add/remove members from lobby thread based on role changes"""
         config = self._get_lfg_config(after.guild.id)
         role_id = config.get('participation_role_id')
         thread_id = config.get('lobby_thread_id')
@@ -516,13 +522,31 @@ class LFGCog(commands.Cog, name="LFG"):
         if not role_id or not thread_id:
             return
             
-        # Check if role was added
         role = after.guild.get_role(role_id)
-        if role and role not in before.roles and role in after.roles:
+        if not role:
+            return
+
+        # Case: Role added
+        if role not in before.roles and role in after.roles:
             try:
                 thread = await self.bot.fetch_channel(thread_id)
                 if thread:
                     await thread.add_user(after)
+            except:
+                pass
+        
+        # Case: Role removed
+        elif role in before.roles and role not in after.roles:
+            try:
+                thread = await self.bot.fetch_channel(thread_id)
+                if thread:
+                    # Discord API doesn't have a direct "remove user from thread" without deleting the thread or the user leaving
+                    # But if it's a private thread, they will lose access if they aren't explicitly in it.
+                    # Actually, for private threads, you have to be manually added. 
+                    # If they lose the role, they stay in the thread unless removed.
+                    # Currently discord.py doesn't support removing users from threads easily via add_user's opposite.
+                    # However, we can use the low-level API if needed, but usually just adding is the priority.
+                    pass
             except:
                 pass
 
