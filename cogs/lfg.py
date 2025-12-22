@@ -460,7 +460,7 @@ class LFGCog(commands.Cog, name="LFG"):
             # Create new start message
             embed = Embed(
                 title="🎮 Mitspieler-Suche",
-                description="Du suchst jemanden zum Zocken? Klicke auf den Button unten!\n\n*Hinweis: Du musst die entsprechende Rolle haben, um teilzunehmen.*",
+                description="Du suchst jemanden zum Zocken? Klicke auf den Button unten!\n\n*Hinweis: Nur Teilnehmer mit der entsprechenden Rolle sehen den Lobby-Bereich.*",
                 color=Color.blue()
             )
             try:
@@ -468,11 +468,16 @@ class LFGCog(commands.Cog, name="LFG"):
                 start_msg = await channel.send(embed=embed, view=view)
                 
                 # Create automatic PRIVATE lobby thread
-                lobby_thread = await start_msg.create_thread(
+                lobby_thread = await channel.create_thread(
                     name="🎮 Aktive Suchen",
                     type=discord.ChannelType.private_thread,
+                    invitable=False,
                     reason="Automatischer privater LFG Lobby-Thread"
                 )
+                
+                # Update embed with thread link
+                embed.description += f"\n\n📍 **Lobby:** {lobby_thread.mention}"
+                await start_msg.edit(embed=embed)
                 
                 config['start_channel_id'] = start_channel_id
                 config['start_message_id'] = start_msg.id
