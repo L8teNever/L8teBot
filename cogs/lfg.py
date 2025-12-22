@@ -98,6 +98,18 @@ class LFGStartView(View):
         custom_id='lfg_start_search'
     )
     async def start_search(self, interaction: Interaction, button: Button):
+        config = self.cog._get_lfg_config(self.guild_id)
+        role_id = config.get('participation_role_id')
+        
+        if role_id:
+            role = interaction.guild.get_role(role_id)
+            if role and role not in interaction.user.roles:
+                await interaction.response.send_message(
+                    f"❌ Du benötigst die Rolle {role.mention}, um am LFG-System teilzunehmen.", 
+                    ephemeral=True
+                )
+                return
+
         await interaction.response.send_modal(LFGModal(self.cog, self.guild_id))
 
 
@@ -404,6 +416,7 @@ class LFGCog(commands.Cog, name="LFG"):
         self,
         guild_id: int,
         start_channel_id: Optional[int],
+        participation_role_id: Optional[int],
         max_searches: int
     ) -> Tuple[bool, str]:
         """Configure LFG system via web interface"""
@@ -413,6 +426,13 @@ class LFGCog(commands.Cog, name="LFG"):
             return False, "Server nicht gefunden."
         
         config = self._get_lfg_config(guild_id)
+        
+        # Set participation role
+        if participation_role_id:
+            role = guild.get_role(participation_role_id)
+            if not role:
+                return False, "Teilnehmer-Rolle ungültig."
+            config['participation_role_id'] = participation_role_id
         
         # Set start channel
         if start_channel_id:
@@ -440,22 +460,37 @@ class LFGCog(commands.Cog, name="LFG"):
             # Create new start message
             embed = Embed(
                 title="🎮 Mitspieler-Suche",
-                description="Du suchst jemanden zum Zocken? Klicke auf den Button unten!\n\nAlle aktiven Suchen findest du direkt im Thread unter dieser Nachricht.",
+                description="Du suchst jemanden zum Zocken? Klicke auf den Button unten!\n\n*Hinweis: Du musst die entsprechende Rolle haben, um teilzunehmen.*",
                 color=Color.blue()
             )
             try:
                 view = LFGStartView(self, guild_id)
                 start_msg = await channel.send(embed=embed, view=view)
                 
-                # Create automatic lobby thread
+                # Create automatic PRIVATE lobby thread
                 lobby_thread = await start_msg.create_thread(
                     name="🎮 Aktive Suchen",
-                    reason="Automatischer LFG Lobby-Thread"
+                    type=discord.ChannelType.private_thread,
+                    reason="Automatischer privater LFG Lobby-Thread"
                 )
                 
                 config['start_channel_id'] = start_channel_id
                 config['start_message_id'] = start_msg.id
                 config['lobby_thread_id'] = lobby_thread.id
+                
+                # Add existing role members to the thread
+                target_role = guild.get_role(participation_role_id)
+                if target_role:
+                    added_count = 0
+                    for member in target_role.members:
+                        try:
+                            await lobby_thread.add_user(member)
+                            added_count += 1
+                            if added_count >= 90: # Safety break for Discord limits
+                                break
+                        except:
+                            continue
+                
             except Exception as e:
                 print(f"Error in LFG config: {e}")
                 return False, f"Fehler beim Erstellen der Start-Nachricht: {e}"
@@ -464,7 +499,27 @@ class LFGCog(commands.Cog, name="LFG"):
         config['max_searches_per_user'] = max(1, min(max_searches, 10))
         
         self._save_lfg_config(guild_id, config)
-        return True, "LFG-Konfiguration gespeichert und Lobby-Thread erstellt."
+        return True, "LFG-Konfiguration gespeichert. Privater Lobby-Thread wurde erstellt."
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before, after):
+        """Auto-add members to lobby thread when they get the participation role"""
+        config = self._get_lfg_config(after.guild.id)
+        role_id = config.get('participation_role_id')
+        thread_id = config.get('lobby_thread_id')
+        
+        if not role_id or not thread_id:
+            return
+            
+        # Check if role was added
+        role = after.guild.get_role(role_id)
+        if role and role not in before.roles and role in after.roles:
+            try:
+                thread = await self.bot.fetch_channel(thread_id)
+                if thread:
+                    await thread.add_user(after)
+            except:
+                pass
 
 
 async def setup(bot: commands.Bot):
