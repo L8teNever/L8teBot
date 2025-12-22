@@ -78,7 +78,8 @@
                 <thead>
                     <tr class="border-b border-[#2e3e5e]">
                         <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Kanal</th>
-                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Stand</th>
+                        <th class="text-center py-3 px-4 text-text-secondary font-medium text-sm">Aktueller Stand</th>
+                        <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Stand ändern</th>
                         <th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Slowmode</th>
                         <th class="text-right py-3 px-4 text-text-secondary font-medium text-sm">Aktion</th>
                     </tr>
@@ -87,16 +88,23 @@
                     {% for item in active_channels %}
                     {% if item and item.channel %}
                     <tr class="border-b border-[#2e3e5e] hover:bg-white/5 transition-colors">
-                        <td class="py-3 px-4 text-white">#{{ item.channel.name }}</td>
+                        <td class="py-3 px-4 text-white font-medium">#{{ item.channel.name }}</td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 border border-primary/30">
+                                <span class="material-symbols-outlined text-primary text-xl">tag</span>
+                                <span class="text-2xl font-bold text-primary">{{ item.data.get('current_number', 0) }}</span>
+                            </div>
+                        </td>
                         <td class="py-3 px-4">
                             <form action="{{ url_for('manage_counting', guild_id=guild.id) }}" method="post"
                                 class="flex gap-2">
                                 <input type="hidden" name="action" value="set_count">
                                 <input type="hidden" name="channel_to_set" value="{{ item.channel.id }}">
                                 <input type="number" name="number" value="{{ item.data.get('current_number', 0) }}"
+                                    placeholder="Neue Zahl"
                                     class="w-24 px-2 py-1 rounded bg-background-dark border border-[#2e3e5e] text-white text-sm">
                                 <button
-                                    class="px-2 py-1 rounded bg-primary hover:bg-blue-600 text-white text-xs font-bold">Set</button>
+                                    class="px-2 py-1 rounded bg-primary hover:bg-blue-600 text-white text-xs font-bold">Ändern</button>
                             </form>
                         </td>
                         <td class="py-3 px-4">
