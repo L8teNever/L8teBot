@@ -444,6 +444,34 @@ def bot_status():
 def dashboard():
     return render_template('dashboard.html', guilds=get_admin_guilds())
 
+@app.route('/guild/<int:guild_id>/toggle_module', methods=['POST'])
+@requires_authorization
+def toggle_module(guild_id):
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung für diesen Server.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    cog_name = request.form.get('cog_name')
+    is_enabled_str = request.form.get('is_enabled')
+    redirect_url = request.form.get('redirect_url', url_for('guild_settings', guild_id=guild_id))
+    
+    is_enabled = is_enabled_str == 'True'
+    
+    guild_config = bot.data.get_server_config(guild_id)
+    enabled_cogs = guild_config.get('enabled_cogs', [])
+    
+    if is_enabled and cog_name not in enabled_cogs:
+        enabled_cogs.append(cog_name)
+        flash(f"Modul '{cog_name}' wurde aktiviert.", "success")
+    elif not is_enabled and cog_name in enabled_cogs:
+        enabled_cogs.remove(cog_name)
+        flash(f"Modul '{cog_name}' wurde deaktiviert.", "success")
+    
+    guild_config['enabled_cogs'] = enabled_cogs
+    bot.data.save_server_config(guild_id, guild_config)
+    
+    return redirect(redirect_url)
+
 @app.route('/guild/<int:guild_id>', methods=['GET', 'POST'])
 @requires_authorization
 def guild_settings(guild_id):
