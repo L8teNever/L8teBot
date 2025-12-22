@@ -513,6 +513,24 @@ class LFGCog(commands.Cog, name="LFG"):
         return True, "LFG-Konfiguration gespeichert. Privater Lobby-Thread wurde erstellt und Mitglieder synchronisiert."
 
     @commands.Cog.listener()
+    async def on_message(self, message):
+        """Delete system messages in the lobby thread to keep it clean"""
+        if not message.guild or message.author.bot:
+            # We don't ignore all bots because some system messages might be bot-triggered
+            # But we only care about system messages
+            pass
+            
+        if message.is_system():
+            config = self._get_lfg_config(message.guild.id)
+            lobby_thread_id = config.get('lobby_thread_id')
+            
+            if lobby_thread_id and message.channel.id == lobby_thread_id:
+                try:
+                    await message.delete()
+                except:
+                    pass
+
+    @commands.Cog.listener()
     async def on_member_update(self, before, after):
         """Auto-add/remove members from lobby thread based on role changes"""
         config = self._get_lfg_config(after.guild.id)
