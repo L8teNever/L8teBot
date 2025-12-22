@@ -1,39 +1,38 @@
 # 🤖 L8teBot Wiki
 
-Willkommen im offiziellen Wiki des **L8teBot**! Hier findest du alle Informationen zur Installation, Konfiguration und den einzelnen Modulen des Bots.
+Willkommen im offiziellen Wiki! Hier findest du detaillierte Informationen zu jedem einzelnen Modul.
 
 ## 🚀 Erste Schritte
-*   [Installation](Installation.md) - Wie du den Bot auf deinem Server aufsetzt.
-*   [Docker Guide](Docker.md) - Deployment via Docker & Docker-Compose.
-*   [Konfiguration](Configuration.md) - Allgemeine Einstellungen & Dashboard.
-*   [Backup & Restore](Backup-Restore.md) - Sicherung deiner Daten.
+*   [Installation](Installation.md)
+*   [Docker Guide](Docker.md)
+*   [Konfiguration](Configuration.md)
+*   [Backup & Restore](Backup-Restore.md)
 
 ---
 
-## 🧩 Module & Funktionen
+## 🎮 Gaming & Community
+*   [LFG System](LFG-System.md) - Die intelligente Mitspieler-Suche.
+*   [Level-System](Level-System.md) - XP & Ränge für Aktivität.
+*   [Geburtstage](Birthday-System.md) - Automatisierte Glückwünsche.
+*   [Temp-Channels](Temp-Channel.md) - Dynamische Voice-Kanäle.
 
-### 🎮 Gaming & Community
-*   **[LFG System (Mitspieler-Suche)](LFG-System.md)** - Automatisiertes System für Gruppen-Suchen.
-*   **[Level-System](Level-System.md)** - XP für Aktivität im Chat & Leaderboards.
-*   **[Geburtstags-System](Birthday-System.md)** - Automatische Glückwünsche für deine Member.
-*   **[Wrapped](Fun-Games.md#wrapped)** - Dein persönlicher Jahresrückblick auf dem Server.
+## 🛡️ Sicherheit & Schutz
+*   [Gatekeeper](Gatekeeper.md) - Schutz vor Fake-Accounts.
+*   [Guard](Guard.md) - Anti-Spam & Link-Schutz.
+*   [Global Ban](Global-Ban.md) - Community-weite Blacklist.
+*   [Moderations-Tools](Moderation-Tools.md) - Befehle für dein Team.
 
-### 🛡️ Sicherheit & Moderation
-*   **[Guard & Gatekeeper](Moderation.md#guard--gatekeeper)** - Schutz vor Raids und unerwünschten Usern.
-*   **[Global Ban](Moderation.md#global-ban)** - Serverübergreifender Schutz vor bekannten Griefern.
-*   **[Ticket-System](Tickets.md)** - Support-System für deine User.
+## 📺 Streaming (Twitch)
+*   [Twitch Live-Alerts](Twitch-Live-Alert.md) - Benachrichtigungen bei Stream-Start.
+*   [Twitch Clips](Twitch-Clips.md) - Automatische Clip-Highlights.
 
-### 📺 Streaming (Twitch)
-*   **[Twitch Live-Alerts](Twitch.md#live-alerts)** - Benachrichtigungen, wenn Streamer live gehen.
-*   **[Twitch Clips](Twitch.md#twitch-clips)** - Automatische Anzeige von neuen Clips.
+## 🎲 Fun & Games
+*   [Counting](Counting.md) - Das Zähl-Spiel.
+*   [Streaks](Streaks.md) - Tägliche Aktivitäts-Belohnungen.
+*   [Wrapped](Wrapped.md) - Dein Server-Rückblick.
 
-### 🎲 Fun & Games
-*   **[Zählsystem (Counting)](Fun-Games.md#counting)** - Gemeinsam bis Unendlich zählen.
-*   **[Streak-System](Fun-Games.md#streaks)** - Belohnungen für tägliche Aktivität.
+## 🎫 Support
+*   [Ticket-System](Tickets.md) - Support-Tickets für User.
 
 ---
-
-## 🛠️ Support
-Solltest du Fragen haben oder Hilfe benötigen, schau auf unserem Support-Server vorbei oder erstelle ein Issue auf GitHub.
-
 *Entwickelt mit ❤️ von der L8te Community.*
