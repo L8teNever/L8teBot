@@ -560,7 +560,7 @@ class TicketSystemCog(commands.Cog, name="Ticket-System"):
         else:
             return False, "Diese Rolle ist nicht als Support-Rolle hinzugefügt."
 
-    async def web_add_reason(self, guild_id: int, name: str, desc: str, emoji: str = None) -> tuple[bool, str]:
+    async def web_add_reason(self, guild_id: int, name: str, desc: str, emoji: str = None, roles: list = None) -> tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
         if not guild:
             return False, "Server nicht gefunden."
@@ -569,7 +569,7 @@ class TicketSystemCog(commands.Cog, name="Ticket-System"):
         reasons = config.setdefault('ticket_reasons', [])
         
         if name and not any(r['name'] == name for r in reasons):
-            reasons.append({'name': name, 'description': desc, 'emoji': emoji or '', 'roles': []})
+            reasons.append({'name': name, 'description': desc, 'emoji': emoji or '', 'roles': roles or []})
             self._save_ticket_config(guild_id, config)
             await self.update_ticket_creation_panel(guild)
             return True, f"Grund '{name}' hinzugefügt."

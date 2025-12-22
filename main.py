@@ -781,7 +781,9 @@ def manage_tickets(guild_id):
             name = request.form.get('reason_name')
             desc = request.form.get('reason_desc')
             emoji = request.form.get('reason_emoji')
-            future = asyncio.run_coroutine_threadsafe(cog.web_add_reason(guild_id, name, desc, emoji), bot.loop)
+            role_ids = request.form.getlist('reason_roles')  # Get multiple selected roles
+            role_ids = [int(rid) for rid in role_ids if rid]  # Convert to integers
+            future = asyncio.run_coroutine_threadsafe(cog.web_add_reason(guild_id, name, desc, emoji, role_ids), bot.loop)
 
         elif action == 'remove_reason':
             name_to_remove = request.form.get('reason_name_to_remove')
