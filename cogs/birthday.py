@@ -140,8 +140,8 @@ class BirthdayCog(commands.Cog, name="Geburtstage"):
             if todays_birthdays_members and announcement_channel_id:
                 channel = guild.get_channel(announcement_channel_id)
                 if channel:
-                    mentions = ", ".join(m.mention for m in todays_birthdays_members)
-                    embed = Embed(title="🎂 Herzlichen Glückwunsch zum Geburtstag!", description=f"Alles Gute zum Geburtstag, {mentions}! 🎉", color=Color.gold())
+                    names = ", ".join(f"**{m.display_name}**" for m in todays_birthdays_members)
+                    embed = Embed(title="🎂 Herzlichen Glückwunsch zum Geburtstag!", description=f"Alles Gute zum Geburtstag, {names}! 🎉", color=Color.gold())
                     try: await channel.send(embed=embed)
                     except (discord.Forbidden, discord.HTTPException): pass
         
