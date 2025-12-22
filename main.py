@@ -98,6 +98,19 @@ app.config["PERMANENT_SESSION_LIFETIME"] = datetime.timedelta(days=7)
 app.config["SESSION_COOKIE_NAME"] = "l8tebot_session"
 app.config["SESSION_COOKIE_PATH"] = "/"
 
+# Load version
+VERSION = "Unknown"
+try:
+    with open(os.path.join(BASE_DIR, "version.txt"), "r") as f:
+        VERSION = f.read().strip()
+except:
+    pass
+
+# Make version available in all templates
+@app.context_processor
+def inject_version():
+    return dict(bot_version=VERSION)
+
 print(f"DEBUG: Redirect URI configured is: {app.config['DISCORD_REDIRECT_URI']}")
 print("DEBUG: Make sure you access the dashboard via the SAME host/IP as in the Redirect URI!")
 print(f"DEBUG: Secret key length: {len(app.secret_key)} characters")

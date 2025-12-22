@@ -139,8 +139,13 @@
                 </nav>
             </div>
 
+            <!-- Version Info -->
+            <div class="px-3 py-2 text-center">
+                <p class="text-xs text-text-secondary">Version {{ bot_version }}</p>
+            </div>
+
             <!-- Bottom Actions -->
-            <div class="flex flex-col gap-2 mt-4 pt-4 border-t border-[#2e3e5e]">
+            <div class="flex flex-col gap-2 pt-4 border-t border-[#2e3e5e]">
                 {% if user %}
                 <div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-card-dark">
                     <img src="{{ user.avatar_url }}" alt="Avatar" class="w-8 h-8 rounded-full">
