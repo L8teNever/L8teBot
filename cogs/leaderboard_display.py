@@ -409,9 +409,20 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                         reason="Leaderboard-Thread"
                     )
                     
+                    # Mute thread for all users to prevent notification spam
+                    try:
+                        # Set default notification settings to "Only @mentions"
+                        await thread.edit(
+                            flags=discord.ChannelFlags(pinned=False),
+                            reason="Benachrichtigungen deaktiviert für Auto-Updates"
+                        )
+                    except Exception as e:
+                        print(f"⚠️ Konnte Thread nicht stumm schalten: {e}")
+                    
                     # Store thread ID
                     thread_ids[lb_type] = thread.id
-                    print(f"✅ Erstellt: {thread_name}")
+                    print(f"✅ Erstellt: {thread_name} (Benachrichtigungen deaktiviert)")
+
                 
                 # Save thread IDs
                 leaderboard_config['forum_thread_ids'] = thread_ids
