@@ -7,8 +7,8 @@ from typing import Optional, Tuple
 import asyncio
 from datetime import datetime
 
-class LFGModal(Modal, title='Spieler suchen'):
-    """Modal zum Erstellen einer LFG-Suche"""
+class LFGModal(Modal, title='Mitspieler-Suche'):
+    """Modal zum Erstellen einer Mitspieler-Suche"""
     
     game_name = TextInput(
         label='Spielname',
@@ -105,7 +105,7 @@ class LFGStartView(View):
             role = interaction.guild.get_role(role_id)
             if role and role not in interaction.user.roles:
                 await interaction.response.send_message(
-                    f"❌ Du benötigst die Rolle {role.mention}, um am LFG-System teilzunehmen.", 
+                    f"❌ Du benötigst die Rolle {role.mention}, um am Such-System teilzunehmen.", 
                     ephemeral=True
                 )
                 return
@@ -152,8 +152,8 @@ class LFGSearchView(View):
         await interaction.followup.send(message, ephemeral=True)
 
 
-class LFGForumModal(Modal, title='LFG erstellen'):
-    """Modal für Forum-Modus LFG-Erstellung"""
+class LFGForumModal(Modal, title='Suche erstellen'):
+    """Modal für Forum-Modus Mitspieler-Suche"""
     
     game_name = TextInput(
         label='Spiel/Game',
@@ -224,7 +224,7 @@ class LFGForumMainView(View):
         self.guild_id = guild_id
     
     @discord.ui.button(
-        label='🎮 Neue LFG erstellen',
+        label='🎮 Neue Suche erstellen',
         style=ButtonStyle.success,
         custom_id='lfg_forum_create'
     )
@@ -236,7 +236,7 @@ class LFGForumMainView(View):
             role = interaction.guild.get_role(role_id)
             if role and role not in interaction.user.roles:
                 await interaction.response.send_message(
-                    f"❌ Du benötigst die Rolle {role.mention}, um am LFG-System teilzunehmen.", 
+                    f"❌ Du benötigst die Rolle {role.mention}, um am Such-System teilzunehmen.", 
                     ephemeral=True
                 )
                 return
@@ -268,13 +268,13 @@ class LFGForumThreadView(View):
         await interaction.followup.send(message, ephemeral=True)
     
     @discord.ui.button(
-        label='LFG schließen',
+        label='Suche beenden',
         style=ButtonStyle.danger,
         emoji='🔒'
     )
     async def close_thread(self, interaction: Interaction, button: Button):
         if interaction.user.id != self.creator_id:
-            await interaction.response.send_message("❌ Nur der Ersteller kann diese LFG schließen.", ephemeral=True)
+            await interaction.response.send_message("❌ Nur der Ersteller kann diese Suche schließen.", ephemeral=True)
             return
         
         await interaction.response.defer(ephemeral=True)
@@ -282,8 +282,8 @@ class LFGForumThreadView(View):
         await interaction.followup.send(message, ephemeral=True)
 
 
-class LFGCog(commands.Cog, name="LFG"):
-    """Looking For Group System"""
+class LFGCog(commands.Cog, name="Mitspieler-Suche"):
+    """System für die Mitspieler-Suche (Looking For Group)"""
     
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -355,7 +355,7 @@ class LFGCog(commands.Cog, name="LFG"):
         lobby_channel_id = config.get('lobby_channel_id')
         
         if not lobby_channel_id:
-            return False, "❌ LFG-System ist nicht konfiguriert. Bitte kontaktiere einen Admin."
+            return False, "❌ Das Such-System ist nicht konfiguriert. Bitte kontaktiere einen Admin."
         
         try:
             lobby_channel = await self.bot.fetch_channel(lobby_channel_id)
@@ -366,12 +366,12 @@ class LFGCog(commands.Cog, name="LFG"):
         search_id = self._get_next_search_id(guild.id)
         
         # Create unique role
-        role_name = f"LFG-{game_name[:20]}-{search_id}"
+        role_name = f"Suche-{game_name[:20]}-{search_id}"
         try:
             role = await guild.create_role(
                 name=role_name,
                 mentionable=False,
-                reason=f"LFG Search by {creator}"
+                reason=f"Mitspieler-Suche von {creator}"
             )
             await creator.add_roles(role)
         except:
@@ -382,7 +382,7 @@ class LFGCog(commands.Cog, name="LFG"):
             private_thread = await lobby_channel.create_thread(
                 name=f"🎮 {game_name} - {creator.display_name}",
                 type=discord.ChannelType.private_thread,
-                reason=f"LFG Search by {creator}"
+                reason=f"Mitspieler-Suche von {creator}"
             )
             await private_thread.add_user(creator)
         except:
@@ -546,7 +546,7 @@ class LFGCog(commands.Cog, name="LFG"):
         forum_id = config.get('lfg_forum_id')
         
         if not forum_id:
-            return False, "❌ LFG-Forum ist nicht konfiguriert."
+            return False, "❌ Das Such-Forum ist nicht konfiguriert."
         
         # Check user limit
         max_searches = config.get('max_searches_per_user', 3)
@@ -567,7 +567,7 @@ class LFGCog(commands.Cog, name="LFG"):
             if not isinstance(forum, discord.ForumChannel):
                 return False, "❌ Konfigurierter Channel ist kein Forum."
         except:
-            return False, "❌ LFG-Forum nicht gefunden."
+            return False, "❌ Das Such-Forum wurde nicht gefunden."
         
         # Find or create tag for this game
         game_tag = None
@@ -616,7 +616,7 @@ class LFGCog(commands.Cog, name="LFG"):
                 content=f"{creator.mention}",
                 embed=embed,
                 applied_tags=applied_tags,
-                reason=f"LFG erstellt von {creator}"
+                reason=f"Mitspieler-Suche erstellt von {creator}"
             )
         except Exception as e:
             return False, f"❌ Konnte Thread nicht erstellen: {str(e)}"
@@ -642,7 +642,7 @@ class LFGCog(commands.Cog, name="LFG"):
         }
         self.bot.data.save_guild_data(guild.id, "lfg_forum_threads", forum_threads)
         
-        return True, f"✅ Deine LFG wurde erstellt! {thread.mention}"
+        return True, f"✅ Deine Suche wurde erstellt! {thread.mention}"
     
     async def join_forum_lfg(self, guild: discord.Guild, member: discord.Member, thread_id: int) -> Tuple[bool, str]:
         """Join a forum LFG thread"""
@@ -651,15 +651,15 @@ class LFGCog(commands.Cog, name="LFG"):
         thread_data = forum_threads.get(str(thread_id))
         
         if not thread_data or not thread_data.get('active'):
-            return False, "❌ Diese LFG existiert nicht mehr."
+            return False, "❌ Diese Suche existiert nicht mehr."
         
         if member.id in thread_data['members']:
-            return False, "❌ Du bist bereits in dieser LFG."
+            return False, "❌ Du bist bereits in dieser Gruppe."
         
         # Check if full
         team_size = thread_data.get('team_size')
         if team_size and len(thread_data['members']) >= team_size + 1:  # +1 for creator
-            return False, "❌ Diese LFG ist bereits voll."
+            return False, "❌ Diese Gruppe ist bereits voll."
         
         # Add to members
         thread_data['members'].append(member.id)
@@ -673,7 +673,7 @@ class LFGCog(commands.Cog, name="LFG"):
         except:
             pass
         
-        return True, f"✅ Du bist der LFG beigetreten! Schau in <#{thread_id}>"
+        return True, f"✅ Du bist der Gruppe beigetreten! Schau in <#{thread_id}>"
     
     async def close_forum_lfg(self, guild: discord.Guild, thread_id: int) -> Tuple[bool, str]:
         """Close a forum LFG thread"""
@@ -682,7 +682,7 @@ class LFGCog(commands.Cog, name="LFG"):
         thread_data = forum_threads.get(str(thread_id))
         
         if not thread_data:
-            return False, "❌ Diese LFG existiert nicht."
+            return False, "❌ Diese Suche existiert nicht."
         
         # Mark as inactive
         thread_data['active'] = False
@@ -692,13 +692,13 @@ class LFGCog(commands.Cog, name="LFG"):
         # Archive thread
         try:
             thread = await self.bot.fetch_channel(thread_id)
-            await thread.send("🔒 Diese LFG wurde geschlossen. Der Thread wird archiviert.")
+            await thread.send("🔒 Diese Suche wurde geschlossen. Der Thread wird archiviert.")
             await asyncio.sleep(3)
             await thread.edit(archived=True, locked=True)
         except:
             pass
         
-        return True, "✅ Deine LFG wurde geschlossen."
+        return True, "✅ Deine Suche wurde geschlossen."
     
     async def _update_lobby_message(self, guild: discord.Guild, search_id: int, search_data: dict):
         """Update the lobby message with current member count"""
@@ -829,7 +829,7 @@ class LFGCog(commands.Cog, name="LFG"):
             
             forum_channel = guild.get_channel(lfg_forum_id)
             if not isinstance(forum_channel, discord.ForumChannel):
-                return False, "Der ausgewählte Channel ist kein Forum."
+                return False, "Der ausgewählte Channel ist kein Forum für die Spielersuche."
             
             config['lfg_forum_id'] = lfg_forum_id
             
@@ -857,8 +857,8 @@ class LFGCog(commands.Cog, name="LFG"):
                 
                 view = LFGForumMainView(self, guild_id)
                 embed = Embed(
-                    title="🎮 LFG - Mitspieler gesucht",
-                    description="Willkommen im LFG-Bereich! Klicke auf den Button unten, um eine neue Suche zu starten.\n\nDer Bot erstellt daraufhin automatisch einen Thread mit dem passenden Game-Tag.",
+                    title="🎮 Mitspieler-Suche",
+                    description="Willkommen im Such-Bereich! Klicke auf den Button unten, um eine neue Suche zu starten.\n\nDer Bot erstellt daraufhin automatisch einen Thread mit dem passenden Game-Tag.",
                     color=Color.green()
                 )
                 
@@ -874,10 +874,10 @@ class LFGCog(commands.Cog, name="LFG"):
                 if not main_thread:
                     # Create new main thread
                     thread, starter_msg = await forum_channel.create_thread(
-                        name="📌 LFG starten",
+                        name="📌 Suche starten",
                         embed=embed,
                         view=view,
-                        reason="LFG Forum System Setup"
+                        reason="Suche-Forum System Setup"
                     )
                     config['lfg_forum_main_thread_id'] = thread.id
             except Exception as e:
@@ -888,7 +888,7 @@ class LFGCog(commands.Cog, name="LFG"):
         config['max_searches_per_user'] = max(1, min(max_searches, 10))
         
         self._save_lfg_config(guild_id, config)
-        return True, "LFG-Konfiguration gespeichert."
+        return True, "Konfiguration gespeichert."
 
     @commands.Cog.listener()
     async def on_message(self, message):

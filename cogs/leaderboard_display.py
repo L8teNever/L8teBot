@@ -173,8 +173,8 @@ class LeaderboardView(View):
                     })
 
         
-        # Sort and limit
-        leaderboard.sort(key=lambda x: x['value'], reverse=True)
+        # Sort and limit (Sort by value, for level use XP as tie-breaker)
+        leaderboard.sort(key=lambda x: (x['value'], x.get('xp', 0)), reverse=True)
         leaderboard = leaderboard[:15]  # Top 15 for better display
         
         # Create embed
