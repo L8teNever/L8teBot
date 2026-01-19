@@ -749,6 +749,8 @@ class LFGCog(commands.Cog, name="LFG"):
             if not role:
                 return False, "Teilnehmer-Rolle ungültig."
             config['participation_role_id'] = participation_role_id
+        else:
+            config['participation_role_id'] = None
         
         # Classic Mode setup
         if display_mode == 'classic' or not display_mode:
@@ -762,12 +764,15 @@ class LFGCog(commands.Cog, name="LFG"):
                 
                 # Set permissions for lobby channel
                 try:
-                    # Private: Hide for everyone, show for participation role
-                    await lobby_channel.set_permissions(guild.default_role, view_channel=False)
-                    if participation_role_id:
-                        role = guild.get_role(participation_role_id)
+                    if config['participation_role_id']:
+                        # Private: Hide for everyone, show for participation role
+                        await lobby_channel.set_permissions(guild.default_role, view_channel=False)
+                        role = guild.get_role(config['participation_role_id'])
                         if role:
                             await lobby_channel.set_permissions(role, view_channel=True)
+                    else:
+                        # Public: Show for everyone
+                        await lobby_channel.set_permissions(guild.default_role, view_channel=True)
                 except Exception as e:
                     print(f"Error setting channel permissions: {e}")
 
@@ -792,9 +797,13 @@ class LFGCog(commands.Cog, name="LFG"):
                 lobby_channel = guild.get_channel(config.get('lobby_channel_id'))
                 lobby_mention = lobby_channel.mention if lobby_channel else "Lobby"
                 
+                role_notice = ""
+                if config['participation_role_id']:
+                    role_notice = "\n\n*Hinweis: Nur Teilnehmer mit der entsprechenden Rolle sehen den Lobby-Bereich.*"
+                
                 embed = Embed(
                     title="🎮 Mitspieler-Suche",
-                    description=f"Du suchst jemanden zum Zocken? Klicke auf den Button unten!\n\n📍 **Lobby:** {lobby_mention}\n\n*Hinweis: Nur Teilnehmer mit der entsprechenden Rolle sehen den Lobby-Bereich.*",
+                    description=f"Du suchst jemanden zum Zocken? Klicke auf den Button unten!\n\n📍 **Lobby:** {lobby_mention}{role_notice}",
                     color=Color.blue()
                 )
                 try:
@@ -826,11 +835,13 @@ class LFGCog(commands.Cog, name="LFG"):
             
             # Setup forum permissions: Only bot can create threads
             try:
-                await forum_channel.set_permissions(guild.default_role, create_public_threads=False, create_private_threads=False, send_messages=False)
-                if participation_role_id:
-                    role = guild.get_role(participation_role_id)
+                if config['participation_role_id']:
+                    await forum_channel.set_permissions(guild.default_role, view_channel=False, create_public_threads=False, create_private_threads=False, send_messages=False)
+                    role = guild.get_role(config['participation_role_id'])
                     if role:
                         await forum_channel.set_permissions(role, view_channel=True, create_public_threads=False, create_private_threads=False, send_messages=False)
+                else:
+                    await forum_channel.set_permissions(guild.default_role, view_channel=True, create_public_threads=False, create_private_threads=False, send_messages=False)
             except Exception as e:
                 print(f"Error setting forum permissions: {e}")
             
