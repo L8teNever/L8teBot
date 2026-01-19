@@ -302,7 +302,7 @@ def import_legacy_data():
     return redirect(url_for('admin_maintenance'))
 
 
-MANAGEABLE_COGS = ["Geburtstage", "Zählen", "Level-System", "Moderation", "Twitch", "Twitch-Live-Alert", "Ticket-System", "Temp-Channel", "Twitch-Clips", "Streak", "Gatekeeper", "Guard", "Global-Ban", "Wrapped", "LFG"]
+MANAGEABLE_COGS = ["Geburtstage", "Zählen", "Level-System", "Moderation", "Twitch", "Twitch-Live-Alert", "Ticket-System", "Temp-Channel", "Twitch-Clips", "Streak", "Gatekeeper", "Guard", "Global-Ban", "Wrapped", "LFG", "Mitspieler-Suche"]
 
 # (Existing get_admin_guilds and check_guild_permissions are slightly below)
 
@@ -1491,10 +1491,10 @@ def manage_lfg(guild_id):
 
     guild = bot.get_guild(guild_id)
     guild_config = bot.data.get_server_config(guild_id)
-    is_enabled = 'LFG' in guild_config.get('enabled_cogs', [])
+    is_enabled = 'LFG' in guild_config.get('enabled_cogs', []) or 'Mitspieler-Suche' in guild_config.get('enabled_cogs', [])
 
     if request.method == 'POST':
-        cog = bot.get_cog('LFG')
+        cog = bot.get_cog('LFG') or bot.get_cog('Mitspieler-Suche')
         if not is_enabled or not cog:
             flash("Das LFG-Modul ist nicht aktiv.", "danger")
             return redirect(url_for('manage_lfg', guild_id=guild_id))
