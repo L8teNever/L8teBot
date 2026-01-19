@@ -1539,11 +1539,13 @@ def manage_leaderboard_settings(guild_id):
             leaderboard_data = bot.data.get_guild_data(guild_id, "leaderboard_config")
             channel_id_str = request.form.get('leaderboard_channel_id')
             channel_id = int(channel_id_str) if channel_id_str else None
+            display_mode = request.form.get('display_mode', 'single')
             
             leaderboard_data['leaderboard_channel_id'] = channel_id
+            leaderboard_data['display_mode'] = display_mode
             bot.data.save_guild_data(guild_id, "leaderboard_config", leaderboard_data)
             
-            flash("Leaderboard-Channel gespeichert!", "success")
+            flash("Leaderboard-Einstellungen gespeichert!", "success")
         
         elif action == 'setup_interactive':
             # Setup interactive leaderboard display

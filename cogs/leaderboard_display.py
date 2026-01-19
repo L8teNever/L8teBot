@@ -181,6 +181,13 @@ class LeaderboardView(View):
             timestamp=now
         )
         
+        # Add helpful instruction at the top
+        embed.add_field(
+            name="💡 Wie funktioniert's?",
+            value="Wähle im **Dropdown-Menü** unten einen Leaderboard-Typ aus, um ihn anzuzeigen. Die Ansicht ist nur für dich sichtbar!",
+            inline=False
+        )
+        
         if leaderboard:
             leaderboard_text = ""
             for idx, entry in enumerate(leaderboard, 1):
@@ -229,6 +236,77 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
         for guild in self.bot.guilds:
             leaderboard_config = self.bot.data.get_guild_data(guild.id, "leaderboard_config")
             channel_id = leaderboard_config.get('leaderboard_channel_id')
+            display_mode = leaderboard_config.get('display_mode', 'single')
+            
+            if not channel_id:
+                continue
+            
+            channel = guild.get_channel(channel_id)
+            if not channel:
+                continue
+            
+            try:
+                if display_mode == 'forum':
+                    # Forum mode: Update all threads
+                    thread_ids = leaderboard_config.get('forum_thread_ids', {})
+                    
+                    for lb_type, thread_id in thread_ids.items():
+                        try:
+                            thread = channel.get_thread(thread_id)
+                            if not thread:
+                                # Try to fetch if not in cache
+                                thread = await channel.fetch_thread(thread_id)
+                            
+                            if thread:
+                                # Get the starter message
+                                starter_message = thread.starter_message
+                                if not starter_message:
+                                    starter_message = await thread.fetch_message(thread.id)
+                                
+                                # Create updated embed
+                                view = LeaderboardView(self.bot, guild.id, lb_type)
+                                embed = await view.create_leaderboard_embed()
+                                
+                                # Update the message
+                                await starter_message.edit(embed=embed)
+                                
+                                # Keep thread active (unarchive if needed)
+                                if thread.archived:
+                                    await thread.edit(archived=False)
+                        except Exception as e:
+                            print(f"Error updating forum thread {lb_type} for guild {guild.id}: {e}")
+                
+                else:
+                    # Single channel mode: Update single message
+                    message_id = leaderboard_config.get('leaderboard_message_id')
+                    current_type = leaderboard_config.get('current_leaderboard_type', 'messages')
+                    
+                    if not message_id:
+                        continue
+                    
+                    message = await channel.fetch_message(message_id)
+                    view = LeaderboardView(self.bot, guild.id, current_type)
+                    embed = await view.create_leaderboard_embed()
+                    await message.edit(embed=embed, view=view)
+                    
+            except discord.NotFound:
+                # Message/Thread was deleted, clear the config
+                if display_mode == 'forum':
+                    leaderboard_config['forum_thread_ids'] = {}
+                else:
+                    leaderboard_config['leaderboard_message_id'] = None
+                self.bot.data.save_guild_data(guild.id, "leaderboard_config", leaderboard_config)
+            except Exception as e:
+                print(f"Error updating leaderboard for guild {guild.id}: {e}")
+    
+    @commands.Cog.listener()
+    async def on_ready(self):
+        """Re-registriert alle persistent views nach Bot-Restart."""
+        print("🔄 Re-registriere Leaderboard-Views...")
+        
+        for guild in self.bot.guilds:
+            leaderboard_config = self.bot.data.get_guild_data(guild.id, "leaderboard_config")
+            channel_id = leaderboard_config.get('leaderboard_channel_id')
             message_id = leaderboard_config.get('leaderboard_message_id')
             current_type = leaderboard_config.get('current_leaderboard_type', 'messages')
             
@@ -240,16 +318,23 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                 continue
             
             try:
+                # Fetch the message and re-attach the view
                 message = await channel.fetch_message(message_id)
                 view = LeaderboardView(self.bot, guild.id, current_type)
-                embed = await view.create_leaderboard_embed()
-                await message.edit(embed=embed, view=view)
+                
+                # Edit message to re-attach the view (Discord needs this)
+                await message.edit(view=view)
+                print(f"✅ View re-registriert für {guild.name}")
             except discord.NotFound:
                 # Message was deleted, clear the config
                 leaderboard_config['leaderboard_message_id'] = None
                 self.bot.data.save_guild_data(guild.id, "leaderboard_config", leaderboard_config)
+                print(f"⚠️ Leaderboard-Nachricht für {guild.name} wurde gelöscht")
             except Exception as e:
-                print(f"Error updating leaderboard for guild {guild.id}: {e}")
+                print(f"❌ Fehler beim Re-registrieren der View für {guild.name}: {e}")
+        
+        print("✅ Alle Leaderboard-Views re-registriert!")
+
     
     async def web_setup_leaderboard(self, guild_id: int, channel_id: int):
         """Erstellt oder aktualisiert die Leaderboard-Nachricht."""
@@ -262,33 +347,78 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
             return False, "Channel nicht gefunden"
         
         leaderboard_config = self.bot.data.get_guild_data(guild_id, "leaderboard_config")
-        message_id = leaderboard_config.get('leaderboard_message_id')
+        display_mode = leaderboard_config.get('display_mode', 'single')
         
-        view = LeaderboardView(self.bot, guild_id, 'messages')
-        embed = await view.create_leaderboard_embed()
-        
-        try:
-            if message_id:
-                # Try to update existing message
-                try:
-                    message = await channel.fetch_message(message_id)
-                    await message.edit(embed=embed, view=view)
-                    return True, f"Leaderboard in #{channel.name} aktualisiert!"
-                except discord.NotFound:
-                    # Message was deleted, create new one
-                    pass
+        if display_mode == 'forum':
+            # Forum mode: Create separate threads for each leaderboard type
+            if not isinstance(channel, discord.ForumChannel):
+                return False, "Der ausgewählte Channel ist kein Forum! Bitte wähle ein Forum aus."
             
-            # Create new message
-            message = await channel.send(embed=embed, view=view)
-            leaderboard_config['leaderboard_message_id'] = message.id
-            leaderboard_config['leaderboard_channel_id'] = channel_id
-            leaderboard_config['current_leaderboard_type'] = 'messages'
-            self.bot.data.save_guild_data(guild_id, "leaderboard_config", leaderboard_config)
-            
-            return True, f"Interaktives Leaderboard in #{channel.name} erstellt!"
+            try:
+                leaderboard_types = [
+                    ('messages', '🗨️ Meiste Nachrichten (Monatlich)'),
+                    ('level', '⭐ Höchstes Level (Allzeit)'),
+                    ('streak_current', '🔥 Längste aktive Streak'),
+                    ('streak_alltime', '🏆 Längste Streak (Allzeit)')
+                ]
+                
+                thread_ids = {}
+                
+                for lb_type, thread_name in leaderboard_types:
+                    # Create embed for this type
+                    view = LeaderboardView(self.bot, guild_id, lb_type)
+                    embed = await view.create_leaderboard_embed()
+                    
+                    # Create thread
+                    thread = await channel.create_thread(
+                        name=thread_name,
+                        content=None,
+                        embed=embed,
+                        auto_archive_duration=10080,  # 7 days (max)
+                        reason="Leaderboard-Thread"
+                    )
+                    
+                    # Store thread ID
+                    thread_ids[lb_type] = thread.id
+                
+                # Save thread IDs
+                leaderboard_config['forum_thread_ids'] = thread_ids
+                self.bot.data.save_guild_data(guild_id, "leaderboard_config", leaderboard_config)
+                
+                return True, f"Forum-Leaderboards in {channel.name} erstellt! 4 Threads wurden angelegt."
+                
+            except Exception as e:
+                return False, f"Fehler beim Erstellen der Forum-Threads: {str(e)}"
         
-        except Exception as e:
-            return False, f"Fehler: {str(e)}"
+        else:
+            # Single channel mode: Create one message with dropdown
+            message_id = leaderboard_config.get('leaderboard_message_id')
+            
+            view = LeaderboardView(self.bot, guild_id, 'messages')
+            embed = await view.create_leaderboard_embed()
+            
+            try:
+                if message_id:
+                    # Try to update existing message
+                    try:
+                        message = await channel.fetch_message(message_id)
+                        await message.edit(embed=embed, view=view)
+                        return True, f"Leaderboard in #{channel.name} aktualisiert!"
+                    except discord.NotFound:
+                        # Message was deleted, create new one
+                        pass
+                
+                # Create new message
+                message = await channel.send(embed=embed, view=view)
+                leaderboard_config['leaderboard_message_id'] = message.id
+                leaderboard_config['leaderboard_channel_id'] = channel_id
+                leaderboard_config['current_leaderboard_type'] = 'messages'
+                self.bot.data.save_guild_data(guild_id, "leaderboard_config", leaderboard_config)
+                
+                return True, f"Interaktives Leaderboard in #{channel.name} erstellt!"
+            
+            except Exception as e:
+                return False, f"Fehler: {str(e)}"
 
 
 async def setup(bot: commands.Bot):

@@ -23,7 +23,25 @@
             <input type="hidden" name="action" value="set_channel">
 
             <div>
-                <label class="block text-text-secondary text-sm mb-2">Leaderboard-Channel</label>
+                <label class="block text-text-secondary text-sm mb-2">Anzeigemodus</label>
+                <select name="display_mode"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="single" {% if settings.get('display_mode')=='single' or not
+                        settings.get('display_mode') %}selected{% endif %}>
+                        📝 Einzelner Channel (mit Dropdown)
+                    </option>
+                    <option value="forum" {% if settings.get('display_mode')=='forum' %}selected{% endif %}>
+                        📁 Forum (separate Threads für jeden Typ)
+                    </option>
+                </select>
+                <p class="text-text-secondary text-xs mt-1">
+                    <strong>Einzelner Channel:</strong> Eine Nachricht mit Dropdown-Menü<br>
+                    <strong>Forum:</strong> Automatisches Forum mit 4 separaten Threads
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Leaderboard-Channel/Forum</label>
                 <select name="leaderboard_channel_id"
                     class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
                     <option value="">Deaktiviert</option>
@@ -33,14 +51,22 @@
                         #{{ channel.name }}
                     </option>
                     {% endfor %}
+                    {% for forum in guild.forums|sort(attribute='position') %}
+                    <option value="{{ forum.id }}" {% if forum.id==settings.get('leaderboard_channel_id') %}selected{%
+                        endif %}>
+                        💬 {{ forum.name }} (Forum)
+                    </option>
+                    {% endfor %}
                 </select>
-                <p class="text-text-secondary text-xs mt-1">In diesem Channel wird das interaktive Leaderboard angezeigt
+                <p class="text-text-secondary text-xs mt-1">
+                    <strong>Einzelner Channel:</strong> Wähle einen Text-Channel<br>
+                    <strong>Forum:</strong> Wähle ein bestehendes Forum oder der Bot erstellt eins
                 </p>
             </div>
 
             <button type="submit"
                 class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
-                💾 Channel speichern
+                💾 Einstellungen speichern
             </button>
         </form>
 
@@ -50,10 +76,18 @@
             <input type="hidden" name="action" value="setup_interactive">
             <button type="submit"
                 class="w-full px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-bold transition-colors">
+                {% if settings.get('display_mode') == 'forum' %}
+                🚀 Forum-Leaderboards aktivieren
+                {% else %}
                 🚀 Interaktives Leaderboard aktivieren
+                {% endif %}
             </button>
             <p class="text-text-secondary text-xs mt-2 text-center">
+                {% if settings.get('display_mode') == 'forum' %}
+                Erstellt automatisch 4 Threads (Nachrichten, Level, Aktive Streak, Allzeit Streak)
+                {% else %}
                 Erstellt eine permanente Nachricht mit Dropdown-Menü zum Wechseln zwischen Leaderboards
+                {% endif %}
             </p>
         </form>
         {% endif %}
