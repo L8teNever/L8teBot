@@ -78,8 +78,12 @@ class LeaderboardView(View):
         # Send ephemeral response (only visible to the user who clicked)
         await interaction.response.send_message(embed=embed, ephemeral=True)
     
-    async def create_leaderboard_embed(self):
-        """Erstellt das Leaderboard-Embed."""
+    async def create_leaderboard_embed(self, show_dropdown_instruction=True):
+        """Erstellt das Leaderboard-Embed.
+        
+        Args:
+            show_dropdown_instruction: Ob die Dropdown-Anleitung angezeigt werden soll (False für Forum-Threads)
+        """
         guild = self.bot.get_guild(self.guild_id)
         if not guild:
             return discord.Embed(title="Fehler", description="Server nicht gefunden", color=discord.Color.red())
@@ -181,12 +185,13 @@ class LeaderboardView(View):
             timestamp=now
         )
         
-        # Add helpful instruction at the top
-        embed.add_field(
-            name="💡 Wie funktioniert's?",
-            value="Wähle im **Dropdown-Menü** unten einen Leaderboard-Typ aus, um ihn anzuzeigen. Die Ansicht ist nur für dich sichtbar!",
-            inline=False
-        )
+        # Add helpful instruction at the top (only for dropdown mode)
+        if show_dropdown_instruction:
+            embed.add_field(
+                name="💡 Wie funktioniert's?",
+                value="Wähle im **Dropdown-Menü** unten einen Leaderboard-Typ aus, um ihn anzuzeigen. Die Ansicht ist nur für dich sichtbar!",
+                inline=False
+            )
         
         if leaderboard:
             leaderboard_text = ""
@@ -265,7 +270,7 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                                 
                                 # Create updated embed
                                 view = LeaderboardView(self.bot, guild.id, lb_type)
-                                embed = await view.create_leaderboard_embed()
+                                embed = await view.create_leaderboard_embed(show_dropdown_instruction=False)
                                 
                                 # Update the message
                                 await starter_message.edit(embed=embed)
@@ -365,14 +370,14 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                 thread_ids = {}
                 
                 for lb_type, thread_name in leaderboard_types:
-                    # Create embed for this type
-                    view = LeaderboardView(self.bot, guild_id, lb_type)
-                    embed = await view.create_leaderboard_embed()
+                    # Create embed for this type (without dropdown instruction)
+                    temp_view = LeaderboardView(self.bot, guild_id, lb_type)
+                    embed = await temp_view.create_leaderboard_embed(show_dropdown_instruction=False)
                     
-                    # Create thread
-                    thread = await channel.create_thread(
+                    # Create thread with initial message
+                    thread, message = await channel.create_thread(
                         name=thread_name,
-                        content=None,
+                        content="📊 Leaderboard wird geladen...",
                         embed=embed,
                         auto_archive_duration=10080,  # 7 days (max)
                         reason="Leaderboard-Thread"
@@ -388,6 +393,8 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                 return True, f"Forum-Leaderboards in {channel.name} erstellt! 4 Threads wurden angelegt."
                 
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 return False, f"Fehler beim Erstellen der Forum-Threads: {str(e)}"
         
         else:
