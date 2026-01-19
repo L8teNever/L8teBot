@@ -162,6 +162,27 @@
                         {% endif %}
                     </form>
                 </div>
+
+                <!-- Base URL Config -->
+                <div class="p-4 bg-background-dark/50 rounded-lg border border-white/5 space-y-3">
+                    <div>
+                        <h4 class="font-bold text-white">Domain / Base URL</h4>
+                        <p class="text-sm text-text-secondary">Die URL für die Web-Links (z.B. https://deinedomain.de)
+                        </p>
+                    </div>
+                    <form method="POST" action="{{ url_for('manage_wrapped', guild_id=guild.id) }}" class="flex gap-2">
+                        <input type="hidden" name="action" value="set_web_base_url">
+                        <input type="text" name="web_base_url" class="form-input flex-1"
+                            placeholder="http://localhost:5002" value="{{ wrapped_config.get('web_base_url') or '' }}">
+                        <button type="submit"
+                            class="px-4 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
+                            Speichern
+                        </button>
+                    </form>
+                    <p class="text-[10px] text-text-secondary italic">
+                        Hinweis: Ohne Angabe wird der Bot-Standard (WEB_BASE_URL) verwendet.
+                    </p>
+                </div>
             </div>
         </div>
 

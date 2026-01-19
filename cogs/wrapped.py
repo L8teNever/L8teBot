@@ -38,8 +38,14 @@ class WrappedWebLinkView(discord.ui.View):
         cog = bot.get_cog("Wrapped")
         if cog:
             token = cog.generate_wrapped_web_token(guild_id, user_id, year)
-            # Get base URL from config (or use localhost for development)
-            base_url = bot.config.get("WEB_BASE_URL", "http://localhost:5002")
+            # Get base URL from guild config, fallback to global config, then localhost
+            config = cog._get_config(guild_id)
+            base_url = config.get("web_base_url") or bot.config.get("WEB_BASE_URL", "http://localhost:5002")
+            
+            # Remove trailing slash if present
+            if base_url.endswith("/"):
+                base_url = base_url[:-1]
+                
             url = f"{base_url}/wrapped/{guild_id}/{token}"
             
             # Create button with actual URL
@@ -87,7 +93,12 @@ class WrappedCog(commands.Cog, name="Wrapped"):
         # Um es einfach zu halten, speichern wir Config in Live-Daten, kopieren sie aber ggf. nicht.
         year = datetime.datetime.now().year
         data = self._get_live_data(guild_id, year)
-        return data.setdefault("config", {"user_commands_enabled": False, "wrapped_channel_id": None})
+        return data.setdefault("config", {
+            "user_commands_enabled": False, 
+            "wrapped_channel_id": None,
+            "web_links_enabled": False,
+            "web_base_url": None
+        })
 
     def _save_config(self, guild_id: int, config: dict):
         year = datetime.datetime.now().year
@@ -541,6 +552,18 @@ class WrappedCog(commands.Cog, name="Wrapped"):
         self._save_config(guild_id, config)
         status = "aktiviert" if enabled else "deaktiviert"
         return True, f"Web-Links für Wrapped wurden {status}."
+    
+    async def web_set_base_url(self, guild_id: int, url: str) -> tuple:
+        """Setzt die Base-URL für die Web-Ansicht (per Guild)."""
+        config = self._get_config(guild_id)
+        
+        # Validation: basic http/https check
+        if url and not (url.startswith("http://") or url.startswith("https://")):
+            return False, "Die URL muss mit http:// oder https:// beginnen."
+            
+        config["web_base_url"] = url if url else None
+        self._save_config(guild_id, config)
+        return True, "Base-URL für Web-Links erfolgreich aktualisiert."
     
     def generate_wrapped_web_token(self, guild_id: int, user_id: int, year: int) -> str:
         """Generiert einen sicheren, zeitlich begrenzten Token für Wrapped Web-Ansicht."""

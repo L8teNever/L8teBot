@@ -1200,6 +1200,10 @@ def manage_wrapped(guild_id):
             enabled = request.form.get('enabled') == 'True'
             future = asyncio.run_coroutine_threadsafe(cog.web_toggle_web_links(guild_id, enabled), bot.loop)
 
+        elif action == 'set_web_base_url':
+            url = request.form.get('web_base_url')
+            future = asyncio.run_coroutine_threadsafe(cog.web_set_base_url(guild_id, url), bot.loop)
+
         if future:
             success, message = future.result()
             flash(message, 'success' if success else 'danger')
