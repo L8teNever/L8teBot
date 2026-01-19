@@ -195,6 +195,65 @@ class TwitchCog(commands.Cog, name="Twitch"):
         except (discord.Forbidden, discord.HTTPException) as e:
             print(f"Fehler beim Senden/Bearbeiten der Twitch-Benachrichtigung: {e}")
 
+    async def web_set_streamer_command_role(self, guild_id: int, role_id: Optional[int]) -> Tuple[bool, str]:
+        guild = self.bot.get_guild(guild_id)
+        if not guild: return False, "Server nicht gefunden."
+        
+        guild_data = self.bot.data.get_guild_data(guild_id, "streamers")
+        guild_data["streamer_command_role_id"] = role_id
+        
+        self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
+        if role_id:
+            role = guild.get_role(role_id)
+            role_name = role.name if role else str(role_id)
+            return True, f"Streamer-Befehl Rolle auf @{role_name} gesetzt."
+        return True, "Streamer-Befehl Rolle deaktiviert."
+
+    @app_commands.command(name="streamer", description="Fügt dir die Streamer-Rolle hinzu und verknüpft deinen Twitch-Namen.")
+    @app_commands.describe(username="Dein Twitch-Benutzername")
+    async def streamer_command(self, interaction: discord.Interaction, username: str):
+        """Befehl um die Streamer-Rolle zu erhalten."""
+        guild_id = interaction.guild_id
+        if not guild_id: return
+        
+        guild_data = self.bot.data.get_guild_data(guild_id, "streamers")
+        role_id = guild_data.get("streamer_command_role_id")
+        
+        if not role_id:
+            await interaction.response.send_message("❌ Die Streamer-Rolle wurde noch nicht konfiguriert. Bitte kontaktiere einen Administrator.", ephemeral=True)
+            return
+            
+        role = interaction.guild.get_role(role_id)
+        if not role:
+            await interaction.response.send_message("❌ Die konfigurierte Streamer-Rolle wurde nicht gefunden.", ephemeral=True)
+            return
+            
+        try:
+            # Überprüfe Twitch-Existenz (optional, aber gut für Validierung)
+            user_data = await self.get_twitch_user_data(username)
+            if not user_data:
+                await interaction.response.send_message(f"❌ Der Twitch-Benutzer `{username}` konnte nicht gefunden werden.", ephemeral=True)
+                return
+                
+            # Rolle geben
+            if role in interaction.user.roles:
+                await interaction.response.send_message(f"ℹ️ Du hast die Rolle {role.mention} bereits.", ephemeral=True)
+                return
+                
+            await interaction.user.add_roles(role, reason=f"Streamer-Level verifiziert (Twitch: {username})")
+            
+            # Speichere die Verknüpfung (optional, aber nützlich)
+            user_streamers = self.bot.data.get_guild_data(guild_id, "user_twitch_links")
+            user_streamers[str(interaction.user.id)] = username
+            self.bot.data.save_guild_data(guild_id, "user_twitch_links", user_streamers)
+            
+            await interaction.response.send_message(f"✅ Erfoglreich! Du hast nun die Rolle {role.mention} erhalten. Viel Spaß beim Streamen!", ephemeral=True)
+            
+        except discord.Forbidden:
+            await interaction.response.send_message("❌ Ich habe keine Berechtigung, dir diese Rolle zu geben. (Rollen-Hierarchie prüfen!)", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Ein Fehler ist aufgetreten: {e}", ephemeral=True)
+
     # --- Web API Methoden ---
     async def web_set_feed_config(self, guild_id: int, feed_channel_id: Optional[int]) -> Tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
@@ -206,7 +265,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
         self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
         if feed_channel_id:
             channel = guild.get_channel(feed_channel_id)
-            return True, f"Feed-Kanal auf {channel.mention} gesetzt."
+            return True, f"Feed-Kanal auf #{channel.name if channel else feed_channel_id} gesetzt."
         return True, "Feed-Kanal deaktiviert."
 
     async def web_add_streamer(self, guild_id: int, streamer_name: str) -> Tuple[bool, str]:

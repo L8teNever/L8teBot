@@ -266,5 +266,67 @@
         {% endif %}
     </section>
 
+    <!-- Streamer Role Command Section -->
+    <section class="space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-purple-400">verified_user</span>
+                Streamer Rolle & Befehl
+            </h2>
+            {% if multi_stream_is_enabled %}
+            <span
+                class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Aktiv</span>
+            {% else %}
+            <span
+                class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/20">Modul
+                'Twitch' wird benötigt</span>
+            {% endif %}
+        </div>
+
+        {% if multi_stream_is_enabled %}
+        <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
+            <p class="text-text-secondary mb-6 text-sm">User können mit <code>/streamer [twitch_name]</code> automatisch
+                eine Rolle erhalten.</p>
+            <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}" class="flex flex-col gap-6">
+                <input type="hidden" name="action" value="set_streamer_command_config">
+
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm font-medium text-text-secondary">Befehl Rolle</label>
+                    <select name="streamer_role_id" class="form-input">
+                        <option value="">-- Deaktiviert --</option>
+                        {% for role in guild.roles|sort(attribute='position', reverse=True) %}
+                        {% if role.name != "@everyone" %}
+                        <option value="{{ role.id }}" {% if streamers_data.get('streamer_command_role_id')==role.id
+                            %}selected{% endif %}>
+                            @{{ role.name }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 flex items-start gap-3">
+                    <span class="material-symbols-outlined text-purple-400">help_outline</span>
+                    <div class="text-sm text-gray-300">
+                        <p class="font-bold mb-1">Was macht dieser Befehl?</p>
+                        <ul class="list-disc list-inside space-y-1 opacity-80">
+                            <li>User geben <code>/streamer username:mein_name</code> ein.</li>
+                            <li>Der Bot prüft, ob der Twitch-Account existiert (optionaler Check).</li>
+                            <li>Der User erhält sofort die oben ausgewählte Rolle auf dem Server.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-4 border-t border-[#2e3e5e]">
+                    <button type="submit"
+                        class="px-6 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
+                        Einstellungen Speichern
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+    </section>
+
 </div>
 {% endblock %}
