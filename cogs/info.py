@@ -10,7 +10,7 @@ class InfoCog(commands.Cog, name="Information"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="bot-info", description="Zeigt detaillierte Infos zum Bot und zum Datenschutz an")
+    @app_commands.command(name="botinfo", description="Zeigt detaillierte Infos zum Bot und zum Datenschutz an")
     async def info_command(self, interaction: discord.Interaction):
         """Sendet einen ausführlichen Datenschutz- und Info-Embed (Privat)"""
         
