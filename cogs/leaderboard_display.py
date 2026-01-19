@@ -359,6 +359,16 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
             if not isinstance(channel, discord.ForumChannel):
                 return False, "Der ausgewählte Channel ist kein Forum! Bitte wähle ein Forum aus."
             
+            # Set permissions: Everyone can view, but not post or create threads
+            try:
+                await channel.set_permissions(guild.default_role, 
+                                            send_messages=False, 
+                                            send_messages_in_threads=False,
+                                            create_public_threads=False, 
+                                            create_private_threads=False)
+            except Exception as e:
+                print(f"⚠️ Fehler beim Setzen der Forum-Berechtigungen: {e}")
+
             try:
                 # First, check if there are existing leaderboard threads and delete them
                 existing_thread_ids = leaderboard_config.get('forum_thread_ids', {})
@@ -419,9 +429,15 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                     except Exception as e:
                         print(f"⚠️ Konnte Thread nicht stumm schalten: {e}")
                     
+                    # Lock thread to prevent any messages (if not already handled by channel perms)
+                    try:
+                        await thread.edit(locked=True)
+                    except:
+                        pass
+
                     # Store thread ID
                     thread_ids[lb_type] = thread.id
-                    print(f"✅ Erstellt: {thread_name} (Benachrichtigungen deaktiviert)")
+                    print(f"✅ Erstellt: {thread_name} (Benachrichtigungen deaktiviert & Sperre)")
 
                 
                 # Save thread IDs
@@ -441,6 +457,13 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
         
         else:
             # Single channel mode: Create one message with dropdown
+            
+            # Set permissions: Everyone can view, but not post
+            try:
+                await channel.set_permissions(guild.default_role, send_messages=False)
+            except Exception as e:
+                print(f"⚠️ Fehler beim Setzen der Kanal-Berechtigungen: {e}")
+
             message_id = leaderboard_config.get('leaderboard_message_id')
             
             view = LeaderboardView(self.bot, guild_id, 'messages')
