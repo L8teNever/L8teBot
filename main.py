@@ -1444,7 +1444,7 @@ async def on_ready():
         'cogs.level_system', 'cogs.moderation', 'cogs.ticket_system', 'cogs.twitch', 
         'cogs.twitch_live_alert', 'cogs.temp_channel', 'cogs.twitch_clips', 'cogs.streak', 
         'cogs.gatekeeper', 'cogs.guard', 'cogs.global_ban', 'cogs.maintenance', 'cogs.wrapped',
-        'cogs.lfg', 'cogs.monthly_stats'
+        'cogs.lfg', 'cogs.monthly_stats', 'cogs.leaderboard_display'
     ]
     for cog in cogs_to_load:
         try:
@@ -1544,6 +1544,34 @@ def manage_leaderboard_settings(guild_id):
             bot.data.save_guild_data(guild_id, "leaderboard_config", leaderboard_data)
             
             flash("Leaderboard-Channel gespeichert!", "success")
+        
+        elif action == 'setup_interactive':
+            # Setup interactive leaderboard display
+            leaderboard_data = bot.data.get_guild_data(guild_id, "leaderboard_config")
+            channel_id = leaderboard_data.get('leaderboard_channel_id')
+            
+            if not channel_id:
+                flash("Bitte konfiguriere zuerst einen Leaderboard-Channel!", "danger")
+                return redirect(url_for('manage_leaderboard_settings', guild_id=guild_id))
+            
+            cog = bot.get_cog('LeaderboardDisplay')
+            if not cog:
+                flash("Leaderboard-Display-Modul nicht geladen!", "danger")
+                return redirect(url_for('manage_leaderboard_settings', guild_id=guild_id))
+            
+            future = asyncio.run_coroutine_threadsafe(
+                cog.web_setup_leaderboard(guild_id, channel_id),
+                bot.loop
+            )
+            
+            try:
+                success, message = future.result(timeout=10)
+                if success:
+                    flash(message, "success")
+                else:
+                    flash(message, "danger")
+            except Exception as e:
+                flash(f"Fehler: {str(e)}", "danger")
             
         elif action == 'post_leaderboard':
             # Quick post leaderboard

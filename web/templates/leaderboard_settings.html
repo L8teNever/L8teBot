@@ -34,14 +34,29 @@
                     </option>
                     {% endfor %}
                 </select>
-                <p class="text-text-secondary text-xs mt-1">In diesem Channel können Leaderboards gepostet werden</p>
+                <p class="text-text-secondary text-xs mt-1">In diesem Channel wird das interaktive Leaderboard angezeigt
+                </p>
             </div>
 
             <button type="submit"
                 class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
-                Speichern
+                💾 Channel speichern
             </button>
         </form>
+
+        <!-- Setup Interactive Display -->
+        {% if settings.get('leaderboard_channel_id') %}
+        <form action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post" class="mt-4">
+            <input type="hidden" name="action" value="setup_interactive">
+            <button type="submit"
+                class="w-full px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-bold transition-colors">
+                🚀 Interaktives Leaderboard aktivieren
+            </button>
+            <p class="text-text-secondary text-xs mt-2 text-center">
+                Erstellt eine permanente Nachricht mit Dropdown-Menü zum Wechseln zwischen Leaderboards
+            </p>
+        </form>
+        {% endif %}
     </div>
 </section>
 
@@ -111,12 +126,23 @@
             <span class="material-symbols-outlined text-blue-400 text-2xl">info</span>
         </div>
         <div>
-            <h3 class="text-white font-bold mb-2">Über Leaderboards</h3>
+            <h3 class="text-white font-bold mb-2">🚀 Interaktives Leaderboard</h3>
+            <p class="text-text-secondary text-sm mb-3">
+                Das interaktive Leaderboard erstellt eine permanente Nachricht in deinem konfigurierten Channel mit:
+            </p>
+            <ul class="text-text-secondary text-sm space-y-1 mb-3">
+                <li>• <strong>Dropdown-Menü:</strong> Wechsle zwischen Nachrichten, Level und Streaks</li>
+                <li>• <strong>Auto-Update:</strong> Aktualisiert sich automatisch alle 5 Minuten</li>
+                <li>• <strong>Live-Daten:</strong> Zeigt immer die aktuellsten Ranglisten</li>
+                <li>• <strong>Auch bei leeren Daten:</strong> Wird angezeigt und füllt sich automatisch</li>
+            </ul>
+            <hr class="border-blue-500/20 my-3">
+            <p class="text-text-secondary text-sm font-bold mb-1">Leaderboard-Typen:</p>
             <ul class="text-text-secondary text-sm space-y-1">
-                <li>• <strong>Nachrichten:</strong> Zeigt die aktivsten Nutzer des aktuellen Monats</li>
-                <li>• <strong>Level:</strong> Zeigt die Nutzer mit dem höchsten Level (Allzeit)</li>
-                <li>• <strong>Aktive Streak:</strong> Zeigt aktuelle, laufende Aktivitäts-Streaks</li>
-                <li>• <strong>Streak Allzeit:</strong> Hall of Fame - längste jemals erreichte Streaks</li>
+                <li>• <strong>🗨️ Nachrichten:</strong> Aktivste Nutzer des aktuellen Monats</li>
+                <li>• <strong>⭐ Level:</strong> Nutzer mit dem höchsten Level (Allzeit)</li>
+                <li>• <strong>🔥 Aktive Streak:</strong> Aktuelle laufende Aktivitäts-Streaks</li>
+                <li>• <strong>🏆 Streak Allzeit:</strong> Hall of Fame - längste jemals erreichte Streaks</li>
             </ul>
         </div>
     </div>
