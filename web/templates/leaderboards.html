@@ -1,0 +1,260 @@
+{% extends "layout.html" %}
+{% block title %}Leaderboards - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">📊 Leaderboards</h1>
+        <p class="text-text-secondary text-base">Ranglisten für Nachrichten, Level und Streaks</p>
+    </div>
+</header>
+
+<!-- Filter Section -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6">
+        <form id="leaderboard-filter-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Channel Filter -->
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Channel-Filter</label>
+                <select id="channel-filter" name="channel_id"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="">Alle Channels</option>
+                    {% for channel in guild.text_channels|sort(attribute='position') %}
+                    <option value="{{ channel.id }}">#{{ channel.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Leaderboard Type -->
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Leaderboard-Typ</label>
+                <select id="type-filter" name="type"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="messages">🗨️ Meiste Nachrichten (Monatlich)</option>
+                    <option value="level">⭐ Höchstes Level (Allzeit)</option>
+                    <option value="streak_current">🔥 Längste aktive Streak</option>
+                    <option value="streak_alltime">🏆 Längste Streak (Allzeit)</option>
+                </select>
+            </div>
+
+            <!-- Post Channel -->
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">In Channel posten</label>
+                <select id="post-channel" name="post_channel_id"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="">Channel auswählen...</option>
+                    {% for channel in guild.text_channels|sort(attribute='position') %}
+                    <option value="{{ channel.id }}">#{{ channel.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+
+        <div class="mt-4">
+            <button id="post-leaderboard-btn"
+                class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                📤 Leaderboard in Channel posten
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- Leaderboard Display -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 id="leaderboard-title" class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">leaderboard</span>
+            <span id="title-text">Meiste Nachrichten - Monatlich</span>
+        </h2>
+        <p class="text-text-secondary text-sm mt-1">
+            <span id="subtitle-text">Alle Channels</span>
+            {% if current_month %}
+            <span class="ml-2">• {{ current_month }}</span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="p-6">
+        <div id="leaderboard-loading" class="text-center py-8 hidden">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            <p class="text-text-secondary mt-4">Lade Leaderboard...</p>
+        </div>
+
+        <div id="leaderboard-content">
+            <!-- Content will be loaded dynamically -->
+        </div>
+
+        <div id="leaderboard-empty" class="text-center py-8 hidden">
+            <span class="material-symbols-outlined text-6xl text-text-secondary mb-4 block">inbox</span>
+            <p class="text-text-secondary">Keine Daten für diesen Zeitraum verfügbar.</p>
+        </div>
+    </div>
+</section>
+
+<script>
+    const guildId = {{ guild.id }};
+    let currentFilters = {
+        channel_id: '',
+        type: 'messages'
+    };
+
+    // Update title based on filters
+    function updateTitle() {
+        const typeInfo = {
+            'messages': { name: '🗨️ Meiste Nachrichten', period: 'Monatlich' },
+            'level': { name: '⭐ Höchstes Level', period: 'Allzeit' },
+            'streak_current': { name: '🔥 Längste aktive Streak', period: 'Aktuell' },
+            'streak_alltime': { name: '🏆 Längste Streak', period: 'Allzeit' }
+        };
+
+        const channelSelect = document.getElementById('channel-filter');
+        const channelName = channelSelect.options[channelSelect.selectedIndex].text;
+        const info = typeInfo[currentFilters.type];
+
+        document.getElementById('title-text').textContent = info.name + ' - ' + info.period;
+        document.getElementById('subtitle-text').textContent = channelName;
+    }
+
+    // Load leaderboard data
+    async function loadLeaderboard() {
+        const loadingEl = document.getElementById('leaderboard-loading');
+        const contentEl = document.getElementById('leaderboard-content');
+        const emptyEl = document.getElementById('leaderboard-empty');
+
+        loadingEl.classList.remove('hidden');
+        contentEl.classList.add('hidden');
+        emptyEl.classList.add('hidden');
+
+        try {
+            const params = new URLSearchParams(currentFilters);
+            const response = await fetch('/guild/' + guildId + '/leaderboards/data?' + params);
+            const data = await response.json();
+
+            loadingEl.classList.add('hidden');
+
+            if (data.error) {
+                emptyEl.classList.remove('hidden');
+                return;
+            }
+
+            if (!data.leaderboard || data.leaderboard.length === 0) {
+                emptyEl.classList.remove('hidden');
+                return;
+            }
+
+            renderLeaderboard(data.leaderboard, currentFilters.type);
+            contentEl.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error loading leaderboard:', error);
+            loadingEl.classList.add('hidden');
+            emptyEl.classList.remove('hidden');
+        }
+    }
+
+    // Render leaderboard table
+    function renderLeaderboard(data, type) {
+        const contentEl = document.getElementById('leaderboard-content');
+
+        let valueHeader = 'Wert';
+        let valueFormatter = function (item) { return item.value; };
+
+        if (type === 'messages') {
+            valueHeader = 'Nachrichten';
+            valueFormatter = function (item) { return item.value.toLocaleString('de-DE'); };
+        } else if (type === 'level') {
+            valueHeader = 'Level';
+            valueFormatter = function (item) { return 'Level ' + item.level + ' (' + item.xp.toLocaleString('de-DE') + ' XP)'; };
+        } else if (type === 'streak_current' || type === 'streak_alltime') {
+            valueHeader = 'Streak';
+            valueFormatter = function (item) { return item.value + ' Tage'; };
+        }
+
+        let html = '<div class="overflow-x-auto"><table class="w-full"><thead><tr class="border-b border-[#2e3e5e]">';
+        html += '<th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">#</th>';
+        html += '<th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">Benutzer</th>';
+        html += '<th class="text-left py-3 px-4 text-text-secondary font-medium text-sm">' + valueHeader + '</th>';
+        html += '</tr></thead><tbody>';
+
+        data.forEach(function (item, index) {
+            const rankClass = index === 0 ? 'text-yellow-400 font-bold' :
+                index === 1 ? 'text-gray-300 font-bold' :
+                    index === 2 ? 'text-orange-400 font-bold' : 'text-white';
+
+            const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+
+            html += '<tr class="border-b border-[#2e3e5e] hover:bg-white/5 transition-colors">';
+            html += '<td class="py-3 px-4 ' + rankClass + '">' + rankIcon + ' ' + (index + 1) + '</td>';
+            html += '<td class="py-3 px-4"><div class="flex items-center gap-2">';
+            html += '<img src="' + item.avatar_url + '" class="w-8 h-8 rounded-full" alt="Avatar">';
+            html += '<span class="text-white">' + item.name + '</span></div></td>';
+            html += '<td class="py-3 px-4 text-white font-medium">' + valueFormatter(item) + '</td>';
+            html += '</tr>';
+        });
+
+        html += '</tbody></table></div>';
+        contentEl.innerHTML = html;
+    }
+
+    // Post leaderboard to channel
+    async function postLeaderboard() {
+        const postChannelSelect = document.getElementById('post-channel');
+        const postChannelId = postChannelSelect.value;
+
+        if (!postChannelId) {
+            alert('Bitte wähle einen Channel aus!');
+            return;
+        }
+
+        const btn = document.getElementById('post-leaderboard-btn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Wird gepostet...';
+
+        try {
+            const response = await fetch('/guild/' + guildId + '/leaderboards/post', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    channel_id: parseInt(postChannelId),
+                    type: currentFilters.type,
+                    filter_channel_id: currentFilters.channel_id ? parseInt(currentFilters.channel_id) : null
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('✅ Leaderboard wurde erfolgreich gepostet!');
+            } else {
+                alert('❌ Fehler: ' + (data.error || 'Unbekannter Fehler'));
+            }
+        } catch (error) {
+            console.error('Error posting leaderboard:', error);
+            alert('❌ Fehler beim Posten des Leaderboards');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '📤 Leaderboard in Channel posten';
+        }
+    }
+
+    // Event listeners for filters
+    document.getElementById('channel-filter').addEventListener('change', function (e) {
+        currentFilters.channel_id = e.target.value;
+        updateTitle();
+        loadLeaderboard();
+    });
+
+    document.getElementById('type-filter').addEventListener('change', function (e) {
+        currentFilters.type = e.target.value;
+        updateTitle();
+        loadLeaderboard();
+    });
+
+    document.getElementById('post-leaderboard-btn').addEventListener('click', postLeaderboard);
+
+    // Initial load
+    updateTitle();
+    loadLeaderboard();
+</script>
+
+{% endblock %}

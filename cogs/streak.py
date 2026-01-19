@@ -32,6 +32,7 @@ class StreakCog(commands.Cog, name="Streak"):
         guild_streaks = self.bot.data.get_guild_data(message.guild.id, "streaks")
         user_data = guild_streaks.setdefault(user_id_str, {
             "current_streak": 0,
+            "max_streak_ever": 0,  # Längste jemals erreichte Streak
             "last_message_date": None
         })
 
@@ -56,6 +57,10 @@ class StreakCog(commands.Cog, name="Streak"):
             user_data["current_streak"] = 1
         
         user_data["last_message_date"] = today.isoformat()
+
+        # Update max_streak_ever wenn aktuelle Streak höher ist
+        if user_data["current_streak"] > user_data.get("max_streak_ever", 0):
+            user_data["max_streak_ever"] = user_data["current_streak"]
 
         # Rollen nur aktualisieren, wenn sich der Streak geändert hat
         if user_data["current_streak"] != previous_streak:

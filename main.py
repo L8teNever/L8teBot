@@ -1444,7 +1444,7 @@ async def on_ready():
         'cogs.level_system', 'cogs.moderation', 'cogs.ticket_system', 'cogs.twitch', 
         'cogs.twitch_live_alert', 'cogs.temp_channel', 'cogs.twitch_clips', 'cogs.streak', 
         'cogs.gatekeeper', 'cogs.guard', 'cogs.global_ban', 'cogs.maintenance', 'cogs.wrapped',
-        'cogs.lfg'
+        'cogs.lfg', 'cogs.monthly_stats'
     ]
     for cog in cogs_to_load:
         try:
@@ -1516,6 +1516,317 @@ def manage_lfg(guild_id):
 
     settings = bot.data.get_guild_data(guild_id, "lfg_config")
     return render_template('lfg.html', guild=guild, settings=settings, is_enabled=is_enabled, admin_guilds=get_admin_guilds())
+
+
+@app.route('/guild/<int:guild_id>/leaderboards', methods=['GET'])
+@requires_authorization
+def view_leaderboards(guild_id):
+    """Zeigt die Leaderboards-Seite an."""
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung für diesen Server.", "danger")
+        return redirect(url_for('dashboard'))
+
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        flash("Server nicht gefunden.", "danger")
+        return redirect(url_for('dashboard'))
+
+    # Get current month for display
+    import datetime
+    now = datetime.datetime.now()
+    current_month = now.strftime('%B %Y')
+
+    return render_template('leaderboards.html', 
+                         guild=guild, 
+                         current_month=current_month,
+                         admin_guilds=get_admin_guilds())
+
+
+@app.route('/guild/<int:guild_id>/leaderboards/data', methods=['GET'])
+@requires_authorization
+def get_leaderboards_data(guild_id):
+    """API-Endpunkt zum Abrufen der Leaderboard-Daten."""
+    if not check_guild_permissions(guild_id):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return jsonify({"error": "Guild not found"}), 404
+
+    # Get filter parameters
+    channel_id = request.args.get('channel_id', type=int)
+    leaderboard_type = request.args.get('type', 'messages')
+
+    try:
+        import datetime
+        now = datetime.datetime.now()
+        current_month = now.strftime('%Y-%m')
+        
+        leaderboard = []
+
+        if leaderboard_type == 'messages':
+            # Message count leaderboard (ALWAYS monthly)
+            monthly_stats = bot.data.get_guild_data(guild_id, "monthly_stats")
+            month_data = monthly_stats.get(current_month, {})
+            
+            for user_id_str, user_data in month_data.items():
+                if not user_id_str.isdigit():
+                    continue
+                
+                member = guild.get_member(int(user_id_str))
+                if not member:
+                    continue
+                
+                # Filter by channel if specified
+                if channel_id:
+                    msg_count = user_data.get('channels', {}).get(str(channel_id), 0)
+                else:
+                    msg_count = user_data.get('total_messages', 0)
+                
+                if msg_count > 0:
+                    leaderboard.append({
+                        'name': member.display_name,
+                        'avatar_url': str(member.display_avatar.url),
+                        'value': msg_count
+                    })
+
+        elif leaderboard_type == 'level':
+            # Level leaderboard (ALWAYS all-time from level system)
+            users_data = bot.data.get_guild_data(guild_id, "level_users")
+            
+            for user_id_str, user_data in users_data.items():
+                if not user_id_str.isdigit():
+                    continue
+                
+                member = guild.get_member(int(user_id_str))
+                if not member:
+                    continue
+                
+                leaderboard.append({
+                    'name': member.display_name,
+                    'avatar_url': str(member.display_avatar.url),
+                    'level': user_data.get('level', 0),
+                    'xp': user_data.get('xp', 0),
+                    'value': user_data.get('level', 0)
+                })
+
+        elif leaderboard_type == 'streak_current':
+            # Current active streak leaderboard
+            guild_streaks = bot.data.get_guild_data(guild_id, "streaks")
+            for user_id_str, data in guild_streaks.items():
+                if not user_id_str.isdigit():
+                    continue
+                
+                member = guild.get_member(int(user_id_str))
+                if not member:
+                    continue
+                
+                current_streak = data.get('current_streak', 0)
+                if current_streak > 0:
+                    leaderboard.append({
+                        'name': member.display_name,
+                        'avatar_url': str(member.display_avatar.url),
+                        'value': current_streak
+                    })
+
+        elif leaderboard_type == 'streak_alltime':
+            # All-time longest streak leaderboard (includes past streaks)
+            guild_streaks = bot.data.get_guild_data(guild_id, "streaks")
+            for user_id_str, data in guild_streaks.items():
+                if not user_id_str.isdigit():
+                    continue
+                
+                member = guild.get_member(int(user_id_str))
+                if not member:
+                    continue
+                
+                max_streak = data.get('max_streak_ever', 0)
+                if max_streak > 0:
+                    leaderboard.append({
+                        'name': member.display_name,
+                        'avatar_url': str(member.display_avatar.url),
+                        'value': max_streak
+                    })
+
+
+        # Sort leaderboard by value (descending)
+        leaderboard.sort(key=lambda x: x['value'], reverse=True)
+        
+        # Limit to top 50
+        leaderboard = leaderboard[:50]
+
+        return jsonify({
+            'leaderboard': leaderboard,
+            'total': len(leaderboard)
+        })
+
+    except Exception as e:
+        print(f"Error generating leaderboard: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/guild/<int:guild_id>/leaderboards/post', methods=['POST'])
+@requires_authorization
+def post_leaderboard_to_channel(guild_id):
+    """Postet ein Leaderboard in einen Discord-Channel."""
+    if not check_guild_permissions(guild_id):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return jsonify({"error": "Guild not found"}), 404
+
+    try:
+        data = request.get_json()
+        channel_id = data.get('channel_id')
+        leaderboard_type = data.get('type', 'messages')
+        filter_channel_id = data.get('filter_channel_id')
+
+        if not channel_id:
+            return jsonify({"error": "Channel ID required"}), 400
+
+        channel = guild.get_channel(channel_id)
+        if not channel:
+            return jsonify({"error": "Channel not found"}), 404
+
+        # Get leaderboard data
+        import datetime
+        now = datetime.datetime.now()
+        current_month = now.strftime('%Y-%m')
+        
+        leaderboard = []
+        title = ""
+        description = ""
+
+        if leaderboard_type == 'messages':
+            title = "🗨️ Meiste Nachrichten - Monatlich"
+            monthly_stats = bot.data.get_guild_data(guild_id, "monthly_stats")
+            month_data = monthly_stats.get(current_month, {})
+            
+            for user_id_str, user_data in month_data.items():
+                if not user_id_str.isdigit():
+                    continue
+                member = guild.get_member(int(user_id_str))
+                if not member:
+                    continue
+                
+                if filter_channel_id:
+                    msg_count = user_data.get('channels', {}).get(str(filter_channel_id), 0)
+                else:
+                    msg_count = user_data.get('total_messages', 0)
+                
+                if msg_count > 0:
+                    leaderboard.append({
+                        'member': member,
+                        'value': msg_count
+                    })
+            
+            if filter_channel_id:
+                filter_ch = guild.get_channel(filter_channel_id)
+                description = f"Nachrichten in #{filter_ch.name if filter_ch else 'unbekannt'}"
+            else:
+                description = "Alle Channels"
+
+        elif leaderboard_type == 'level':
+            title = "⭐ Höchstes Level - Allzeit"
+            users_data = bot.data.get_guild_data(guild_id, "level_users")
+            
+            for user_id_str, user_data in users_data.items():
+                if not user_id_str.isdigit():
+                    continue
+                member = guild.get_member(int(user_id_str))
+                if not member:
+                    continue
+                
+                leaderboard.append({
+                    'member': member,
+                    'value': user_data.get('level', 0),
+                    'xp': user_data.get('xp', 0)
+                })
+
+        elif leaderboard_type == 'streak_current':
+            title = "🔥 Längste aktive Streak"
+            guild_streaks = bot.data.get_guild_data(guild_id, "streaks")
+            
+            for user_id_str, data in guild_streaks.items():
+                if not user_id_str.isdigit():
+                    continue
+                member = guild.get_member(int(user_id_str))
+                if not member:
+                    continue
+                
+                current_streak = data.get('current_streak', 0)
+                if current_streak > 0:
+                    leaderboard.append({
+                        'member': member,
+                        'value': current_streak
+                    })
+
+        elif leaderboard_type == 'streak_alltime':
+            title = "🏆 Längste Streak (Allzeit)"
+            guild_streaks = bot.data.get_guild_data(guild_id, "streaks")
+            
+            for user_id_str, data in guild_streaks.items():
+                if not user_id_str.isdigit():
+                    continue
+                member = guild.get_member(int(user_id_str))
+                if not member:
+                    continue
+                
+                max_streak = data.get('max_streak_ever', 0)
+                if max_streak > 0:
+                    leaderboard.append({
+                        'member': member,
+                        'value': max_streak
+                    })
+
+        # Sort and limit
+        leaderboard.sort(key=lambda x: x['value'], reverse=True)
+        leaderboard = leaderboard[:20]  # Top 20 for Discord message
+
+        if not leaderboard:
+            return jsonify({"error": "Keine Daten verfügbar"}), 400
+
+        # Create embed
+        import discord
+        embed = discord.Embed(
+            title=title,
+            description=description,
+            color=discord.Color.blue(),
+            timestamp=datetime.datetime.now()
+        )
+
+        # Add leaderboard entries
+        leaderboard_text = ""
+        for idx, entry in enumerate(leaderboard, 1):
+            medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
+            
+            if leaderboard_type == 'messages':
+                leaderboard_text += f"{medal} **{entry['member'].display_name}** - {entry['value']:,} Nachrichten\n"
+            elif leaderboard_type == 'level':
+                leaderboard_text += f"{medal} **{entry['member'].display_name}** - Level {entry['value']} ({entry['xp']:,} XP)\n"
+            elif leaderboard_type == 'streak_current' or leaderboard_type == 'streak_alltime':
+                leaderboard_text += f"{medal} **{entry['member'].display_name}** - {entry['value']} Tage\n"
+
+        embed.add_field(name="Rangliste", value=leaderboard_text or "Keine Einträge", inline=False)
+        embed.set_footer(text=f"{guild.name} • {now.strftime('%d.%m.%Y %H:%M')}")
+
+        # Send to channel
+        async def send_embed():
+            await channel.send(embed=embed)
+
+        future = asyncio.run_coroutine_threadsafe(send_embed(), bot.loop)
+        future.result(timeout=10)
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        print(f"Error posting leaderboard: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
