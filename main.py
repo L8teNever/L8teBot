@@ -467,6 +467,18 @@ def guild_settings(guild_id):
     guild_data = bot.data.get_server_config(guild_id)
     return render_template('guild.html', guild=guild, settings=guild_data, admin_guilds=get_admin_guilds())
 
+@app.route('/guild/<int:guild_id>/modules')
+@requires_authorization
+def manage_modules(guild_id):
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung für diesen Server.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    guild = bot.get_guild(guild_id)
+    guild_data = bot.data.get_server_config(guild_id)
+    return render_template('modules.html', guild=guild, settings=guild_data, manageable_cogs=MANAGEABLE_COGS, admin_guilds=get_admin_guilds())
+
+
 @app.route('/guild/<int:guild_id>/toggle_module', methods=['POST'])
 @requires_authorization
 def toggle_module(guild_id):

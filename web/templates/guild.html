@@ -158,8 +158,22 @@
             <span
                 class="material-symbols-outlined text-text-secondary group-hover:text-primary transition-colors">arrow_forward</span>
         </a>
+
+        <a href="{{ url_for('manage_modules', guild_id=guild.id) }}"
+            class="group flex items-center gap-4 p-4 rounded-lg bg-card-dark border border-[#2e3e5e] hover:border-primary/50 transition-all">
+            <div class="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-cyan-400">extension</span>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-white font-bold group-hover:text-primary transition-colors">Module</h3>
+                <p class="text-text-secondary text-sm">Alle Module verwalten</p>
+            </div>
+            <span
+                class="material-symbols-outlined text-text-secondary group-hover:text-primary transition-colors">arrow_forward</span>
+        </a>
     </div>
 </section>
+
 
 <!-- Info Box -->
 <section class="rounded-lg p-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
