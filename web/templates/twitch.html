@@ -22,7 +22,7 @@
     <div class="p-6">
         <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
             <input type="hidden" name="cog_name" value="Twitch">
-            <input type="hidden" name="is_enabled" value="{{ not is_enabled }}">
+            <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
             <input type="hidden" name="redirect_url" value="{{ request.url }}">
             <label class="flex items-center gap-3 cursor-pointer">
                 <div class="relative inline-flex items-center cursor-pointer">
