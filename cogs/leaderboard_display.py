@@ -61,22 +61,22 @@ class LeaderboardView(View):
     
     async def select_callback(self, interaction: Interaction):
         """Callback wenn ein Leaderboard-Typ ausgewählt wird."""
-        self.current_type = interaction.data['values'][0]
-        await interaction.response.defer()
+        selected_type = interaction.data['values'][0]
         
-        # Update the message with new leaderboard type
-        embed = await self.create_leaderboard_embed()
-        new_view = LeaderboardView(self.bot, self.guild_id, self.current_type)
-        await interaction.message.edit(embed=embed, view=new_view)
+        # Create a temporary view with the selected type to generate the embed
+        temp_view = LeaderboardView(self.bot, self.guild_id, selected_type)
+        embed = await temp_view.create_leaderboard_embed()
+        
+        # Send ephemeral response (only visible to the user who clicked)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
     async def refresh_callback(self, interaction: Interaction):
         """Callback für Refresh-Button."""
-        await interaction.response.defer()
-        
-        # Update the message with current leaderboard
+        # Create embed with current type
         embed = await self.create_leaderboard_embed()
-        new_view = LeaderboardView(self.bot, self.guild_id, self.current_type)
-        await interaction.message.edit(embed=embed, view=new_view)
+        
+        # Send ephemeral response (only visible to the user who clicked)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
     async def create_leaderboard_embed(self):
         """Erstellt das Leaderboard-Embed."""
@@ -156,8 +156,18 @@ class LeaderboardView(View):
                     continue
                 
                 max_streak = data.get('max_streak_ever', 0)
+                current_streak = data.get('current_streak', 0)
+                
                 if max_streak > 0:
-                    leaderboard.append({'member': member, 'value': max_streak, 'type': 'streak'})
+                    # Check if the max streak is still running
+                    is_active = (current_streak == max_streak and current_streak > 0)
+                    leaderboard.append({
+                        'member': member,
+                        'value': max_streak,
+                        'type': 'streak_alltime',
+                        'is_active': is_active
+                    })
+
         
         # Sort and limit
         leaderboard.sort(key=lambda x: x['value'], reverse=True)
@@ -182,6 +192,10 @@ class LeaderboardView(View):
                     leaderboard_text += f"{medal} **{entry['member'].display_name}** - Level {entry['value']} ({entry['xp']:,} XP)\n"
                 elif entry['type'] == 'streak':
                     leaderboard_text += f"{medal} **{entry['member'].display_name}** - {entry['value']} Tage\n"
+                elif entry['type'] == 'streak_alltime':
+                    # Show if streak is still active or ended
+                    status = "🔥 Läuft" if entry.get('is_active', False) else "⏸️ Beendet"
+                    leaderboard_text += f"{medal} **{entry['member'].display_name}** - {entry['value']} Tage ({status})\n"
             
             embed.add_field(name="📊 Rangliste", value=leaderboard_text, inline=False)
         else:

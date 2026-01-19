@@ -60,6 +60,45 @@
     </div>
 </section>
 
+<!-- Monthly Summary Configuration -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">calendar_month</span>
+            Monatliche Zusammenfassung
+        </h2>
+        <p class="text-text-secondary text-sm mt-1">Optional: Sende am 1. des Monats eine Zusammenfassung des Vormonats
+        </p>
+    </div>
+    <div class="p-6">
+        <form action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post" class="space-y-4">
+            <input type="hidden" name="action" value="set_summary_channel">
+
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Zusammenfassungs-Channel</label>
+                <select name="monthly_summary_channel_id"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="">Deaktiviert</option>
+                    {% for channel in guild.text_channels|sort(attribute='position') %}
+                    <option value="{{ channel.id }}" {% if channel.id==settings.get('monthly_summary_channel_id')
+                        %}selected{% endif %}>
+                        #{{ channel.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="text-text-secondary text-xs mt-1">
+                    Am 1. jeden Monats wird hier eine Zusammenfassung mit den Top-Schreibern des Vormonats gepostet
+                </p>
+            </div>
+
+            <button type="submit"
+                class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                💾 Zusammenfassungs-Channel speichern
+            </button>
+        </form>
+    </div>
+</section>
+
 <!-- Quick Actions -->
 <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
     <div class="p-6 border-b border-[#2e3e5e]">

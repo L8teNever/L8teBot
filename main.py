@@ -1572,6 +1572,21 @@ def manage_leaderboard_settings(guild_id):
                     flash(message, "danger")
             except Exception as e:
                 flash(f"Fehler: {str(e)}", "danger")
+        
+        elif action == 'set_summary_channel':
+            # Save monthly summary channel setting
+            leaderboard_data = bot.data.get_guild_data(guild_id, "leaderboard_config")
+            channel_id_str = request.form.get('monthly_summary_channel_id')
+            channel_id = int(channel_id_str) if channel_id_str else None
+            
+            leaderboard_data['monthly_summary_channel_id'] = channel_id
+            bot.data.save_guild_data(guild_id, "leaderboard_config", leaderboard_data)
+            
+            if channel_id:
+                channel = guild.get_channel(channel_id)
+                flash(f"Monatliche Zusammenfassung wird in #{channel.name} gepostet!", "success")
+            else:
+                flash("Monatliche Zusammenfassung deaktiviert.", "success")
             
         elif action == 'post_leaderboard':
             # Quick post leaderboard
