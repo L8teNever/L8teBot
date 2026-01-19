@@ -360,6 +360,32 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                 return False, "Der ausgewählte Channel ist kein Forum! Bitte wähle ein Forum aus."
             
             try:
+                # First, check if there are existing leaderboard threads and delete them
+                existing_thread_ids = leaderboard_config.get('forum_thread_ids', {})
+                deleted_count = 0
+                
+                if existing_thread_ids:
+                    for lb_type, thread_id in existing_thread_ids.items():
+                        try:
+                            thread = channel.get_thread(thread_id)
+                            if not thread:
+                                # Try to fetch if not in cache
+                                thread = await channel.fetch_thread(thread_id)
+                            
+                            if thread:
+                                await thread.delete()
+                                deleted_count += 1
+                                print(f"✅ Gelöscht: Alter Thread '{thread.name}'")
+                        except discord.NotFound:
+                            # Thread already deleted
+                            pass
+                        except Exception as e:
+                            print(f"⚠️ Fehler beim Löschen von Thread {thread_id}: {e}")
+                
+                if deleted_count > 0:
+                    print(f"🗑️ {deleted_count} alte Leaderboard-Threads gelöscht")
+                
+                # Now create new threads
                 leaderboard_types = [
                     ('messages', '🗨️ Meiste Nachrichten (Monatlich)'),
                     ('level', '⭐ Höchstes Level (Allzeit)'),
@@ -385,12 +411,17 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                     
                     # Store thread ID
                     thread_ids[lb_type] = thread.id
+                    print(f"✅ Erstellt: {thread_name}")
                 
                 # Save thread IDs
                 leaderboard_config['forum_thread_ids'] = thread_ids
                 self.bot.data.save_guild_data(guild_id, "leaderboard_config", leaderboard_config)
                 
-                return True, f"Forum-Leaderboards in {channel.name} erstellt! 4 Threads wurden angelegt."
+                message = f"Forum-Leaderboards in {channel.name} erstellt! 4 neue Threads wurden angelegt."
+                if deleted_count > 0:
+                    message += f" ({deleted_count} alte Threads wurden ersetzt)"
+                
+                return True, message
                 
             except Exception as e:
                 import traceback
