@@ -1,0 +1,125 @@
+{% extends "layout.html" %}
+{% block title %}Leaderboard Einstellungen - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">📊 Leaderboard Einstellungen</h1>
+        <p class="text-text-secondary text-base">Konfiguriere automatische Leaderboard-Posts</p>
+    </div>
+</header>
+
+<!-- Configuration Section -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">settings</span>
+            Leaderboard-Channel
+        </h2>
+        <p class="text-text-secondary text-sm mt-1">Wähle einen Channel, in dem Leaderboards gepostet werden sollen</p>
+    </div>
+    <div class="p-6">
+        <form action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post" class="space-y-4">
+            <input type="hidden" name="action" value="set_channel">
+
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Leaderboard-Channel</label>
+                <select name="leaderboard_channel_id"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="">Deaktiviert</option>
+                    {% for channel in guild.text_channels|sort(attribute='position') %}
+                    <option value="{{ channel.id }}" {% if channel.id==settings.get('leaderboard_channel_id')
+                        %}selected{% endif %}>
+                        #{{ channel.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="text-text-secondary text-xs mt-1">In diesem Channel können Leaderboards gepostet werden</p>
+            </div>
+
+            <button type="submit"
+                class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                Speichern
+            </button>
+        </form>
+    </div>
+</section>
+
+<!-- Quick Actions -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">bolt</span>
+            Schnellaktionen
+        </h2>
+    </div>
+    <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- View Leaderboards -->
+            <a href="{{ url_for('view_leaderboards', guild_id=guild.id) }}"
+                class="group flex items-center gap-4 p-4 rounded-lg bg-background-dark border border-[#2e3e5e] hover:border-primary/50 transition-all">
+                <div class="h-12 w-12 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-blue-400">leaderboard</span>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-white font-bold group-hover:text-primary transition-colors">Leaderboards anzeigen
+                    </h3>
+                    <p class="text-text-secondary text-sm">Ranglisten ansehen und filtern</p>
+                </div>
+                <span
+                    class="material-symbols-outlined text-text-secondary group-hover:text-primary transition-colors">arrow_forward</span>
+            </a>
+
+            <!-- Post Leaderboard Form -->
+            <div class="p-4 rounded-lg bg-background-dark border border-[#2e3e5e]">
+                <form action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post"
+                    class="space-y-3">
+                    <input type="hidden" name="action" value="post_leaderboard">
+
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="h-12 w-12 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-green-400">send</span>
+                        </div>
+                        <div>
+                            <h3 class="text-white font-bold">Leaderboard posten</h3>
+                            <p class="text-text-secondary text-xs">Schnell posten</p>
+                        </div>
+                    </div>
+
+                    <select name="leaderboard_type" required
+                        class="w-full px-3 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white text-sm focus:border-primary focus:outline-none">
+                        <option value="messages">🗨️ Nachrichten (Monatlich)</option>
+                        <option value="level">⭐ Level (Allzeit)</option>
+                        <option value="streak_current">🔥 Aktive Streak</option>
+                        <option value="streak_alltime">🏆 Streak (Allzeit)</option>
+                    </select>
+
+                    <button type="submit"
+                        class="w-full px-3 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-bold text-sm transition-colors">
+                        📤 Jetzt posten
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Info Box -->
+<section class="rounded-lg p-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+    <div class="flex items-start gap-4">
+        <div class="h-12 w-12 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-blue-400 text-2xl">info</span>
+        </div>
+        <div>
+            <h3 class="text-white font-bold mb-2">Über Leaderboards</h3>
+            <ul class="text-text-secondary text-sm space-y-1">
+                <li>• <strong>Nachrichten:</strong> Zeigt die aktivsten Nutzer des aktuellen Monats</li>
+                <li>• <strong>Level:</strong> Zeigt die Nutzer mit dem höchsten Level (Allzeit)</li>
+                <li>• <strong>Aktive Streak:</strong> Zeigt aktuelle, laufende Aktivitäts-Streaks</li>
+                <li>• <strong>Streak Allzeit:</strong> Hall of Fame - längste jemals erreichte Streaks</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

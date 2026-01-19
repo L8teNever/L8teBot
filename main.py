@@ -1518,6 +1518,180 @@ def manage_lfg(guild_id):
     return render_template('lfg.html', guild=guild, settings=settings, is_enabled=is_enabled, admin_guilds=get_admin_guilds())
 
 
+@app.route('/guild/<int:guild_id>/leaderboard_settings', methods=['GET', 'POST'])
+@requires_authorization
+def manage_leaderboard_settings(guild_id):
+    """Verwaltet die Leaderboard-Einstellungen."""
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung für diesen Server.", "danger")
+        return redirect(url_for('dashboard'))
+
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        flash("Server nicht gefunden.", "danger")
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'set_channel':
+            # Save leaderboard channel setting
+            leaderboard_data = bot.data.get_guild_data(guild_id, "leaderboard_config")
+            channel_id_str = request.form.get('leaderboard_channel_id')
+            channel_id = int(channel_id_str) if channel_id_str else None
+            
+            leaderboard_data['leaderboard_channel_id'] = channel_id
+            bot.data.save_guild_data(guild_id, "leaderboard_config", leaderboard_data)
+            
+            flash("Leaderboard-Channel gespeichert!", "success")
+            
+        elif action == 'post_leaderboard':
+            # Quick post leaderboard
+            leaderboard_data = bot.data.get_guild_data(guild_id, "leaderboard_config")
+            channel_id = leaderboard_data.get('leaderboard_channel_id')
+            
+            if not channel_id:
+                flash("Bitte konfiguriere zuerst einen Leaderboard-Channel!", "danger")
+                return redirect(url_for('manage_leaderboard_settings', guild_id=guild_id))
+            
+            channel = guild.get_channel(channel_id)
+            if not channel:
+                flash("Konfigurierter Channel nicht gefunden!", "danger")
+                return redirect(url_for('manage_leaderboard_settings', guild_id=guild_id))
+            
+            leaderboard_type = request.form.get('leaderboard_type', 'messages')
+            
+            try:
+                # Get leaderboard data
+                import datetime
+                now = datetime.datetime.now()
+                current_month = now.strftime('%Y-%m')
+                
+                leaderboard = []
+                title = ""
+                description = "Alle Channels"
+
+                if leaderboard_type == 'messages':
+                    title = "🗨️ Meiste Nachrichten - Monatlich"
+                    monthly_stats = bot.data.get_guild_data(guild_id, "monthly_stats")
+                    month_data = monthly_stats.get(current_month, {})
+                    
+                    for user_id_str, user_data in month_data.items():
+                        if not user_id_str.isdigit():
+                            continue
+                        member = guild.get_member(int(user_id_str))
+                        if not member:
+                            continue
+                        
+                        msg_count = user_data.get('total_messages', 0)
+                        if msg_count > 0:
+                            leaderboard.append({'member': member, 'value': msg_count})
+
+                elif leaderboard_type == 'level':
+                    title = "⭐ Höchstes Level - Allzeit"
+                    users_data = bot.data.get_guild_data(guild_id, "level_users")
+                    
+                    for user_id_str, user_data in users_data.items():
+                        if not user_id_str.isdigit():
+                            continue
+                        member = guild.get_member(int(user_id_str))
+                        if not member:
+                            continue
+                        
+                        leaderboard.append({
+                            'member': member,
+                            'value': user_data.get('level', 0),
+                            'xp': user_data.get('xp', 0)
+                        })
+
+                elif leaderboard_type == 'streak_current':
+                    title = "🔥 Längste aktive Streak"
+                    guild_streaks = bot.data.get_guild_data(guild_id, "streaks")
+                    
+                    for user_id_str, data in guild_streaks.items():
+                        if not user_id_str.isdigit():
+                            continue
+                        member = guild.get_member(int(user_id_str))
+                        if not member:
+                            continue
+                        
+                        current_streak = data.get('current_streak', 0)
+                        if current_streak > 0:
+                            leaderboard.append({'member': member, 'value': current_streak})
+
+                elif leaderboard_type == 'streak_alltime':
+                    title = "🏆 Längste Streak (Allzeit)"
+                    guild_streaks = bot.data.get_guild_data(guild_id, "streaks")
+                    
+                    for user_id_str, data in guild_streaks.items():
+                        if not user_id_str.isdigit():
+                            continue
+                        member = guild.get_member(int(user_id_str))
+                        if not member:
+                            continue
+                        
+                        max_streak = data.get('max_streak_ever', 0)
+                        if max_streak > 0:
+                            leaderboard.append({'member': member, 'value': max_streak})
+
+                # Sort and limit
+                leaderboard.sort(key=lambda x: x['value'], reverse=True)
+                leaderboard = leaderboard[:20]
+
+                if not leaderboard:
+                    flash("Keine Daten für dieses Leaderboard verfügbar!", "warning")
+                    return redirect(url_for('manage_leaderboard_settings', guild_id=guild_id))
+
+                # Create embed
+                import discord
+                embed = discord.Embed(
+                    title=title,
+                    description=description,
+                    color=discord.Color.blue(),
+                    timestamp=datetime.datetime.now()
+                )
+
+                # Add leaderboard entries
+                leaderboard_text = ""
+                for idx, entry in enumerate(leaderboard, 1):
+                    medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
+                    
+                    if leaderboard_type == 'messages':
+                        leaderboard_text += f"{medal} **{entry['member'].display_name}** - {entry['value']:,} Nachrichten\n"
+                    elif leaderboard_type == 'level':
+                        leaderboard_text += f"{medal} **{entry['member'].display_name}** - Level {entry['value']} ({entry['xp']:,} XP)\n"
+                    elif leaderboard_type == 'streak_current' or leaderboard_type == 'streak_alltime':
+                        leaderboard_text += f"{medal} **{entry['member'].display_name}** - {entry['value']} Tage\n"
+
+                embed.add_field(name="Rangliste", value=leaderboard_text or "Keine Einträge", inline=False)
+                embed.set_footer(text=f"{guild.name} • {now.strftime('%d.%m.%Y %H:%M')}")
+
+                # Send to channel
+                async def send_embed():
+                    await channel.send(embed=embed)
+
+                future = asyncio.run_coroutine_threadsafe(send_embed(), bot.loop)
+                future.result(timeout=10)
+
+                flash(f"✅ Leaderboard wurde in #{channel.name} gepostet!", "success")
+
+            except Exception as e:
+                print(f"Error posting leaderboard: {e}")
+                import traceback
+                traceback.print_exc()
+                flash(f"Fehler beim Posten: {str(e)}", "danger")
+        
+        return redirect(url_for('manage_leaderboard_settings', guild_id=guild_id))
+
+    # GET request - show settings page
+    leaderboard_data = bot.data.get_guild_data(guild_id, "leaderboard_config")
+    
+    return render_template('leaderboard_settings.html',
+                         guild=guild,
+                         settings=leaderboard_data,
+                         admin_guilds=get_admin_guilds())
+
+
 @app.route('/guild/<int:guild_id>/leaderboards', methods=['GET'])
 @requires_authorization
 def view_leaderboards(guild_id):
