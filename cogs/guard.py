@@ -54,12 +54,20 @@ class GuardActionView(ui.View):
     @ui.button(label="Genehmigen", style=discord.ButtonStyle.success, custom_id="guard_approve_user")
     async def approve(self, interaction: Interaction, button: ui.Button):
         target_member = await self._get_target_member(interaction)
+        if not target_member:
+            await interaction.response.send_message("Das Mitglied wurde nicht mehr auf dem Server gefunden.", ephemeral=True)
+            return
+            
         await self._disable_all_buttons(interaction, "Genehmigt")
         await interaction.response.send_message(f"{interaction.user.mention} hat den Beitritt von {target_member.mention} genehmigt.", allowed_mentions=discord.AllowedMentions.none())
         
     @ui.button(label="Kicken", style=discord.ButtonStyle.danger, custom_id="guard_kick_user")
     async def kick(self, interaction: Interaction, button: ui.Button):
         target_member = await self._get_target_member(interaction)
+        if not target_member:
+            await interaction.response.send_message("Das Mitglied wurde nicht mehr auf dem Server gefunden.", ephemeral=True)
+            return
+
         await self._disable_all_buttons(interaction, "Gekickt")
         try:
             await target_member.kick(reason=f"Guard-Aktion durch {interaction.user.name}")
@@ -72,6 +80,10 @@ class GuardActionView(ui.View):
     @ui.button(label="Bannen", style=discord.ButtonStyle.danger, custom_id="guard_ban_user")
     async def ban(self, interaction: Interaction, button: ui.Button):
         target_member = await self._get_target_member(interaction)
+        if not target_member:
+            await interaction.response.send_message("Das Mitglied wurde nicht mehr auf dem Server gefunden.", ephemeral=True)
+            return
+
         await self._disable_all_buttons(interaction, "Gebannt")
         try:
             await target_member.ban(reason=f"Guard-Aktion durch {interaction.user.name}")
@@ -84,6 +96,10 @@ class GuardActionView(ui.View):
     @ui.button(label="Timeout (10m)", style=discord.ButtonStyle.secondary, custom_id="guard_timeout_user")
     async def timeout(self, interaction: Interaction, button: ui.Button):
         target_member = await self._get_target_member(interaction)
+        if not target_member:
+            await interaction.response.send_message("Das Mitglied wurde nicht mehr auf dem Server gefunden.", ephemeral=True)
+            return
+
         await self._disable_all_buttons(interaction, "Timeout (10 Min)")
         try:
             await target_member.timeout(datetime.timedelta(minutes=10), reason=f"Guard-Aktion durch {interaction.user.name}")

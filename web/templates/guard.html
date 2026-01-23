@@ -1,63 +1,274 @@
 {% extends "layout.html" %}
-{% block title %}Guard - {{ guild.name }}{% endblock %}
+{% block title %}Sicherheit & Schutz - {{ guild.name }}{% endblock %}
 {% block content %}
 
 <header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
     <div class="flex flex-col gap-2">
-        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Guard</h1>
-        <p class="text-text-secondary text-base">Server-Schutz & Sicherheit</p>
-    </div>
-    <div class="flex items-center gap-2">
-        {% if is_enabled %}
-        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-        <p class="text-sm font-medium text-green-500">Aktiv</p>
-        {% else %}
-        <span class="h-2 w-2 rounded-full bg-gray-500"></span>
-        <p class="text-sm font-medium text-gray-500">Inaktiv</p>
-        {% endif %}
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Sicherheit & Schutz</h1>
+        <p class="text-text-secondary text-base">Zentrale Verwaltung für Guard, Gatekeeper & Global-Ban</p>
     </div>
 </header>
 
-<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
-    <div class="p-6">
-        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
-            <input type="hidden" name="cog_name" value="Guard">
-            <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
-            <input type="hidden" name="redirect_url" value="{{ request.url }}">
-            <label class="flex items-center gap-3 cursor-pointer">
-                <div class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" {% if is_enabled %}checked{% endif %} onchange="this.form.submit()"
-                        class="sr-only peer">
-                    <div
-                        class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+<div class="grid grid-cols-1 gap-8">
+
+    <!-- 1. GUARD SECTION -->
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e] flex justify-between items-center">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-400">shield</span>
+                Guard (Account-Alter-Schutz)
+            </h2>
+            <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
+                <input type="hidden" name="cog_name" value="Guard">
+                <input type="hidden" name="is_enabled" value="{{ 'False' if guard_is_enabled else 'True' }}">
+                <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <div class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" {% if guard_is_enabled %}checked{% endif %} onchange="this.form.submit()"
+                            class="sr-only peer">
+                        <div
+                            class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                        </div>
+                    </div>
+                </label>
+            </form>
+        </div>
+
+        <div class="p-6 {% if not guard_is_enabled %}opacity-50 pointer-events-none{% endif %}">
+            <p class="text-text-secondary text-sm mb-6">
+                Schützt deinen Server vor automatisierten Raids und Spam-Bots, indem Accounts mit einem zu geringen
+                Alter gefiltert werden.
+            </p>
+
+            <form action="{{ url_for('manage_guard', guild_id=guild.id) }}" method="post" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Aktion bei verdächtigen Accounts</label>
+                        <select name="action_type"
+                            class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                            <option value="none" {% if guard_config.get('action_type')=='none' %}selected{% endif %}>
+                                Keine (Deaktiviert)</option>
+                            <option value="kick" {% if guard_config.get('action_type')=='kick' %}selected{% endif %}>
+                                Kicken</option>
+                            <option value="role" {% if guard_config.get('action_type')=='role' %}selected{% endif %}>
+                                Rolle zuweisen (Quarantäne)</option>
+                            <option value="alert" {% if guard_config.get('action_type')=='alert' %}selected{% endif %}>
+                                Nur Alarm im Log-Kanal</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Mindestalter (in Tagen)</label>
+                        <input type="number" name="account_age_days" min="0" max="365"
+                            value="{{ guard_config.get('account_age_days', 7) }}"
+                            class="form-input w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                        <p class="text-[10px] text-text-secondary mt-1">Empfohlen: 3-7 Tage</p>
                     </div>
                 </div>
-                <span class="text-white">Guard-Modul {{ 'aktiviert' if is_enabled else 'deaktiviert' }}</span>
-            </label>
-        </form>
-    </div>
-</section>
 
-{% if is_enabled %}
-<div class="rounded-lg p-6 bg-blue-500/10 border border-blue-500/30">
-    <div class="flex items-start gap-4">
-        <span class="material-symbols-outlined text-blue-400 text-3xl">shield</span>
-        <div>
-            <h3 class="text-white font-bold mb-1">Guard aktiv</h3>
-            <p class="text-blue-200 text-sm">Server wird vor Spam und Raids geschützt.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Quarantäne-Rolle (nur bei Aktion
+                            "Rolle")</label>
+                        <select name="role_id"
+                            class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                            <option value="">Keine Rolle ausgewählt</option>
+                            {% for role in guild.roles|sort(attribute='position', reverse=true) %}
+                            {% if not role.is_default() and not role.is_bot_managed() %}
+                            <option value="{{ role.id }}" {% if role.id==guard_config.get('role_id') %}selected{% endif
+                                %}>{{ role.name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Log-Kanal (für Alarme)</label>
+                        <select name="log_channel_id"
+                            class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                            <option value="">Kein Kanal ausgewählt</option>
+                            {% for channel in guild.text_channels|sort(attribute='position') %}
+                            <option value="{{ channel.id }}" {% if channel.id==guard_config.get('log_channel_id')
+                                %}selected{% endif %}>#{{ channel.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Kick-Nachricht (DM an User)</label>
+                    <textarea name="kick_message" rows="2"
+                        class="form-input w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">{{ guard_config.get('kick_message', 'Dein Account ist zu neu, um diesem Server beizutreten.') }}</textarea>
+                </div>
+
+                <button type="submit"
+                    class="bg-primary hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                    Guard-Einstellungen speichern
+                </button>
+            </form>
         </div>
-    </div>
-</div>
-{% else %}
-<div class="rounded-lg p-6 bg-yellow-500/10 border border-yellow-500/30">
-    <div class="flex items-start gap-4">
-        <span class="material-symbols-outlined text-yellow-400 text-3xl">info</span>
-        <div>
-            <h3 class="text-white font-bold mb-1">Modul deaktiviert</h3>
-            <p class="text-yellow-200 text-sm">Aktiviere Guard für Server-Schutz.</p>
+    </section>
+
+    <!-- 2. GATEKEEPER SECTION -->
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e] flex justify-between items-center">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-green-400">meeting_room</span>
+                Gatekeeper (Verifizierungs-Timer)
+            </h2>
+            <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
+                <input type="hidden" name="cog_name" value="Gatekeeper">
+                <input type="hidden" name="is_enabled" value="{{ 'False' if gatekeeper_is_enabled else 'True' }}">
+                <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <div class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" {% if gatekeeper_is_enabled %}checked{% endif %}
+                            onchange="this.form.submit()" class="sr-only peer">
+                        <div
+                            class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                        </div>
+                    </div>
+                </label>
+            </form>
         </div>
-    </div>
+
+        <div class="p-6 {% if not gatekeeper_is_enabled %}opacity-50 pointer-events-none{% endif %}">
+            <p class="text-text-secondary text-sm mb-6">
+                Kickt Mitglieder automatisch, wenn sie sich nicht innerhalb einer bestimmten Zeit verifizieren (eine
+                bestimmte Rolle erhalten).
+            </p>
+
+            <form action="{{ url_for('manage_gatekeeper', guild_id=guild.id) }}" method="post" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Erforderliche Rolle (Verifiziert)</label>
+                        <select name="required_role_id" required
+                            class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                            <option value="">Rolle auswählen...</option>
+                            {% for role in guild.roles|sort(attribute='position', reverse=true) %}
+                            {% if not role.is_default() and not role.is_bot_managed() %}
+                            <option value="{{ role.id }}" {% if role.id==gatekeeper_config.get('required_role_id')
+                                %}selected{% endif %}>{{ role.name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Zeitlimit (in Minuten)</label>
+                        <input type="number" name="time_limit_minutes" min="5" max="1440"
+                            value="{{ gatekeeper_config.get('time_limit_minutes', 10) }}"
+                            class="form-input w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                        <p class="text-[10px] text-text-secondary mt-1">Erlaubt: 5 bis 1440 min (24h)</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Kick-Nachricht</label>
+                    <textarea name="kick_message" rows="2"
+                        class="form-input w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">{{ gatekeeper_config.get('kick_message', 'Du wurdest entfernt, da du die Verifizierung nicht rechtzeitig abgeschlossen hast.') }}</textarea>
+                </div>
+
+                <div class="flex flex-wrap gap-3">
+                    <button type="submit" name="action" value="set_config"
+                        class="bg-primary hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                        Gatekeeper speichern
+                    </button>
+                    <button type="submit" name="action" value="reset"
+                        class="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-bold py-2 px-6 rounded-lg transition-colors">
+                        Liste zurücksetzen
+                    </button>
+                </div>
+            </form>
+
+            {% if pending_members %}
+            <div class="mt-8">
+                <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">hourglass_empty</span>
+                    Warten auf Verifizierung ({{ pending_members|length }})
+                </h3>
+                <div class="overflow-x-auto rounded-lg border border-[#2e3e5e]">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-background-dark text-text-secondary border-b border-[#2e3e5e]">
+                            <tr>
+                                <th class="px-4 py-3 font-medium">Mitglied</th>
+                                <th class="px-4 py-3 font-medium">Beigetreten</th>
+                                <th class="px-4 py-3 font-medium text-right">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#2e3e5e]">
+                            {% for member in pending_members %}
+                            <tr class="hover:bg-white/5 transition-colors">
+                                <td class="px-4 py-3 flex items-center gap-3">
+                                    <img src="{{ member.avatar_url }}" class="w-8 h-8 rounded-full" alt="">
+                                    <span class="text-white">{{ member.name }}</span>
+                                </td>
+                                <td class="px-4 py-3 text-text-secondary">
+                                    {{ member.join_time }}
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <span
+                                        class="px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-500 text-[10px] font-bold uppercase">Pending</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- 3. GLOBAL BAN SECTION -->
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e] flex justify-between items-center">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-red-500">gavel</span>
+                Global-Ban (Sicherheitsnetz)
+            </h2>
+            <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
+                <input type="hidden" name="cog_name" value="Global-Ban">
+                <input type="hidden" name="is_enabled" value="{{ 'False' if global_ban_is_enabled else 'True' }}">
+                <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <div class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" {% if global_ban_is_enabled %}checked{% endif %}
+                            onchange="this.form.submit()" class="sr-only peer">
+                        <div
+                            class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                        </div>
+                    </div>
+                </label>
+            </form>
+        </div>
+
+        <div class="p-6 {% if not global_ban_is_enabled %}opacity-50 pointer-events-none{% endif %}">
+            <p class="text-text-secondary text-sm mb-6">
+                Teile Bann-Informationen mit anderen Servern, die diesen Bot nutzen. Wenn ein User auf einem
+                L8teBot-Server wegen schwerem Fehlverhalten gebannt wird, erhältst du eine Benachrichtigung.
+            </p>
+
+            <form action="{{ url_for('manage_global_ban', guild_id=guild.id) }}" method="post" class="space-y-6">
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Benachrichtigungs-Kanal</label>
+                    <select name="log_channel_id"
+                        class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                        <option value="">Temporären Alarm-Kanal erstellen (Standard)</option>
+                        {% for channel in guild.text_channels|sort(attribute='position') %}
+                        <option value="{{ channel.id }}" {% if channel.id==global_ban_config.get('log_channel_id')
+                            %}selected{% endif %}>#{{ channel.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-[10px] text-text-secondary mt-1">Wenn kein Kanal gewählt ist, erstellt der Bot bei
+                        einem Alarm einen temporären Kanal für Admins.</p>
+                </div>
+
+                <button type="submit"
+                    class="bg-primary hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                    Global-Ban Einstellungen speichern
+                </button>
+            </form>
+        </div>
+    </section>
+
 </div>
-{% endif %}
 
 {% endblock %}
