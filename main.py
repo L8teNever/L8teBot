@@ -1038,7 +1038,8 @@ def manage_twitch_status(guild_id):
         twitch_user = request.form.get('twitch_user')
         role_id_str = request.form.get('role_id')
         role_id = int(role_id_str) if role_id_str else None
-        future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, twitch_user, role_id), bot.loop)
+        event_mode = request.form.get('event_mode', 'channel_only')
+        future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, twitch_user, role_id, event_mode), bot.loop)
     elif action == 'reset':
         future = asyncio.run_coroutine_threadsafe(cog.web_reset_config(guild_id), bot.loop)
     elif action == 'remove_streamer':

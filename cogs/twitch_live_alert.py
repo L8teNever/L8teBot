@@ -198,17 +198,87 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         embed.set_image(url=offline_img_url)
         return embed
 
+    async def _create_discord_event(self, guild: discord.Guild, stream_info: Dict[str, Any], twitch_url: str) -> Optional[discord.ScheduledEvent]:
+        """Erstellt ein Discord Scheduled Event für einen Live-Stream."""
+        try:
+            from datetime import timedelta
+            # Event-Zeit: Jetzt bis in 8 Stunden (Discord erlaubt max 7 Tage)
+            start_time = datetime.now(timezone.utc)
+            end_time = start_time + timedelta(hours=8)
+            
+            # Thumbnail URL
+            image_url = None
+            if thumb_template := stream_info.get('thumbnail_url'):
+                image_url = str(thumb_template).replace('{width}', '1280').replace('{height}', '720')
+            
+            # Event erstellen
+            event = await guild.create_scheduled_event(
+                name=f"🔴 {stream_info.get('user_name', 'Stream')} ist LIVE!",
+                description=f"{stream_info.get('title', 'Kein Titel')}\n\n🎮 Spiel: {stream_info.get('game_name', 'N/A')}\n👁️ Zuschauer: {stream_info.get('viewer_count', '0')}\n\n🔗 {twitch_url}",
+                start_time=start_time,
+                end_time=end_time,
+                entity_type=discord.EntityType.external,
+                location=twitch_url,
+                privacy_level=discord.PrivacyLevel.guild_only,
+                image=await self._fetch_image_bytes(image_url) if image_url else None
+            )
+            return event
+        except Exception as e:
+            print(f"[Twitch-Alert] Fehler beim Erstellen des Events: {e}")
+            return None
+
+    async def _update_discord_event(self, guild: discord.Guild, event_id: int, stream_info: Dict[str, Any], twitch_url: str):
+        """Aktualisiert ein bestehendes Discord Event mit neuen Stream-Infos."""
+        try:
+            event = guild.get_scheduled_event(event_id)
+            if not event:
+                return
+            
+            # Nur aktualisieren wenn das Event noch aktiv ist
+            if event.status == discord.EventStatus.active or event.status == discord.EventStatus.scheduled:
+                await event.edit(
+                    description=f"{stream_info.get('title', 'Kein Titel')}\n\n🎮 Spiel: {stream_info.get('game_name', 'N/A')}\n👁️ Zuschauer: {stream_info.get('viewer_count', '0')}\n\n🔗 {twitch_url}"
+                )
+        except Exception as e:
+            print(f"[Twitch-Alert] Fehler beim Aktualisieren des Events: {e}")
+
+    async def _delete_discord_event(self, guild: discord.Guild, event_id: int):
+        """Löscht ein Discord Scheduled Event."""
+        try:
+            event = guild.get_scheduled_event(event_id)
+            if event:
+                await event.delete()
+        except Exception as e:
+            print(f"[Twitch-Alert] Fehler beim Löschen des Events: {e}")
+
+    async def _fetch_image_bytes(self, url: str) -> Optional[bytes]:
+        """Lädt ein Bild von einer URL herunter und gibt die Bytes zurück."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        return await resp.read()
+        except Exception as e:
+            print(f"[Twitch-Alert] Fehler beim Laden des Event-Bildes: {e}")
+        return None
+
     async def _update_streamer_status(self, guild: discord.Guild, streamer_key: str, s_data: dict, status_config: dict):
         """Aktualisiert den Status für einen Streamer auf einem Server."""
         twitch_user = s_data.get("twitch_user")
         channel_id = s_data.get("channel_id")
-        if not twitch_user or not channel_id: return
+        event_mode = s_data.get("event_mode", "channel_only")  # channel_only, event_only, both
+        
+        # Mindestens eine Option muss aktiv sein
+        if not twitch_user:
+            return
+        if event_mode == "channel_only" and not channel_id:
+            return
 
         stream_info = await self.get_stream_info(twitch_user)
-        if not stream_info or stream_info['status'] == 'NOT_FOUND': return
+        if not stream_info or stream_info['status'] == 'NOT_FOUND': 
+            return
 
-        channel = guild.get_channel(channel_id)
-        if not channel: return
+        channel = guild.get_channel(channel_id) if channel_id else None
         
         is_live = stream_info['status'] == 'LIVE'
         was_live = s_data.get("is_live", False)
@@ -220,55 +290,88 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
 
         try:
             if is_live:
-                # Kanal-Name ändern
-                if channel.name != "🔴｜live":
-                    try: await channel.edit(name="🔴｜live")
-                    except: pass
-                
-                embed = self._create_live_embed(stream_info)
-                
-                # Wenn er gerade erst live gegangen ist -> NEUE Nachricht senden für echten PING
-                if not was_live:
-                    # Alte Nachricht löschen?
-                    if msg_id := s_data.get("message_id"):
-                        try:
-                            old_msg = await channel.fetch_message(msg_id)
-                            await old_msg.delete()
-                        except: pass
+                # === KANAL MANAGEMENT ===
+                if event_mode in ["channel_only", "both"] and channel:
+                    # Kanal-Name ändern
+                    if channel.name != "🔴｜live":
+                        try: 
+                            await channel.edit(name="🔴｜live")
+                        except: 
+                            pass
                     
-                    msg = await channel.send(content=ping_content, embed=embed, view=view)
-                    s_data["message_id"] = msg.id
-                    s_data["is_live"] = True
-                else:
-                    # War schon live -> nur Embed aktualisieren (Zuschauerzahl etc)
-                    if msg_id := s_data.get("message_id"):
-                        try:
-                            msg = await channel.fetch_message(msg_id)
-                            await msg.edit(embed=embed, view=view)
-                        except:
-                            # Falls gelöscht, neu senden
-                            msg = await channel.send(content=ping_content, embed=embed, view=view)
-                            s_data["message_id"] = msg.id
-            else:
-                # Kanal-Name ändern
-                if channel.name != "⚫｜offline":
-                    try: await channel.edit(name="⚫｜offline")
-                    except: pass
+                    embed = self._create_live_embed(stream_info)
+                    
+                    # Wenn er gerade erst live gegangen ist -> NEUE Nachricht senden für echten PING
+                    if not was_live:
+                        # Alte Nachricht löschen?
+                        if msg_id := s_data.get("message_id"):
+                            try:
+                                old_msg = await channel.fetch_message(msg_id)
+                                await old_msg.delete()
+                            except: 
+                                pass
+                        
+                        msg = await channel.send(content=ping_content, embed=embed, view=view)
+                        s_data["message_id"] = msg.id
+                    else:
+                        # War schon live -> nur Embed aktualisieren (Zuschauerzahl etc)
+                        if msg_id := s_data.get("message_id"):
+                            try:
+                                msg = await channel.fetch_message(msg_id)
+                                await msg.edit(embed=embed, view=view)
+                            except:
+                                # Falls gelöscht, neu senden
+                                msg = await channel.send(content=ping_content, embed=embed, view=view)
+                                s_data["message_id"] = msg.id
                 
-                # Wenn er offline gegangen ist oder wir die Nachricht noch nicht geschickt haben
-                if was_live or not s_data.get("message_id"):
-                    embed = self._create_offline_embed(stream_info)
-                    if msg_id := s_data.get("message_id"):
-                        try:
-                            msg = await channel.fetch_message(msg_id)
-                            await msg.edit(content="", embed=embed, view=view)
-                        except:
+                # === EVENT MANAGEMENT ===
+                if event_mode in ["event_only", "both"]:
+                    if not was_live:
+                        # Event erstellen
+                        event = await self._create_discord_event(guild, stream_info, twitch_url)
+                        if event:
+                            s_data["event_id"] = event.id
+                            print(f"[Twitch-Alert] Event erstellt für {twitch_user}: {event.id}")
+                    else:
+                        # Event aktualisieren (falls es noch existiert)
+                        if event_id := s_data.get("event_id"):
+                            await self._update_discord_event(guild, event_id, stream_info, twitch_url)
+                
+                s_data["is_live"] = True
+                
+            else:
+                # === OFFLINE ===
+                # Kanal Management
+                if event_mode in ["channel_only", "both"] and channel:
+                    # Kanal-Name ändern
+                    if channel.name != "⚫｜offline":
+                        try: 
+                            await channel.edit(name="⚫｜offline")
+                        except: 
+                            pass
+                    
+                    # Wenn er offline gegangen ist oder wir die Nachricht noch nicht geschickt haben
+                    if was_live or not s_data.get("message_id"):
+                        embed = self._create_offline_embed(stream_info)
+                        if msg_id := s_data.get("message_id"):
+                            try:
+                                msg = await channel.fetch_message(msg_id)
+                                await msg.edit(content="", embed=embed, view=view)
+                            except:
+                                msg = await channel.send(content="", embed=embed, view=view)
+                                s_data["message_id"] = msg.id
+                        else:
                             msg = await channel.send(content="", embed=embed, view=view)
                             s_data["message_id"] = msg.id
-                    else:
-                        msg = await channel.send(content="", embed=embed, view=view)
-                        s_data["message_id"] = msg.id
-                    s_data["is_live"] = False
+                
+                # Event löschen
+                if event_mode in ["event_only", "both"] and was_live:
+                    if event_id := s_data.get("event_id"):
+                        await self._delete_discord_event(guild, event_id)
+                        s_data["event_id"] = None
+                        print(f"[Twitch-Alert] Event gelöscht für {twitch_user}")
+                
+                s_data["is_live"] = False
 
         except Exception as e:
             print(f"Fehler im Update für {twitch_user} auf {guild.id}: {e}")
@@ -326,17 +429,29 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
             return False, "Streamer nicht gefunden."
         
         data = streamers.pop(streamer_key)
+        
+        # Kanal löschen (falls vorhanden)
         if channel_id := data.get("channel_id"):
             if channel := guild.get_channel(channel_id):
-                try: await channel.delete(reason="Twitch Alert entfernt.")
-                except: pass
+                try: 
+                    await channel.delete(reason="Twitch Alert entfernt.")
+                except: 
+                    pass
+        
+        # Event löschen (falls vorhanden)
+        if event_id := data.get("event_id"):
+            await self._delete_discord_event(guild, event_id)
 
         self.bot.data.save_guild_data(guild_id, "twitch_alerts", status_config)
-        return True, "Streamer und zugehöriger Kanal wurden erfolgreich entfernt."
+        return True, "Streamer und zugehörige Ressourcen (Kanal/Event) wurden erfolgreich entfernt."
 
-    async def web_set_config(self, guild_id: int, twitch_user: str, role_id: Optional[int]) -> Tuple[bool, str]:
+    async def web_set_config(self, guild_id: int, twitch_user: str, role_id: Optional[int], event_mode: str = "channel_only") -> Tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
         if not guild: return False, "Server nicht gefunden."
+        
+        # Validiere event_mode
+        if event_mode not in ["channel_only", "event_only", "both"]:
+            event_mode = "channel_only"
         
         stream_info = await self.get_stream_info(twitch_user)
         if not stream_info or stream_info.get('status') == 'NOT_FOUND':
@@ -351,32 +466,42 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         channel_id = existing_data.get("channel_id")
         channel = guild.get_channel(channel_id) if channel_id else None
         
-        if not channel:
-            overwrites = { 
-                guild.default_role: discord.PermissionOverwrite(send_messages=False, read_messages=True), 
-                guild.me: discord.PermissionOverwrite(send_messages=True, manage_channels=True, read_messages=True, embed_links=True) 
-            }
-            try:
-                category = discord.utils.get(guild.categories, name="Twitch Status") or await guild.create_category("Twitch Status")
-                channel = await guild.create_text_channel(name="⚫｜offline", overwrites=overwrites, category=category, reason="Twitch Alert Setup")
-            except discord.Forbidden:
-                 return False, "Fehler: Bot hat keine Rechte, einen Kanal zu erstellen."
+        # Kanal nur erstellen, wenn Modus channel_only oder both ist
+        if event_mode in ["channel_only", "both"]:
+            if not channel:
+                overwrites = { 
+                    guild.default_role: discord.PermissionOverwrite(send_messages=False, read_messages=True), 
+                    guild.me: discord.PermissionOverwrite(send_messages=True, manage_channels=True, read_messages=True, embed_links=True) 
+                }
+                try:
+                    category = discord.utils.get(guild.categories, name="Twitch Status") or await guild.create_category("Twitch Status")
+                    channel = await guild.create_text_channel(name="⚫｜offline", overwrites=overwrites, category=category, reason="Twitch Alert Setup")
+                except discord.Forbidden:
+                     return False, "Fehler: Bot hat keine Rechte, einen Kanal zu erstellen."
         
         streamers[s_key] = {
             "twitch_user": stream_info['login'], 
             "display_name": stream_info['display_name'],
-            "channel_id": channel.id, 
+            "channel_id": channel.id if channel else None, 
             "role_id": role_id, 
+            "event_mode": event_mode,
             "is_live": False, 
-            "message_id": None
+            "message_id": None,
+            "event_id": None
         }
         self.bot.data.save_guild_data(guild_id, "twitch_alerts", status_config)
         
         # Trigger sofortiges Update für diesen Streamer
         await self._update_streamer_status(guild, s_key, streamers[s_key], status_config)
         self.bot.data.save_guild_data(guild_id, "twitch_alerts", status_config)
-            
-        return True, f"Twitch-Alert für '{stream_info['display_name']}' wurde in {channel.mention} konfiguriert."
+        
+        # Erfolgs-Nachricht basierend auf Modus
+        if event_mode == "channel_only":
+            return True, f"Twitch-Alert für '{stream_info['display_name']}' wurde in {channel.mention} konfiguriert."
+        elif event_mode == "event_only":
+            return True, f"Twitch-Alert für '{stream_info['display_name']}' wurde konfiguriert (nur Events)."
+        else:  # both
+            return True, f"Twitch-Alert für '{stream_info['display_name']}' wurde in {channel.mention} konfiguriert (mit Events)."
 
 async def setup(bot: commands.Bot):
     cog = TwitchLiveAlertCog(bot)

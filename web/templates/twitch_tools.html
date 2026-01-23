@@ -48,6 +48,19 @@
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="flex flex-col gap-2">
+                        <label class="text-sm font-medium text-text-secondary">Anzeigemodus</label>
+                        <select name="event_mode" class="form-input">
+                            <option value="channel_only">📝 Nur Kanal (Standard)</option>
+                            <option value="event_only">📅 Nur Discord Event</option>
+                            <option value="both">🎯 Kanal + Event</option>
+                        </select>
+                        <p class="text-xs text-text-secondary/70">
+                            <strong>Kanal:</strong> Dedizierter Kanal mit Live/Offline Status<br>
+                            <strong>Event:</strong> Discord Event wird automatisch erstellt/gelöscht<br>
+                            <strong>Beide:</strong> Kanal + Event gleichzeitig
+                        </p>
+                    </div>
                     <button type="submit"
                         class="w-full px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
                         Status-Kanal erstellen
@@ -78,9 +91,18 @@
                             <div>
                                 <p class="text-white font-bold">{{ s_data.get('display_name') }}</p>
                                 <p class="text-[10px] text-text-secondary">
-                                    Kanal: #{{ guild.get_channel(s_data.get('channel_id')).name if
+                                    {% set event_mode = s_data.get('event_mode', 'channel_only') %}
+                                    {% if event_mode == 'channel_only' %}
+                                    📝 Kanal: #{{ guild.get_channel(s_data.get('channel_id')).name if
                                     s_data.get('channel_id') and guild.get_channel(s_data.get('channel_id')) else
                                     'Unbekannt' }}
+                                    {% elif event_mode == 'event_only' %}
+                                    📅 Nur Discord Event
+                                    {% else %}
+                                    🎯 Kanal + Event: #{{ guild.get_channel(s_data.get('channel_id')).name if
+                                    s_data.get('channel_id') and guild.get_channel(s_data.get('channel_id')) else
+                                    'Unbekannt' }}
+                                    {% endif %}
                                 </p>
                             </div>
                         </div>
