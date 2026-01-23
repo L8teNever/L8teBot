@@ -204,7 +204,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
             now = time.time()
             last_update = data.get("last_update", 0)
             
-            if now - last_update >= 600:  # 10 Minuten
+            if now - last_update >= 300:  # 5 Minuten
                 thread_id = data.get("forum_thread_id")
                 if thread_id:
                     try:
@@ -418,6 +418,16 @@ class TwitchCog(commands.Cog, name="Twitch"):
                         view_channel=True,
                         read_message_history=True
                     )
+                    
+                    # Sofortige Aktualisierung aller Streamer für das neue Forum
+                    streamers = guild_data.get("streamers", {})
+                    for streamer_key, streamer_data in streamers.items():
+                        try:
+                            await self.process_streamer_status(guild, streamer_key, streamer_data, guild_data)
+                        except Exception as e:
+                            print(f"Fehler bei sofortiger Aktualisierung für {streamer_key}: {e}")
+                    self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
+                    
                     return True, f"Forum '{channel.name}' konfiguriert! Berechtigungen wurden automatisch gesetzt."
                 else:
                     # Normaler Kanal: Niemand kann schreiben
@@ -427,6 +437,16 @@ class TwitchCog(commands.Cog, name="Twitch"):
                         view_channel=True,
                         read_message_history=True
                     )
+                    
+                    # Sofortige Aktualisierung aller Streamer für den neuen Kanal
+                    streamers = guild_data.get("streamers", {})
+                    for streamer_key, streamer_data in streamers.items():
+                        try:
+                            await self.process_streamer_status(guild, streamer_key, streamer_data, guild_data)
+                        except Exception as e:
+                            print(f"Fehler bei sofortiger Aktualisierung für {streamer_key}: {e}")
+                    self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
+                    
                     return True, f"Feed-Kanal auf #{channel.name} gesetzt. Berechtigungen wurden automatisch gesetzt."
             except discord.Forbidden:
                 return True, f"Kanal konfiguriert, aber Bot hat keine Berechtigung, die Kanal-Berechtigungen zu ändern."
@@ -461,6 +481,14 @@ class TwitchCog(commands.Cog, name="Twitch"):
                 "notification_role_id": role.id
             }
             self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
+            
+            # Sofortige Aktualisierung für den neuen Streamer
+            try:
+                await self.process_streamer_status(guild, streamer_key, streamers[streamer_key], guild_data)
+                self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
+            except Exception as e:
+                print(f"Fehler bei sofortiger Aktualisierung für {correct_name}: {e}")
+            
             return True, f"'{correct_name}' wurde zum Feed hinzugefügt."
         except (discord.Forbidden, discord.HTTPException) as e:
             return False, f"Fehler beim Erstellen der Rolle: {e}"
