@@ -188,8 +188,9 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         last_game = stream_info.get('last_game_name') or "Just Chatting"
         embed.add_field(name="Zuletzt gespielt", value=last_game, inline=True)
         
-        # Nutze das neue, vom Script gehostete Bild
-        offline_img_url = f"{self.bot.base_url}/static/images/twitch_offline.png"
+        # Nutze das neue, vom Script gehostete Bild (Root-Pfad verwenden für bessere Erreichbarkeit)
+        offline_img_url = f"{self.bot.base_url}/twitch_offline.png?t={int(time.time())}"
+        print(f"[Twitch-Alert] DEBUG: Using offline image URL: {offline_img_url}")
         embed.set_image(url=offline_img_url)
         return embed
 

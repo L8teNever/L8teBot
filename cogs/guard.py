@@ -5,7 +5,7 @@ from discord import Embed, Color, ui, Interaction, Member, Forbidden, HTTPExcept
 from typing import Tuple, Optional
 import datetime
 
-class GuardActionView(ui.View):
+class GuardActionView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
@@ -33,7 +33,7 @@ class GuardActionView(ui.View):
 
     async def _disable_all_buttons(self, interaction: Interaction, reason: str):
         for item in self.children:
-            if isinstance(item, ui.Button):
+            if isinstance(item, discord.ui.Button):
                 item.disabled = True
         try:
             original_embed = interaction.message.embeds[0]
@@ -51,8 +51,8 @@ class GuardActionView(ui.View):
         except (IndexError, ValueError):
             return None
 
-    @ui.button(label="Genehmigen", style=discord.ButtonStyle.success, custom_id="guard_approve_user")
-    async def approve(self, interaction: Interaction, button: ui.Button):
+    @discord.ui.button(label="Genehmigen", style=discord.ButtonStyle.success, custom_id="guard_approve_user")
+    async def approve(self, interaction: Interaction, button: discord.ui.Button):
         target_member = await self._get_target_member(interaction)
         if not target_member:
             await interaction.response.send_message("Das Mitglied wurde nicht mehr auf dem Server gefunden.", ephemeral=True)
@@ -61,8 +61,8 @@ class GuardActionView(ui.View):
         await self._disable_all_buttons(interaction, "Genehmigt")
         await interaction.response.send_message(f"{interaction.user.mention} hat den Beitritt von {target_member.mention} genehmigt.", allowed_mentions=discord.AllowedMentions.none())
         
-    @ui.button(label="Kicken", style=discord.ButtonStyle.danger, custom_id="guard_kick_user")
-    async def kick(self, interaction: Interaction, button: ui.Button):
+    @discord.ui.button(label="Kicken", style=discord.ButtonStyle.danger, custom_id="guard_kick_user")
+    async def kick(self, interaction: Interaction, button: discord.ui.Button):
         target_member = await self._get_target_member(interaction)
         if not target_member:
             await interaction.response.send_message("Das Mitglied wurde nicht mehr auf dem Server gefunden.", ephemeral=True)
@@ -77,8 +77,8 @@ class GuardActionView(ui.View):
         except HTTPException as e:
             await interaction.response.send_message(f"Ein Fehler ist aufgetreten: {e}", ephemeral=True)
 
-    @ui.button(label="Bannen", style=discord.ButtonStyle.danger, custom_id="guard_ban_user")
-    async def ban(self, interaction: Interaction, button: ui.Button):
+    @discord.ui.button(label="Bannen", style=discord.ButtonStyle.danger, custom_id="guard_ban_user")
+    async def ban(self, interaction: Interaction, button: discord.ui.Button):
         target_member = await self._get_target_member(interaction)
         if not target_member:
             await interaction.response.send_message("Das Mitglied wurde nicht mehr auf dem Server gefunden.", ephemeral=True)
@@ -93,8 +93,8 @@ class GuardActionView(ui.View):
         except HTTPException as e:
             await interaction.response.send_message(f"Ein Fehler ist aufgetreten: {e}", ephemeral=True)
 
-    @ui.button(label="Timeout (10m)", style=discord.ButtonStyle.secondary, custom_id="guard_timeout_user")
-    async def timeout(self, interaction: Interaction, button: ui.Button):
+    @discord.ui.button(label="Timeout (10m)", style=discord.ButtonStyle.secondary, custom_id="guard_timeout_user")
+    async def timeout(self, interaction: Interaction, button: discord.ui.Button):
         target_member = await self._get_target_member(interaction)
         if not target_member:
             await interaction.response.send_message("Das Mitglied wurde nicht mehr auf dem Server gefunden.", ephemeral=True)

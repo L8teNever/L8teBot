@@ -140,6 +140,7 @@ from utils.migrate import process_migration_data
 from flask import send_from_directory
 
 @app.route('/static/images/twitch_offline.png')
+@app.route('/twitch_offline.png')
 def serve_twitch_offline():
     return send_from_directory(os.path.join(app.static_folder, 'images'), 'twitch_offline.png')
 
