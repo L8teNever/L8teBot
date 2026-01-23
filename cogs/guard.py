@@ -113,6 +113,15 @@ class GuardCog(commands.Cog, name="Guard"):
     """Cog zum Schutz vor verdächtig neuen Accounts."""
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.bot.loop.create_task(self._register_view())
+    
+    async def _register_view(self):
+        """Registriert die persistente View nach dem Bot-Start."""
+        await self.bot.wait_until_ready()
+        try:
+            self.bot.add_view(GuardActionView())
+        except Exception as e:
+            print(f"⚠️ Fehler beim Registrieren von GuardActionView: {e}")
 
     @commands.Cog.listener()
     async def on_member_join(self, member: Member):
@@ -190,8 +199,4 @@ class GuardCog(commands.Cog, name="Guard"):
         return True, "Guard-Einstellungen erfolgreich gespeichert."
 
 async def setup(bot: commands.Bot):
-    try:
-        bot.add_view(GuardActionView())
-    except Exception as e:
-        print(f"⚠️ Fehler beim Registrieren von GuardActionView: {e}")
     await bot.add_cog(GuardCog(bot))

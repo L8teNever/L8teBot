@@ -38,14 +38,30 @@ class TwitchCog(commands.Cog, name="Twitch"):
             if "streamers" in guild_data:
                 feed_channel_id = guild_data.get("channel_id")
                 channel = guild.get_channel(feed_channel_id) if feed_channel_id else None
-                for streamer_key, streamer_data in list(guild_data["streamers"].items()):
-                    msg_id = streamer_data.get("live_message_id")
-                    if msg_id and channel:
-                        try:
-                            await channel.fetch_message(msg_id)
-                        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-                            streamer_data["live_message_id"] = None
-                            streamer_data["is_live"] = False
+                display_mode = guild_data.get("display_mode", "channel")
+                
+                # Forum-Mode: Threads validieren
+                if display_mode == "forum" and isinstance(channel, discord.ForumChannel):
+                    for streamer_key, streamer_data in list(guild_data["streamers"].items()):
+                        thread_id = streamer_data.get("thread_id")
+                        if thread_id:
+                            thread = channel.get_thread(thread_id)
+                            if not thread:
+                                # Thread existiert nicht mehr
+                                streamer_data["thread_id"] = None
+                                streamer_data["is_live"] = False
+                
+                # Kanal-Mode: Nachrichten validieren
+                elif display_mode == "channel" and isinstance(channel, discord.TextChannel):
+                    for streamer_key, streamer_data in list(guild_data["streamers"].items()):
+                        msg_id = streamer_data.get("live_message_id")
+                        if msg_id and channel:
+                            try:
+                                await channel.fetch_message(msg_id)
+                            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                                streamer_data["live_message_id"] = None
+                                streamer_data["is_live"] = False
+                
                 self.bot.data.save_guild_data(guild.id, "streamers", guild_data)
 
     def cog_unload(self):
