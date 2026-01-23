@@ -135,14 +135,39 @@
                 <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
                     class="flex flex-col gap-4">
                     <input type="hidden" name="action" value="set_multi_stream_config">
+
                     <div class="flex flex-col gap-2">
-                        <label class="text-sm font-medium text-text-secondary">Alert Kanal</label>
+                        <label class="text-sm font-medium text-text-secondary">Anzeigemodus</label>
+                        <select name="display_mode" class="form-input">
+                            <option value="channel" {% if streamers_data.get('display_mode', 'channel' )=='channel'
+                                %}selected{% endif %}>
+                                📝 Normaler Kanal
+                            </option>
+                            <option value="forum" {% if streamers_data.get('display_mode')=='forum' %}selected{% endif
+                                %}>
+                                📁 Forum (Threads pro Streamer)
+                            </option>
+                        </select>
+                        <p class="text-xs text-text-secondary">
+                            <strong>Kanal:</strong> Nachrichten werden beim Offline-Gehen gelöscht<br>
+                            <strong>Forum:</strong> Threads werden erstellt/gelöscht (Live/Offline)
+                        </p>
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                        <label class="text-sm font-medium text-text-secondary">Alert Kanal/Forum</label>
                         <select name="multi_channel_id" class="form-input">
                             <option value="">-- Deaktiviert --</option>
                             {% for channel in guild.text_channels|sort(attribute='position') %}
                             <option value="{{ channel.id }}" {% if streamers_data.get('channel_id')==channel.id
                                 %}selected{% endif %}>
                                 #{{ channel.name }}
+                            </option>
+                            {% endfor %}
+                            {% for forum in guild.forums|sort(attribute='position') %}
+                            <option value="{{ forum.id }}" {% if streamers_data.get('channel_id')==forum.id %}selected{%
+                                endif %}>
+                                💬 {{ forum.name }} (Forum)
                             </option>
                             {% endfor %}
                         </select>

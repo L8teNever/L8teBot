@@ -865,7 +865,8 @@ def manage_twitch(guild_id):
         if action == 'set_multi_stream_config':
             channel_id_str = request.form.get('multi_channel_id')
             channel_id = int(channel_id_str) if channel_id_str else None
-            future = asyncio.run_coroutine_threadsafe(cog.web_set_feed_config(guild_id, channel_id), bot.loop)
+            display_mode = request.form.get('display_mode', 'channel')
+            future = asyncio.run_coroutine_threadsafe(cog.web_set_feed_config(guild_id, channel_id, display_mode), bot.loop)
         elif action == 'set_streamer_command_config':
             role_id_str = request.form.get('streamer_role_id')
             role_id = int(role_id_str) if role_id_str else None
