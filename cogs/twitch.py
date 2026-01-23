@@ -395,6 +395,11 @@ class TwitchCog(commands.Cog, name="Twitch"):
         if not guild: return False, "Server nicht gefunden."
         
         guild_data = self.bot.data.get_guild_data(guild_id, "streamers")
+        
+        # Alten Modus speichern BEVOR wir ihn überschreiben
+        old_display_mode = guild_data.get("display_mode")
+        mode_changed = old_display_mode and old_display_mode != display_mode
+        
         guild_data["channel_id"] = feed_channel_id
         guild_data["display_mode"] = display_mode
         
@@ -404,6 +409,17 @@ class TwitchCog(commands.Cog, name="Twitch"):
             channel = guild.get_channel(feed_channel_id)
             if not channel:
                 return False, "Kanal nicht gefunden."
+            
+            # Beim Wechsel des Display-Modus: Alle Streamer-Status zurücksetzen
+            if mode_changed:
+                streamers = guild_data.get("streamers", {})
+                for streamer_key, streamer_data in streamers.items():
+                    # Alte Daten zurücksetzen, damit sie im neuen Modus neu erstellt werden
+                    streamer_data["is_live"] = False
+                    streamer_data["live_message_id"] = None
+                    streamer_data["forum_thread_id"] = None
+                    streamer_data["last_update"] = 0
+                print(f"🔄 Display-Modus gewechselt von '{old_display_mode}' zu '{display_mode}'. Alle Streamer werden neu initialisiert.")
             
             # Automatisch Berechtigungen setzen
             try:
