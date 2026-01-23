@@ -423,7 +423,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
                     streamers = guild_data.get("streamers", {})
                     for streamer_key, streamer_data in streamers.items():
                         try:
-                            await self.process_streamer_status(guild, streamer_key, streamer_data, guild_data)
+                            await self.process_streamer_status(guild_id, streamer_key, streamer_data)
                         except Exception as e:
                             print(f"Fehler bei sofortiger Aktualisierung für {streamer_key}: {e}")
                     self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
@@ -442,7 +442,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
                     streamers = guild_data.get("streamers", {})
                     for streamer_key, streamer_data in streamers.items():
                         try:
-                            await self.process_streamer_status(guild, streamer_key, streamer_data, guild_data)
+                            await self.process_streamer_status(guild_id, streamer_key, streamer_data)
                         except Exception as e:
                             print(f"Fehler bei sofortiger Aktualisierung für {streamer_key}: {e}")
                     self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
@@ -484,7 +484,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
             
             # Sofortige Aktualisierung für den neuen Streamer
             try:
-                await self.process_streamer_status(guild, streamer_key, streamers[streamer_key], guild_data)
+                await self.process_streamer_status(guild_id, streamer_key, streamers[streamer_key])
                 self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
             except Exception as e:
                 print(f"Fehler bei sofortiger Aktualisierung für {correct_name}: {e}")
