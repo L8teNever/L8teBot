@@ -38,9 +38,9 @@ class WrappedWebLinkView(discord.ui.View):
         cog = bot.get_cog("Wrapped")
         if cog:
             token = cog.generate_wrapped_web_token(guild_id, user_id, year)
-            # Get base URL from guild config, fallback to global config, then localhost
+            # Get base URL from guild config, fallback to bot's global base_url
             config = cog._get_config(guild_id)
-            base_url = config.get("web_base_url") or bot.config.get("WEB_BASE_URL", "http://localhost:5002")
+            base_url = config.get("web_base_url") or bot.base_url
             
             # Remove trailing slash if present
             if base_url.endswith("/"):

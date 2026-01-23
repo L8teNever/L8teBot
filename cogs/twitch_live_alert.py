@@ -172,7 +172,11 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
 
         if thumb_template := stream_info.get('thumbnail_url'):
             thumb_url = str(thumb_template).replace('{width}', '1280').replace('{height}', '720')
-            embed.set_image(url=f"{thumb_url}?t={int(time.time())}")
+            final_url = f"{thumb_url}?t={int(time.time())}"
+            print(f"[Twitch-Alert] DEBUG: Using live thumbnail URL: {final_url}")
+            embed.set_image(url=final_url)
+        elif profile_img := stream_info.get('profile_image_url'):
+            embed.set_image(url=profile_img)
         
         embed.set_footer(text=f"Live seit {stream_info.get('started_at', '')}")
         return embed

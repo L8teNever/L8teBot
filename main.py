@@ -69,11 +69,16 @@ bot.config = config
 bot.data = data_manager
 
 # Bestimme Basis-URL für Bilder und Web-Links
-redirect_uri = config.get("DISCORD_REDIRECT_URI", "")
-if redirect_uri:
-    bot.base_url = "/".join(redirect_uri.split("/")[:3])
+# Priorität: WEB_BASE_URL aus config.json > DISCORD_REDIRECT_URI > localhost
+web_base_url = config.get("WEB_BASE_URL")
+if web_base_url:
+    bot.base_url = web_base_url.rstrip("/")
 else:
-    bot.base_url = "http://localhost:5000"
+    redirect_uri = config.get("DISCORD_REDIRECT_URI", "")
+    if redirect_uri:
+        bot.base_url = "/".join(redirect_uri.split("/")[:3])
+    else:
+        bot.base_url = "http://localhost:5000"
 
 # Überprüfe kritische Konfiguration für das Web-Dashboard
 required_web_keys = ["DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_REDIRECT_URI"]
@@ -1580,8 +1585,15 @@ def manage_leaderboard_settings(guild_id):
             channel_id = int(channel_id_str) if channel_id_str else None
             display_mode = request.form.get('display_mode', 'single')
             
+            # Enabled leaderboard types
+            enabled_types = request.form.getlist('enabled_types')
+            if not enabled_types:
+                # Default to messages if none selected
+                enabled_types = ['messages']
+                
             leaderboard_data['leaderboard_channel_id'] = channel_id
             leaderboard_data['display_mode'] = display_mode
+            leaderboard_data['enabled_types'] = enabled_types
             bot.data.save_guild_data(guild_id, "leaderboard_config", leaderboard_data)
             
             flash("Leaderboard-Einstellungen gespeichert!", "success")

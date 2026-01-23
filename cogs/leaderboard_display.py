@@ -12,10 +12,19 @@ class LeaderboardView(View):
         super().__init__(timeout=None)  # Persistent view
         self.bot = bot
         self.guild_id = guild_id
+        
+        # Fetch enabled types from config
+        leaderboard_config = self.bot.data.get_guild_data(guild_id, "leaderboard_config")
+        enabled_types = leaderboard_config.get('enabled_types', ['messages', 'level', 'streak_current', 'streak_alltime'])
+        
+        # Ensure current_type is enabled
+        if current_type not in enabled_types and enabled_types:
+            current_type = enabled_types[0]
+            
         self.current_type = current_type
         
-        # Add dropdown for leaderboard type selection
-        options = [
+        # All possible options
+        all_options = [
             discord.SelectOption(
                 label="🗨️ Meiste Nachrichten (Monatlich)",
                 value="messages",
@@ -41,6 +50,13 @@ class LeaderboardView(View):
                 default=(current_type == 'streak_alltime')
             ),
         ]
+        
+        # Filter options based on config
+        options = [opt for opt in all_options if opt.value in enabled_types]
+        
+        # If no options would be left (shouldn't happen with default), show all
+        if not options:
+            options = all_options
         
         select = Select(
             placeholder="Leaderboard-Typ wählen...",
@@ -251,11 +267,17 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                 continue
             
             try:
+                enabled_types = leaderboard_config.get('enabled_types', ['messages', 'level', 'streak_current', 'streak_alltime'])
+
                 if display_mode == 'forum':
                     # Forum mode: Update all threads
                     thread_ids = leaderboard_config.get('forum_thread_ids', {})
                     
                     for lb_type, thread_id in thread_ids.items():
+                        # Skip if type is disabled
+                        if lb_type not in enabled_types:
+                            continue
+                        
                         try:
                             thread = channel.get_thread(thread_id)
                             if not thread:
@@ -285,6 +307,12 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                     # Single channel mode: Update single message
                     message_id = leaderboard_config.get('leaderboard_message_id')
                     current_type = leaderboard_config.get('current_leaderboard_type', 'messages')
+
+                    # Fallback if current type is disabled
+                    if current_type not in enabled_types and enabled_types:
+                        current_type = enabled_types[0]
+                        leaderboard_config['current_leaderboard_type'] = current_type
+                        self.bot.data.save_guild_data(guild.id, "leaderboard_config", leaderboard_config)
                     
                     if not message_id:
                         continue
@@ -395,14 +423,22 @@ class LeaderboardDisplayCog(commands.Cog, name="LeaderboardDisplay"):
                 if deleted_count > 0:
                     print(f"🗑️ {deleted_count} alte Leaderboard-Threads gelöscht")
                 
-                # Now create new threads
-                leaderboard_types = [
+                # Filter leaderboard types based on config
+                enabled_types = leaderboard_config.get('enabled_types', ['messages', 'level', 'streak_current', 'streak_alltime'])
+                
+                all_leaderboard_types = [
                     ('messages', '🗨️ Meiste Nachrichten (Monatlich)'),
                     ('level', '⭐ Höchstes Level (Allzeit)'),
                     ('streak_current', '🔥 Längste aktive Streak'),
                     ('streak_alltime', '🏆 Längste Streak (Allzeit)')
                 ]
                 
+                leaderboard_types = [lt for lt in all_leaderboard_types if lt[0] in enabled_types]
+                
+                # Sanity check
+                if not leaderboard_types and all_leaderboard_types:
+                    leaderboard_types = [all_leaderboard_types[0]]
+
                 thread_ids = {}
                 
                 for lb_type, thread_name in leaderboard_types:
