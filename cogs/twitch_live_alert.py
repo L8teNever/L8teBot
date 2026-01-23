@@ -202,8 +202,9 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         """Erstellt ein Discord Scheduled Event für einen Live-Stream."""
         try:
             from datetime import timedelta
-            # Event-Zeit: Jetzt bis in 8 Stunden (Discord erlaubt max 7 Tage)
-            start_time = datetime.now(timezone.utc)
+            # Event-Zeit: 10 Sekunden in der Zukunft bis in 8 Stunden
+            # (Discord erlaubt keine Events in der Vergangenheit)
+            start_time = datetime.now(timezone.utc) + timedelta(seconds=10)
             end_time = start_time + timedelta(hours=8)
             
             # Thumbnail URL
