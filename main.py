@@ -68,6 +68,13 @@ bot = commands.Bot(command_prefix=get_prefix, intents=intents, help_command=None
 bot.config = config
 bot.data = data_manager
 
+# Bestimme Basis-URL für Bilder und Web-Links
+redirect_uri = config.get("DISCORD_REDIRECT_URI", "")
+if redirect_uri:
+    bot.base_url = "/".join(redirect_uri.split("/")[:3])
+else:
+    bot.base_url = "http://localhost:5000"
+
 # Überprüfe kritische Konfiguration für das Web-Dashboard
 required_web_keys = ["DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_REDIRECT_URI"]
 missing_web_keys = [key for key in required_web_keys if not config.get(key)]
@@ -130,6 +137,11 @@ def inject_user_and_auth():
 import shutil
 import zipfile
 from utils.migrate import process_migration_data
+from flask import send_from_directory
+
+@app.route('/static/images/twitch_offline.png')
+def serve_twitch_offline():
+    return send_from_directory(os.path.join(app.static_folder, 'images'), 'twitch_offline.png')
 
 @app.route('/admin/maintenance')
 @requires_authorization
@@ -1022,6 +1034,9 @@ def manage_twitch_status(guild_id):
         future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, twitch_user, role_id), bot.loop)
     elif action == 'reset':
         future = asyncio.run_coroutine_threadsafe(cog.web_reset_config(guild_id), bot.loop)
+    elif action == 'remove_streamer':
+        streamer_key = request.form.get('streamer_key')
+        future = asyncio.run_coroutine_threadsafe(cog.web_remove_streamer(guild_id, streamer_key), bot.loop)
 
     if future:
         success, message = future.result()

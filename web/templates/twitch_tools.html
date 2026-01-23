@@ -8,12 +8,114 @@
         <p class="text-text-secondary">Verwalte deine Twitch-Integrationen, Alerts und Clips an einem Ort.</p>
     </header>
 
-    <!-- Multi-Streamer Alert Section -->
+    <!-- Section 1: Live Status & Dedicated Channels -->
+    <section class="space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-purple-400">person_play</span>
+                Live Status & Dedicated Channels
+            </h2>
+            {% if single_stream_is_enabled %}
+            <span
+                class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Aktiv</span>
+            {% else %}
+            <span
+                class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/20">Inaktiv</span>
+            {% endif %}
+        </div>
+
+        {% if single_stream_is_enabled %}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Add New Streamer for Status -->
+            <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
+                <h3 class="text-lg font-bold text-white mb-4">Streamer Status hinzufügen</h3>
+                <p class="text-text-secondary mb-6 text-sm">Erstellt einen dedizierten Kanal, der zwischen 🔴｜live und
+                    ⚫｜offline wechselt.</p>
+                <form method="POST" action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}" class="space-y-4">
+                    <input type="hidden" name="action" value="set_config">
+                    <div class="flex flex-col gap-2">
+                        <label class="text-sm font-medium text-text-secondary">Twitch Benutzername</label>
+                        <input type="text" name="twitch_user" class="form-input" placeholder="z.B. l8tenever" required>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <label class="text-sm font-medium text-text-secondary">Ping Rolle (Optional)</label>
+                        <select name="role_id" class="form-input">
+                            <option value="">-- Keine --</option>
+                            {% for role in guild.roles|sort(attribute='position', reverse=true) %}
+                            {% if not role.is_default() and not role.is_bot_managed() %}
+                            <option value="{{ role.id }}">@{{ role.name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit"
+                        class="w-full px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
+                        Status-Kanal erstellen
+                    </button>
+                </form>
+            </div>
+
+            <!-- List of Tracked Status Streamers -->
+            <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e] flex flex-col">
+                <h3 class="text-lg font-bold text-white mb-4">Überwachte Kanäle</h3>
+                <div class="space-y-3 flex-1 overflow-y-auto max-h-[400px] custom-scrollbar pr-2">
+                    {% set status_streamers = single_stream_config.get('streamers', {}) %}
+                    {% if status_streamers %}
+                    {% for s_key, s_data in status_streamers.items() %}
+                    <div
+                        class="p-4 bg-background-dark/50 rounded-lg border border-white/5 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="relative">
+                                <div
+                                    class="size-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 border border-purple-500/20">
+                                    <span class="material-symbols-outlined">videocam</span>
+                                </div>
+                                {% if s_data.get('is_live') %}
+                                <span
+                                    class="absolute -top-1 -right-1 size-3 bg-red-500 rounded-full border-2 border-[#101622] animate-pulse"></span>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <p class="text-white font-bold">{{ s_data.get('display_name') }}</p>
+                                <p class="text-[10px] text-text-secondary">
+                                    Kanal: #{{ guild.get_channel(s_data.get('channel_id')).name if
+                                    s_data.get('channel_id') and guild.get_channel(s_data.get('channel_id')) else
+                                    'Unbekannt' }}
+                                </p>
+                            </div>
+                        </div>
+                        <form method="POST" action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}">
+                            <input type="hidden" name="action" value="remove_streamer">
+                            <input type="hidden" name="streamer_key" value="{{ s_key }}">
+                            <button type="submit"
+                                class="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                                <span class="material-symbols-outlined text-lg">delete</span>
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="py-8 text-center text-text-secondary border border-dashed border-[#2e3e5e] rounded-lg">
+                        <p class="text-sm">Noch keine Status-Kanäle eingerichtet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="p-6 text-center border-dashed border-2 border-[#2e3e5e] rounded-lg bg-transparent">
+            <span class="material-symbols-outlined text-3xl text-text-secondary mb-2">block</span>
+            <p class="text-text-secondary">Das 'Twitch-Live-Alert'-Modul ist deaktiviert.</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Section 2: Multi-Streamer Alert Feed -->
     <section class="space-y-4">
         <div class="flex items-center justify-between">
             <h2 class="text-2xl font-bold text-white flex items-center gap-2">
                 <span class="material-symbols-outlined text-purple-400">group</span>
-                Multi-Streamer Alert
+                Globaler Streamer Feed
             </h2>
             {% if multi_stream_is_enabled %}
             <span
@@ -28,16 +130,16 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Config Form -->
             <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
-                <h3 class="text-lg font-bold text-white mb-4">Einstellungen</h3>
+                <h3 class="text-lg font-bold text-white mb-4">Feed Einstellungen</h3>
+                <p class="text-text-secondary mb-6 text-sm">Postet mehrere Streamer in einen gemeinsamen Kanal.</p>
                 <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
                     class="flex flex-col gap-4">
                     <input type="hidden" name="action" value="set_multi_stream_config">
-
                     <div class="flex flex-col gap-2">
                         <label class="text-sm font-medium text-text-secondary">Alert Kanal</label>
                         <select name="multi_channel_id" class="form-input">
                             <option value="">-- Deaktiviert --</option>
-                            {% for channel in guild.text_channels %}
+                            {% for channel in guild.text_channels|sort(attribute='position') %}
                             <option value="{{ channel.id }}" {% if streamers_data.get('channel_id')==channel.id
                                 %}selected{% endif %}>
                                 #{{ channel.name }}
@@ -45,25 +147,9 @@
                             {% endfor %}
                         </select>
                     </div>
-
-                    <div class="flex flex-col gap-2">
-                        <label class="text-sm font-medium text-text-secondary">Ping Rolle (Optional)</label>
-                        <select name="role_id" class="form-input">
-                            <option value="">-- Keine --</option>
-                            {% for role in guild.roles %}
-                            {% if role.name != "@everyone" %}
-                            <option value="{{ role.id }}" {% if streamers_data.get('ping_role_id')==role.id %}selected{%
-                                endif %}>
-                                @{{ role.name }}
-                            </option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-
                     <button type="submit"
                         class="mt-2 w-full px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
-                        Speichern
+                        Feed-Kanal speichern
                     </button>
                 </form>
             </div>
@@ -71,8 +157,6 @@
             <!-- Manage Streamers -->
             <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e] flex flex-col h-full">
                 <h3 class="text-lg font-bold text-white mb-4">Streamer Liste</h3>
-
-                <!-- Add Streamer -->
                 <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}" class="flex gap-2 mb-4">
                     <input type="hidden" name="action" value="add_streamer">
                     <input type="text" name="streamer_name" class="form-input flex-1" placeholder="Twitch Username"
@@ -82,23 +166,20 @@
                         <span class="material-symbols-outlined">add</span>
                     </button>
                 </form>
-
-                <!-- List -->
                 <div class="flex-1 overflow-y-auto max-h-[250px] space-y-2 pr-2 custom-scrollbar">
-                    {% if streamers_data.get('streamers') %}
-                    {% for streamer in streamers_data.get('streamers') %}
+                    {% set streamers = streamers_data.get('streamers', {}) %}
+                    {% if streamers %}
+                    {% for s_key, s_data in streamers.items() %}
                     <div
                         class="flex items-center justify-between p-3 bg-background-dark/50 rounded-lg border border-white/5 hover:border-purple-500/30 transition-colors">
                         <div class="flex items-center gap-3">
-                            <div
-                                class="size-8 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 border border-purple-500/20">
-                                <span class="material-symbols-outlined text-lg">person</span>
-                            </div>
-                            <span class="text-white font-medium">{{ streamer }}</span>
+                            <img src="{{ s_data.get('profile_image_url') or 'https://api.dicebear.com/7.x/identicon/svg?seed=' + s_key }}"
+                                class="size-8 rounded-full">
+                            <span class="text-white font-medium">{{ s_data.get('display_name') or s_key }}</span>
                         </div>
                         <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}">
                             <input type="hidden" name="action" value="remove_streamer">
-                            <input type="hidden" name="streamer_name" value="{{ streamer }}">
+                            <input type="hidden" name="streamer_name" value="{{ s_key }}">
                             <button type="submit"
                                 class="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
                                 <span class="material-symbols-outlined text-lg">delete</span>
@@ -108,9 +189,8 @@
                     {% endfor %}
                     {% else %}
                     <div
-                        class="flex flex-col items-center justify-center h-full py-8 text-text-secondary border border-dashed border-[#2e3e5e] rounded-lg">
-                        <span class="material-symbols-outlined text-3xl mb-2 opacity-50">search_off</span>
-                        <p class="text-sm">Keine Streamer hinzugefügt</p>
+                        class="flex flex-col items-center justify-center py-8 text-text-secondary border border-dashed border-[#2e3e5e] rounded-lg">
+                        <p class="text-sm">Keine Streamer im Feed</p>
                     </div>
                     {% endif %}
                 </div>
@@ -119,120 +199,44 @@
         {% else %}
         <div class="p-6 text-center border-dashed border-2 border-[#2e3e5e] rounded-lg bg-transparent">
             <span class="material-symbols-outlined text-3xl text-text-secondary mb-2">block</span>
-            <p class="text-text-secondary">Das 'Twitch'-Modul ist deaktiviert. Aktiviere es in den Einstellungen.</p>
+            <p class="text-text-secondary">Das 'Twitch'-Modul ist deaktiviert.</p>
         </div>
         {% endif %}
     </section>
 
-    <!-- Single Streamer Status Section -->
-    <section class="space-y-4">
-        <div class="flex items-center justify-between">
-            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
-                <span class="material-symbols-outlined text-purple-400">person_play</span>
-                Live Status & Alert (Einzeln)
-            </h2>
-            {% if single_stream_is_enabled %}
-            <span
-                class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Aktiv</span>
-            {% else %}
-            <span
-                class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/20">Inaktiv</span>
-            {% endif %}
-        </div>
+    <!-- Section 3: Clips & Extra -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Twitch Clips Section -->
+        <section class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-purple-400">movie</span>
+                    Twitch Clips
+                </h2>
+                {% if clips_is_enabled %}
+                <span
+                    class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Aktiv</span>
+                {% else %}
+                <span
+                    class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/20">Inaktiv</span>
+                {% endif %}
+            </div>
 
-        {% if single_stream_is_enabled %}
-        <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
-            <p class="text-text-secondary mb-6 text-sm">Postet eine Nachricht, wenn EIN spezifischer Account live geht.
-                (Alternativ zum Multi-Alert)</p>
-            <form method="POST" action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}"
-                class="flex flex-col gap-6">
-                <input type="hidden" name="action" value="set_config">
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="flex flex-col gap-2">
-                        <label class="text-sm font-medium text-text-secondary">Twitch Username</label>
-                        <div class="relative">
-                            <span
-                                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 select-none text-sm font-mono">twitch.tv/</span>
-                            <input type="text" name="twitch_user" class="form-input pl-[85px]"
-                                value="{{ single_stream_config.get('twitch_user', '') }}" placeholder="username">
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col gap-2">
-                        <label class="text-sm font-medium text-text-secondary">Promo Rolle (Optional)</label>
-                        <select name="role_id" class="form-input">
-                            <option value="">-- Keine --</option>
-                            {% for role in guild.roles %}
-                            {% if role.name != "@everyone" %}
-                            <option value="{{ role.id }}" {% if single_stream_config.get('promo_role_id')==role.id
-                                %}selected{% endif %}>
-                                @{{ role.name }}
-                            </option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div class="flex gap-3 justify-end pt-4 border-t border-[#2e3e5e]">
-                    <button type="submit"
-                        formaction="{{ url_for('manage_twitch_status', guild_id=guild.id) }}?action=reset" name="action"
-                        value="reset"
-                        class="px-4 py-2 border border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-sm font-bold transition-colors">
-                        Zurücksetzen
-                    </button>
-                    <button type="submit"
-                        class="px-6 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
-                        Speichern
-                    </button>
-                </div>
-            </form>
-        </div>
-        {% else %}
-        <div class="p-6 text-center border-dashed border-2 border-[#2e3e5e] rounded-lg bg-transparent">
-            <span class="material-symbols-outlined text-3xl text-text-secondary mb-2">block</span>
-            <p class="text-text-secondary">Das 'Twitch-Live-Alert'-Modul ist deaktiviert.</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- Twitch Clips Section -->
-    <section class="space-y-4">
-        <div class="flex items-center justify-between">
-            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
-                <span class="material-symbols-outlined text-purple-400">movie</span>
-                Twitch Clips Auto-Poster
-            </h2>
             {% if clips_is_enabled %}
-            <span
-                class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Aktiv</span>
-            {% else %}
-            <span
-                class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/20">Inaktiv</span>
-            {% endif %}
-        </div>
-
-        {% if clips_is_enabled %}
-        <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
-            <p class="text-text-secondary mb-6 text-sm">Postet automatisch neue Clips eines Streamers in einen Kanal.
-            </p>
-            <form method="POST" action="{{ url_for('manage_twitch_clips', guild_id=guild.id) }}"
-                class="flex flex-col gap-6">
-                <input type="hidden" name="action" value="set_config">
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
+                <form method="POST" action="{{ url_for('manage_twitch_clips', guild_id=guild.id) }}"
+                    class="flex flex-col gap-4">
+                    <input type="hidden" name="action" value="set_config">
                     <div class="flex flex-col gap-2">
                         <label class="text-sm font-medium text-text-secondary">Streamer Name</label>
                         <input type="text" name="streamer_name" class="form-input"
                             value="{{ clips_config.get('streamer_name', '') }}" placeholder="Twitch Username">
                     </div>
-
                     <div class="flex flex-col gap-2">
                         <label class="text-sm font-medium text-text-secondary">Clip Kanal</label>
                         <select name="channel_id" class="form-input">
                             <option value="">-- Wähle einen Kanal --</option>
-                            {% for channel in guild.text_channels %}
+                            {% for channel in guild.text_channels|sort(attribute='position') %}
                             <option value="{{ channel.id }}" {% if clips_config.get('channel_id')==channel.id
                                 %}selected{% endif %}>
                                 #{{ channel.name }}
@@ -240,93 +244,55 @@
                             {% endfor %}
                         </select>
                     </div>
-                </div>
-
-                <div class="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 flex items-start gap-3">
-                    <span class="material-symbols-outlined text-blue-400">info</span>
-                    <p class="text-sm text-gray-300">
-                        Der Bot überprüft alle 30 Sekunden auf neue Clips. Um Spam zu vermeiden, werden beim Start die
-                        letzten Clips "ignoriert" und nur neue gepostet.
-                    </p>
-                </div>
-
-                <div class="flex justify-end pt-4 border-t border-[#2e3e5e]">
                     <button type="submit"
-                        class="px-6 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
-                        Einstellungen Speichern
+                        class="w-full px-6 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
+                        Clip-Auto-Poster speichern
                     </button>
-                </div>
-            </form>
-        </div>
-        {% else %}
-        <div class="p-6 text-center border-dashed border-2 border-[#2e3e5e] rounded-lg bg-transparent">
-            <span class="material-symbols-outlined text-3xl text-text-secondary mb-2">block</span>
-            <p class="text-text-secondary">Das 'Twitch-Clips'-Modul ist deaktiviert.</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- Streamer Role Command Section -->
-    <section class="space-y-4">
-        <div class="flex items-center justify-between">
-            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
-                <span class="material-symbols-outlined text-purple-400">verified_user</span>
-                Streamer Rolle & Befehl
-            </h2>
-            {% if multi_stream_is_enabled %}
-            <span
-                class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Aktiv</span>
-            {% else %}
-            <span
-                class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/20">Modul
-                'Twitch' wird benötigt</span>
+                </form>
+            </div>
             {% endif %}
-        </div>
+        </section>
 
-        {% if multi_stream_is_enabled %}
-        <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
-            <p class="text-text-secondary mb-6 text-sm">User können mit <code>/streamer [twitch_name]</code> automatisch
-                eine Rolle erhalten.</p>
-            <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}" class="flex flex-col gap-6">
-                <input type="hidden" name="action" value="set_streamer_command_config">
+        <!-- Streamer Role Command -->
+        <section class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-purple-400">verified_user</span>
+                    Streamer Rolle
+                </h2>
+                {% if multi_stream_is_enabled %}
+                <span
+                    class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Verfügbar</span>
+                {% endif %}
+            </div>
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-sm font-medium text-text-secondary">Befehl Rolle</label>
-                    <select name="streamer_role_id" class="form-input">
-                        <option value="">-- Deaktiviert --</option>
-                        {% for role in guild.roles|sort(attribute='position', reverse=True) %}
-                        {% if role.name != "@everyone" %}
-                        <option value="{{ role.id }}" {% if streamers_data.get('streamer_command_role_id')==role.id
-                            %}selected{% endif %}>
-                            @{{ role.name }}
-                        </option>
-                        {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 flex items-start gap-3">
-                    <span class="material-symbols-outlined text-purple-400">help_outline</span>
-                    <div class="text-sm text-gray-300">
-                        <p class="font-bold mb-1">Was macht dieser Befehl?</p>
-                        <ul class="list-disc list-inside space-y-1 opacity-80">
-                            <li>User geben <code>/streamer username:mein_name</code> ein.</li>
-                            <li>Der Bot prüft, ob der Twitch-Account existiert (optionaler Check).</li>
-                            <li>Der User erhält sofort die oben ausgewählte Rolle auf dem Server.</li>
-                        </ul>
+            {% if multi_stream_is_enabled %}
+            <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
+                <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
+                    class="flex flex-col gap-4">
+                    <input type="hidden" name="action" value="set_streamer_command_config">
+                    <div class="flex flex-col gap-2">
+                        <label class="text-sm font-medium text-text-secondary">Self-Assign Rolle</label>
+                        <select name="streamer_role_id" class="form-input">
+                            <option value="">-- Deaktiviert --</option>
+                            {% for role in guild.roles|sort(attribute='position', reverse=True) %}
+                            {% if not role.is_default() and not role.is_bot_managed() %}
+                            <option value="{{ role.id }}" {% if streamers_data.get('streamer_command_role_id')==role.id
+                                %}selected{% endif %}>
+                                @{{ role.name }}
+                            </option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
                     </div>
-                </div>
-
-                <div class="flex justify-end pt-4 border-t border-[#2e3e5e]">
                     <button type="submit"
-                        class="px-6 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
-                        Einstellungen Speichern
+                        class="w-full px-6 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
+                        Rolle speichern
                     </button>
-                </div>
-            </form>
-        </div>
-        {% endif %}
-    </section>
-
+                </form>
+            </div>
+            {% endif %}
+        </section>
+    </div>
 </div>
 {% endblock %}
