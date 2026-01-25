@@ -320,7 +320,7 @@ def import_legacy_data():
     return redirect(url_for('admin_maintenance'))
 
 
-MANAGEABLE_COGS = ["Geburtstage", "Zählen", "Level-System", "Moderation", "Twitch", "Twitch-Live-Alert", "Ticket-System", "Temp-Channel", "Twitch-Clips", "Streak", "Gatekeeper", "Guard", "Global-Ban", "Wrapped", "LFG", "Mitspieler-Suche"]
+MANAGEABLE_COGS = ["Geburtstage", "Zählen", "Level-System", "Moderation", "Twitch", "Twitch-Live-Alert", "Ticket-System", "Temp-Channel", "Twitch-Clips", "Streak", "Gatekeeper", "Guard", "Global-Ban", "Wrapped", "LFG", "Mitspieler-Suche", "Wordle"]
 
 # (Existing get_admin_guilds and check_guild_permissions are slightly below)
 
@@ -1067,6 +1067,44 @@ def manage_twitch_status(guild_id):
     return redirect(url_for('manage_twitch', guild_id=guild_id))
 
 
+@app.route('/guild/<int:guild_id>/wordle', methods=['GET', 'POST'])
+@requires_authorization
+def manage_wordle(guild_id):
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung für diesen Server.", "danger")
+        return redirect(url_for('dashboard'))
+
+    guild = bot.get_guild(guild_id)
+    guild_config = bot.data.get_server_config(guild_id)
+    cog = bot.get_cog('Wordle')
+    is_enabled = 'Wordle' in guild_config.get('enabled_cogs', [])
+    
+    wordle_config = bot.data.get_guild_data(guild_id, "wordle_game") or {}
+
+    if request.method == 'POST':
+        if not is_enabled or not cog:
+            flash("Das Wordle-Modul ist nicht aktiv.", "danger")
+            return redirect(url_for('manage_wordle', guild_id=guild_id))
+
+        action = request.form.get('action')
+        future = None
+        if action == 'set_config':
+            channel_id_str = request.form.get('channel_id')
+            channel_id = int(channel_id_str) if channel_id_str else None
+            future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, channel_id), bot.loop)
+        
+        if future:
+            success, message = future.result()
+            flash(message, 'success' if success else 'danger')
+        return redirect(url_for('manage_wordle', guild_id=guild_id))
+
+    return render_template('wordle_tools.html', 
+                           guild=guild, 
+                           is_enabled=is_enabled, 
+                           settings=wordle_config,
+                           admin_guilds=get_admin_guilds())
+
+
 @app.route('/guild/<int:guild_id>/gatekeeper', methods=['GET', 'POST'])
 @requires_authorization
 def manage_gatekeeper(guild_id):
@@ -1500,7 +1538,7 @@ async def on_ready():
         'cogs.level_system', 'cogs.moderation', 'cogs.ticket_system', 'cogs.twitch', 
         'cogs.twitch_live_alert', 'cogs.temp_channel', 'cogs.twitch_clips', 'cogs.streak', 
         'cogs.gatekeeper', 'cogs.guard', 'cogs.global_ban', 'cogs.maintenance', 'cogs.wrapped',
-        'cogs.lfg', 'cogs.monthly_stats', 'cogs.leaderboard_display', 'cogs.info'
+        'cogs.lfg', 'cogs.monthly_stats', 'cogs.leaderboard_display', 'cogs.wordle', 'cogs.info'
     ]
     for cog in cogs_to_load:
         try:
