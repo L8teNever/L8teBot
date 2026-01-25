@@ -1045,6 +1045,11 @@ def manage_twitch_status(guild_id):
         start_time = request.form.get('start_time')
         title = request.form.get('title')
         future = asyncio.run_coroutine_threadsafe(cog.web_add_planned_stream(guild_id, twitch_user, start_time, title), bot.loop)
+    elif action == 'edit_planned':
+        uid = request.form.get('uid')
+        start_time = request.form.get('start_time')
+        title = request.form.get('title')
+        future = asyncio.run_coroutine_threadsafe(cog.web_edit_planned_stream(guild_id, uid, start_time, title), bot.loop)
     elif action == 'remove_planned':
         streamer_key = request.form.get('streamer_key')
         future = asyncio.run_coroutine_threadsafe(cog.web_remove_planned_stream(guild_id, streamer_key), bot.loop)
