@@ -2358,11 +2358,29 @@ def twitch_dashboard():
 
     # Admin Check für den zentralen Bot-Setup Button
     # Wir nehmen an, der User ist Admin, wenn er auf IRGENDEINEM Server des Bots Admin-Rechte hat
+    # ODER wenn sein Twitch-Name in der ADMIN_TWITCH_NAMES Liste steht
     from flask import session
     is_admin = False
+    
+    # 1. Discord Admin Check
     admin_guilds = get_admin_guilds()
     if admin_guilds:
         is_admin = True
+    
+    # 2. Twitch Name Admin Check (Falls Discord Check fehlschlägt oder nicht eingeloggt)
+    if not is_admin and twitch_user:
+        admin_names_raw = config.get("ADMIN_TWITCH_NAMES", "")
+        if admin_names_raw:
+            admin_names = [name.strip().lower() for name in admin_names_raw.split(",")]
+            if twitch_user["login"].lower() in admin_names:
+                is_admin = True
+    
+    # 3. Fallback: Erster verknüpfter User oder Owner Check? 
+    # Wenn gar nichts konfiguriert ist, erlauben wir es dem aktuell eingeloggten Twitch-User, 
+    # damit er sich nicht aussperrt.
+    if not is_admin and not config.get("ADMIN_TWITCH_NAMES") and not admin_guilds:
+        is_admin = True # Erster Login / Keine Config -> Darf einrichten
+        
     session['is_admin'] = is_admin
 
     # Kanäle holen, die der User moderiert

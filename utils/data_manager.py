@@ -79,7 +79,7 @@ class DataManager:
         keys = [
             "token", "DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_REDIRECT_URI",
             "SECRET_KEY", "WEB_BASE_URL", "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET",
-            "TWITCH_BOT_USERNAME", "TWITCH_BOT_TOKEN", "TWITCH_REDIRECT_URI"
+            "TWITCH_BOT_USERNAME", "TWITCH_BOT_TOKEN", "TWITCH_REDIRECT_URI", "ADMIN_TWITCH_NAMES"
         ]
         
         for key in keys:
