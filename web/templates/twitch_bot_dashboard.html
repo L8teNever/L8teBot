@@ -77,6 +77,44 @@
                 <span class="text-xs text-text-secondary font-bold uppercase">Bot Offline</span>
                 {% endif %}
             </div>
+            <div class="mt-6 pt-6 border-t border-[#2e3e5e]">
+                <h4 class="text-white text-sm font-bold mb-3 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-xs">terminal</span>
+                    Custom Commands
+                </h4>
+
+                <div class="space-y-2 mb-4 max-h-40 overflow-y-auto">
+                    {% set custom_cmds = bot_config.channels.get(channel.broadcaster_login.lower(), {}).custom_commands
+                    %}
+                    {% if custom_cmds %}
+                    {% for cmd, resp in custom_cmds.items() %}
+                    <div
+                        class="flex items-center justify-between p-2 rounded bg-background-dark border border-[#2e3e5e] group">
+                        <div class="min-w-0">
+                            <p class="text-primary text-xs font-bold font-mono">!{{ cmd }}</p>
+                            <p class="text-[10px] text-text-secondary truncate">{{ resp }}</p>
+                        </div>
+                        <button onclick="removeCommand('{{ channel.broadcaster_login }}', '{{ cmd }}')"
+                            class="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span class="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-[10px] text-text-secondary italic">Keine Befehle erstellt</p>
+                    {% endif %}
+                </div>
+
+                <form onsubmit="addCommand(event, '{{ channel.broadcaster_login }}')" class="flex gap-2">
+                    <input type="text" name="command" placeholder="Befehl" required
+                        class="w-1/3 px-2 py-1 rounded bg-background-dark border border-[#2e3e5e] text-white text-xs focus:outline-none focus:border-primary">
+                    <input type="text" name="response" placeholder="Antwort" required
+                        class="flex-1 px-2 py-1 rounded bg-background-dark border border-[#2e3e5e] text-white text-xs focus:outline-none focus:border-primary">
+                    <button type="submit" class="p-1 rounded bg-primary text-white hover:bg-blue-600 transition-colors">
+                        <span class="material-symbols-outlined text-sm">add</span>
+                    </button>
+                </form>
+            </div>
         </div>
         {% endfor %}
     </div>
@@ -95,6 +133,9 @@
                 <br><br>
                 <strong>Befehle im Chat:</strong> <code class="bg-black/30 px-2 py-1 rounded">!l8te</code>, <code
                     class="bg-black/30 px-2 py-1 rounded">!docs</code>
+                <br>
+                <strong>Eigene Befehle:</strong> Du kannst oben eigene Befehle erstellen. Starte den Befehl einfach mit
+                einem Rufzeichen (z.B. <code>!discord</code>).
             </p>
         </div>
     </div>
@@ -108,7 +149,56 @@
 
             if (data.success) {
                 showToast(data.message, 'success');
-                setTimeout(() => window.location.reload(), 1000); // Reload to update status indicator
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showToast(data.message, 'error');
+            }
+        } catch (e) {
+            showToast('Fehler bei der Verbindung', 'error');
+        }
+    }
+
+    async function addCommand(event, channelName) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        formData.append('channel_name', channelName);
+
+        try {
+            const response = await fetch('/twitch/command/add', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showToast(data.message, 'error');
+            }
+        } catch (e) {
+            showToast('Fehler bei der Verbindung', 'error');
+        }
+    }
+
+    async function removeCommand(channelName, command) {
+        if (!confirm(`Befehl !${command} wirklich löschen?`)) return;
+
+        const formData = new FormData();
+        formData.append('channel_name', channelName);
+        formData.append('command', command);
+
+        try {
+            const response = await fetch('/twitch/command/remove', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 1000);
             } else {
                 showToast(data.message, 'error');
             }

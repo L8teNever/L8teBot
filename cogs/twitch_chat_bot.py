@@ -21,8 +21,23 @@ class TwitchChatBot(t_commands.Bot):
         if message.echo:
             return
 
-        # Hier können globale Twitch-Bot-Events verarbeitet werden
+        # Handle built-in commands
         await self.handle_commands(message)
+
+        # Handle custom commands
+        if message.content.startswith('!'):
+            cmd_name = message.content[1:].split(' ')[0].lower()
+            
+            # Load config to check for custom command
+            config = self.discord_cog.bot.data.load_json(self.discord_cog.config_path, {"channels": {}})
+            channel_name = message.channel.name.lower()
+            
+            chan_config = config.get("channels", {}).get(channel_name, {})
+            custom_cmds = chan_config.get("custom_commands", {})
+            
+            if cmd_name in custom_cmds:
+                response = custom_cmds[cmd_name]
+                await message.channel.send(response)
 
     @t_commands.command(name='l8te')
     async def l8te_command(self, ctx):
@@ -85,6 +100,29 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
                 self.bot.loop.create_task(self.twitch_bot.join_channels([channel_name]))
             else:
                 self.bot.loop.create_task(self.twitch_bot.part_channels([channel_name]))
+
+    def save_custom_command(self, channel_name: str, command: str, response: str):
+        """Speichert einen benutzerdefinierten Befehl für einen Kanal."""
+        config = self.bot.data.load_json(self.config_path, {"channels": {}})
+        channel_name = channel_name.lower()
+        
+        if channel_name not in config["channels"]:
+            config["channels"][channel_name] = {"active": False, "custom_commands": {}}
+        
+        if "custom_commands" not in config["channels"][channel_name]:
+            config["channels"][channel_name]["custom_commands"] = {}
+            
+        config["channels"][channel_name]["custom_commands"][command.lower()] = response
+        self.bot.data.save_json(self.config_path, config)
+
+    def remove_custom_command(self, channel_name: str, command: str):
+        """Entfernt einen benutzerdefinierten Befehl."""
+        config = self.bot.data.load_json(self.config_path, {"channels": {}})
+        channel_name = channel_name.lower()
+        
+        if channel_name in config["channels"] and "custom_commands" in config["channels"][channel_name]:
+            config["channels"][channel_name]["custom_commands"].pop(command.lower(), None)
+            self.bot.data.save_json(self.config_path, config)
 
     async def cog_unload(self):
         if self.twitch_bot:

@@ -2396,6 +2396,47 @@ def twitch_toggle_bot(channel_name):
     
     return jsonify({"success": False, "message": "Bot Modul nicht geladen"})
 
+@app.route("/twitch/command/add", methods=["POST"])
+def twitch_add_command():
+    from flask import session
+    twitch_user = session.get("twitch_user")
+    if not twitch_user:
+        return jsonify({"success": False, "message": "Nicht eingeloggt"})
+
+    channel_name = request.form.get("channel_name")
+    command = request.form.get("command")
+    response = request.form.get("response")
+    
+    if not channel_name or not command or not response:
+        return jsonify({"success": False, "message": "Unvollständige Daten"})
+
+    cog = bot.get_cog("Twitch-Bot")
+    if cog:
+        cog.save_custom_command(channel_name, command, response)
+        return jsonify({"success": True, "message": f"Befehl !{command} hinzugefügt"})
+    
+    return jsonify({"success": False, "message": "Bot Modul nicht geladen"})
+
+@app.route("/twitch/command/remove", methods=["POST"])
+def twitch_remove_command():
+    from flask import session
+    twitch_user = session.get("twitch_user")
+    if not twitch_user:
+        return jsonify({"success": False, "message": "Nicht eingeloggt"})
+
+    channel_name = request.form.get("channel_name")
+    command = request.form.get("command")
+    
+    if not channel_name or not command:
+        return jsonify({"success": False, "message": "Unvollständige Daten"})
+
+    cog = bot.get_cog("Twitch-Bot")
+    if cog:
+        cog.remove_custom_command(channel_name, command)
+        return jsonify({"success": True, "message": f"Befehl !{command} entfernt"})
+    
+    return jsonify({"success": False, "message": "Bot Modul nicht geladen"})
+
 if __name__ == "__main__":
     pass  # Lock-Logik entfernt
 
