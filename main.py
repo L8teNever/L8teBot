@@ -556,6 +556,8 @@ def manage_birthdays(guild_id):
             future = asyncio.run_coroutine_threadsafe(cog.web_remove_birthday(guild.id, user_id), bot.loop)
         if future:
             success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
             flash(Markup(message), 'success' if success else 'danger')
         return redirect(url_for('manage_birthdays', guild_id=guild_id))
 
@@ -604,6 +606,8 @@ def manage_counting(guild_id):
             future = asyncio.run_coroutine_threadsafe(cog.web_toggle_default_milestone(guild.id, number), bot.loop)
         if future:
             success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
             flash(Markup(message), 'success' if success else 'danger')
         return redirect(url_for('manage_counting', guild_id=guild_id))
 
@@ -703,6 +707,8 @@ def manage_leveling(guild_id):
             future = asyncio.run_coroutine_threadsafe(cog.web_set_user_xp(guild.id, user_id, xp, level), bot.loop)
         if future:
             success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
             flash(message, 'success' if success else 'danger')
         return redirect(url_for('manage_leveling', guild_id=guild_id))
     
@@ -834,6 +840,8 @@ def manage_tickets(guild_id):
 
         if future:
             success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
             flash(message, 'success' if success else 'danger')
 
         return redirect(url_for('manage_tickets', guild_id=guild_id))
@@ -883,6 +891,8 @@ def manage_twitch(guild_id):
         
         if future:
             success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
             flash(message, 'success' if success else 'danger')
         return redirect(url_for('manage_twitch', guild_id=guild_id))
 
@@ -944,7 +954,10 @@ def manage_temp_channel(guild_id):
         # 2. Speicher
         bot.data.save_guild_data(guild_id, "temp_channels", temp_data)
         
-        flash("Temp-Channel Einstellungen erfolgreich gespeichert!", "success")
+        msg = "Temp-Channel Einstellungen erfolgreich gespeichert!"
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': msg})
+        flash(msg, "success")
         return redirect(url_for('manage_temp_channel', guild_id=guild_id))
 
     # Konfiguration für das Template laden
@@ -986,6 +999,8 @@ def manage_twitch_clips(guild_id):
 
     if future:
         success, message = future.result()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': success, 'message': message})
         flash(message, 'success' if success else 'danger')
     
     return redirect(url_for('manage_twitch', guild_id=guild_id))
@@ -1064,8 +1079,9 @@ def manage_twitch_status(guild_id):
 
     if future:
         success, message = future.result()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': success, 'message': message})
         flash(message, 'success' if success else 'danger')
-
     # After POST, redirect to the unified page
     return redirect(url_for('manage_twitch', guild_id=guild_id))
 
@@ -1200,6 +1216,8 @@ def manage_gatekeeper(guild_id):
     
     if future:
         success, message = future.result()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': success, 'message': message})
         flash(message, 'success' if success else 'danger')
 
     # Nach der Aktion zurück zur kombinierten Sicherheitsseite umleiten
@@ -1244,6 +1262,8 @@ def manage_guard(guild_id):
             bot.loop
         )
         success, message = future.result()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': success, 'message': message})
         flash(message, 'success' if success else 'danger')
         return redirect(url_for('manage_guard', guild_id=guild_id))
 
@@ -1302,6 +1322,8 @@ def manage_global_ban(guild_id):
             bot.loop
         )
         success, message = future.result()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': success, 'message': message})
         flash(message, 'success' if success else 'danger')
     
     return redirect(url_for('manage_guard', guild_id=guild_id))
@@ -1352,9 +1374,10 @@ def manage_wrapped(guild_id):
 
         if future:
             success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
             flash(message, 'success' if success else 'danger')
-        
-        return redirect(url_for('manage_wrapped', guild_id=guild_id))
+        return redirect(url_for('manage_guard', guild_id=guild_id))
 
     wrapped_config = {"user_commands_enabled": False}
     server_stats = {} # Live Stats
@@ -1532,6 +1555,8 @@ def manage_moderation(guild_id):
                 bot.loop
             )
             success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
             flash(message, 'success' if success else 'danger')
         
         return redirect(url_for('manage_moderation', guild_id=guild_id))
@@ -1667,6 +1692,8 @@ def manage_lfg(guild_id):
 
         if future:
             success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
             flash(message, 'success' if success else 'danger')
 
         return redirect(url_for('manage_lfg', guild_id=guild_id))
@@ -1709,7 +1736,10 @@ def manage_leaderboard_settings(guild_id):
             leaderboard_data['enabled_types'] = enabled_types
             bot.data.save_guild_data(guild_id, "leaderboard_config", leaderboard_data)
             
-            flash("Leaderboard-Einstellungen gespeichert!", "success")
+            msg = "Leaderboard-Einstellungen gespeichert!"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': msg})
+            flash(msg, "success")
         
         elif action == 'setup_interactive':
             # Setup interactive leaderboard display
@@ -1717,12 +1747,18 @@ def manage_leaderboard_settings(guild_id):
             channel_id = leaderboard_data.get('leaderboard_channel_id')
             
             if not channel_id:
-                flash("Bitte konfiguriere zuerst einen Leaderboard-Channel!", "danger")
+                msg = "Bitte konfiguriere zuerst einen Leaderboard-Channel!"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': msg})
+                flash(msg, "danger")
                 return redirect(url_for('manage_leaderboard_settings', guild_id=guild_id))
             
             cog = bot.get_cog('LeaderboardDisplay')
             if not cog:
-                flash("Leaderboard-Display-Modul nicht geladen!", "danger")
+                msg = "Leaderboard-Display-Modul nicht geladen!"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': msg})
+                flash(msg, "danger")
                 return redirect(url_for('manage_leaderboard_settings', guild_id=guild_id))
             
             future = asyncio.run_coroutine_threadsafe(
@@ -1732,12 +1768,14 @@ def manage_leaderboard_settings(guild_id):
             
             try:
                 success, message = future.result(timeout=10)
-                if success:
-                    flash(message, "success")
-                else:
-                    flash(message, "danger")
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': success, 'message': message})
+                flash(message, "success" if success else "danger")
             except Exception as e:
-                flash(f"Fehler: {str(e)}", "danger")
+                msg = f"Fehler: {str(e)}"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': msg})
+                flash(msg, "danger")
         
         elif action == 'set_summary_channel':
             # Save monthly summary channel setting
@@ -1750,9 +1788,13 @@ def manage_leaderboard_settings(guild_id):
             
             if channel_id:
                 channel = guild.get_channel(channel_id)
-                flash(f"Monatliche Zusammenfassung wird in #{channel.name} gepostet!", "success")
+                msg = f"Monatliche Zusammenfassung wird in #{channel.name} gepostet!"
             else:
-                flash("Monatliche Zusammenfassung deaktiviert.", "success")
+                msg = "Monatliche Zusammenfassung deaktiviert."
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'message': msg})
+            flash(msg, "success")
             
         elif action == 'post_leaderboard':
             # Quick post leaderboard
@@ -1848,7 +1890,10 @@ def manage_leaderboard_settings(guild_id):
                 leaderboard = leaderboard[:20]
 
                 if not leaderboard:
-                    flash("Keine Daten für dieses Leaderboard verfügbar!", "warning")
+                    msg = "Keine Daten für dieses Leaderboard verfügbar!"
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'success': False, 'message': msg})
+                    flash(msg, "warning")
                     return redirect(url_for('manage_leaderboard_settings', guild_id=guild_id))
 
                 # Create embed
@@ -1882,7 +1927,10 @@ def manage_leaderboard_settings(guild_id):
                 future = asyncio.run_coroutine_threadsafe(send_embed(), bot.loop)
                 future.result(timeout=10)
 
-                flash(f"✅ Leaderboard wurde in #{channel.name} gepostet!", "success")
+                msg = f"✅ Leaderboard wurde in #{channel.name} gepostet!"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': True, 'message': msg})
+                flash(msg, "success")
 
             except Exception as e:
                 print(f"Error posting leaderboard: {e}")

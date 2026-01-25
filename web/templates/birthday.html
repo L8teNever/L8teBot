@@ -20,7 +20,7 @@
 
 <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
     <div class="p-6">
-        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" data-ajax="true">
             <input type="hidden" name="cog_name" value="Geburtstage">
             <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
             <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -48,7 +48,8 @@
             </h2>
         </div>
         <div class="p-6">
-            <form action="{{ url_for('manage_birthdays', guild_id=guild.id) }}" method="post" class="space-y-4">
+            <form action="{{ url_for('manage_birthdays', guild_id=guild.id) }}" method="post" class="space-y-4"
+                data-ajax="true">
                 <input type="hidden" name="action" value="set_config">
                 <div>
                     <label class="block text-text-secondary text-sm mb-2">Listen-Kanal</label>
@@ -101,7 +102,8 @@
             </h2>
         </div>
         <div class="p-6">
-            <form action="{{ url_for('manage_birthdays', guild_id=guild.id) }}" method="post" class="space-y-4">
+            <form action="{{ url_for('manage_birthdays', guild_id=guild.id) }}" method="post" class="space-y-4"
+                data-ajax="true">
                 <input type="hidden" name="action" value="add_bday">
                 <div>
                     <label class="block text-text-secondary text-sm mb-2">Benutzer</label>
@@ -178,7 +180,7 @@
                         </td>
                         <td class="py-3 px-4 text-right">
                             <form action="{{ url_for('manage_birthdays', guild_id=guild.id) }}" method="post"
-                                class="inline">
+                                class="inline" data-ajax="true">
                                 <input type="hidden" name="action" value="remove_bday">
                                 <input type="hidden" name="user_to_remove" value="{{ bday.member.id }}">
                                 <button

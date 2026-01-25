@@ -18,7 +18,7 @@
                 <span class="material-symbols-outlined text-blue-400">shield</span>
                 Guard (Account-Alter-Schutz)
             </h2>
-            <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
+            <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
                 <input type="hidden" name="cog_name" value="Guard">
                 <input type="hidden" name="is_enabled" value="{{ 'False' if guard_is_enabled else 'True' }}">
                 <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -40,7 +40,8 @@
                 Alter gefiltert werden.
             </p>
 
-            <form action="{{ url_for('manage_guard', guild_id=guild.id) }}" method="post" class="space-y-6">
+            <form data-ajax="true" action="{{ url_for('manage_guard', guild_id=guild.id) }}" method="post"
+                class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-text-secondary text-sm mb-2">Aktion bei verdächtigen Accounts</label>
@@ -114,7 +115,7 @@
                 <span class="material-symbols-outlined text-green-400">meeting_room</span>
                 Gatekeeper (Verifizierungs-Timer)
             </h2>
-            <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
+            <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
                 <input type="hidden" name="cog_name" value="Gatekeeper">
                 <input type="hidden" name="is_enabled" value="{{ 'False' if gatekeeper_is_enabled else 'True' }}">
                 <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -136,7 +137,8 @@
                 bestimmte Rolle erhalten).
             </p>
 
-            <form action="{{ url_for('manage_gatekeeper', guild_id=guild.id) }}" method="post" class="space-y-6">
+            <form data-ajax="true" action="{{ url_for('manage_gatekeeper', guild_id=guild.id) }}" method="post"
+                class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-text-secondary text-sm mb-2">Erforderliche Rolle (Verifiziert)</label>
@@ -224,7 +226,7 @@
                 <span class="material-symbols-outlined text-red-500">gavel</span>
                 Global-Ban (Sicherheitsnetz)
             </h2>
-            <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
+            <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
                 <input type="hidden" name="cog_name" value="Global-Ban">
                 <input type="hidden" name="is_enabled" value="{{ 'False' if global_ban_is_enabled else 'True' }}">
                 <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -246,7 +248,8 @@
                 L8teBot-Server wegen schwerem Fehlverhalten gebannt wird, erhältst du eine Benachrichtigung.
             </p>
 
-            <form action="{{ url_for('manage_global_ban', guild_id=guild.id) }}" method="post" class="space-y-6">
+            <form data-ajax="true" action="{{ url_for('manage_global_ban', guild_id=guild.id) }}" method="post"
+                class="space-y-6">
                 <div>
                     <label class="block text-text-secondary text-sm mb-2">Benachrichtigungs-Kanal</label>
                     <select name="log_channel_id"

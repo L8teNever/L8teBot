@@ -19,7 +19,8 @@
         <p class="text-text-secondary text-sm mt-1">Wähle einen Channel, in dem Leaderboards gepostet werden sollen</p>
     </div>
     <div class="p-6">
-        <form action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post" class="space-y-4">
+        <form data-ajax="true" action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post"
+            class="space-y-4">
             <input type="hidden" name="action" value="set_channel">
 
             <div>
@@ -118,7 +119,8 @@
 
         <!-- Setup Interactive Display -->
         {% if settings.get('leaderboard_channel_id') %}
-        <form action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post" class="mt-4">
+        <form data-ajax="true" action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post"
+            class="mt-4">
             <input type="hidden" name="action" value="setup_interactive">
             <button type="submit"
                 class="w-full px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-bold transition-colors">
@@ -151,7 +153,8 @@
         </p>
     </div>
     <div class="p-6">
-        <form action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post" class="space-y-4">
+        <form data-ajax="true" action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post"
+            class="space-y-4">
             <input type="hidden" name="action" value="set_summary_channel">
 
             <div>
@@ -206,8 +209,8 @@
 
             <!-- Post Leaderboard Form -->
             <div class="p-4 rounded-lg bg-background-dark border border-[#2e3e5e]">
-                <form action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}" method="post"
-                    class="space-y-3">
+                <form data-ajax="true" action="{{ url_for('manage_leaderboard_settings', guild_id=guild.id) }}"
+                    method="post" class="space-y-3">
                     <input type="hidden" name="action" value="post_leaderboard">
 
                     <div class="flex items-center gap-2 mb-2">

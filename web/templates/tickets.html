@@ -20,7 +20,7 @@
 
 <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
     <div class="p-6">
-        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+        <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
             <input type="hidden" name="cog_name" value="Ticket-System">
             <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
             <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -48,7 +48,8 @@
             </h2>
         </div>
         <div class="p-6">
-            <form action="{{ url_for('manage_tickets', guild_id=guild.id) }}" method="post" class="space-y-4">
+            <form data-ajax="true" action="{{ url_for('manage_tickets', guild_id=guild.id) }}" method="post"
+                class="space-y-4">
                 <input type="hidden" name="action" value="set_config">
                 <div>
                     <label class="block text-text-secondary text-sm mb-2">Ticket-Erstellungs-Kanal</label>
@@ -107,7 +108,8 @@
             </h2>
         </div>
         <div class="p-6 space-y-4">
-            <form action="{{ url_for('manage_tickets', guild_id=guild.id) }}" method="post" class="space-y-3">
+            <form data-ajax="true" action="{{ url_for('manage_tickets', guild_id=guild.id) }}" method="post"
+                class="space-y-3">
                 <input type="hidden" name="action" value="add_reason">
                 <input type="text" name="reason_name" placeholder="Name (z.B. Support)" required
                     class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
@@ -156,7 +158,8 @@
                             </div>
                             {% endif %}
                         </div>
-                        <form action="{{ url_for('manage_tickets', guild_id=guild.id) }}" method="post" class="inline">
+                        <form data-ajax="true" action="{{ url_for('manage_tickets', guild_id=guild.id) }}" method="post"
+                            class="inline">
                             <input type="hidden" name="action" value="remove_reason">
                             <input type="hidden" name="reason_name_to_remove" value="{{ reason.name }}">
                             <button

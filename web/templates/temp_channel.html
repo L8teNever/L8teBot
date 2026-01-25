@@ -20,7 +20,7 @@
 
 <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
     <div class="p-6">
-        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+        <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
             <input type="hidden" name="cog_name" value="Temp-Channel">
             <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
             <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -48,7 +48,8 @@
         <p class="text-text-secondary text-sm mt-1">Erstellt temporäre Kanäle beim Beitritt</p>
     </div>
     <div class="p-6">
-        <form action="{{ url_for('manage_temp_channel', guild_id=guild.id) }}" method="post" class="space-y-4">
+        <form data-ajax="true" action="{{ url_for('manage_temp_channel', guild_id=guild.id) }}" method="post"
+            class="space-y-4">
             <div>
                 <label class="block text-text-secondary text-sm mb-2">Trigger-Kanal</label>
                 <p class="text-text-secondary text-xs mb-2">Sprachkanal, der temporäre Kanäle erstellt</p>

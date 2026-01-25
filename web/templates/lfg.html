@@ -31,7 +31,8 @@
                 <p class="text-text-secondary text-xs">Aktiviere oder deaktiviere die Mitspieler-Suche</p>
             </div>
         </div>
-        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="flex items-center">
+        <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post"
+            class="flex items-center">
             <input type="hidden" name="cog_name" value="LFG">
             <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
             <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -61,7 +62,7 @@
         </h2>
     </div>
     <div class="p-6">
-        <form action="{{ url_for('manage_lfg', guild_id=guild.id) }}" method="post" class="space-y-4">
+        <form data-ajax="true" action="{{ url_for('manage_lfg', guild_id=guild.id) }}" method="post" class="space-y-4">
             <input type="hidden" name="action" value="set_config">
 
             <div class="space-y-6">

@@ -21,7 +21,7 @@
 <!-- Module Toggle -->
 <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
     <div class="p-6">
-        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+        <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
             <input type="hidden" name="cog_name" value="Level-System">
             <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
             <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -50,7 +50,8 @@
             </h2>
         </div>
         <div class="p-6">
-            <form action="{{ url_for('manage_leveling', guild_id=guild.id) }}" method="post" class="space-y-4">
+            <form data-ajax="true" action="{{ url_for('manage_leveling', guild_id=guild.id) }}" method="post"
+                class="space-y-4">
                 <input type="hidden" name="action" value="set_config">
                 <div>
                     <label class="block text-text-secondary text-sm mb-2">XP pro Nachricht</label>
@@ -94,7 +95,8 @@
             </h2>
         </div>
         <div class="p-6 space-y-4">
-            <form action="{{ url_for('manage_leveling', guild_id=guild.id) }}" method="post" class="flex gap-2">
+            <form data-ajax="true" action="{{ url_for('manage_leveling', guild_id=guild.id) }}" method="post"
+                class="flex gap-2">
                 <input type="hidden" name="action" value="add_level_role">
                 <input type="number" name="level" placeholder="Level" required
                     class="flex-1 px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
@@ -118,7 +120,8 @@
                 <div class="flex items-center justify-between p-3 rounded-lg bg-background-dark">
                     <span class="text-white">Level {{level}} → @{{guild.get_role(role_id).name if
                         guild.get_role(role_id) else 'Unbekannt'}}</span>
-                    <form action="{{ url_for('manage_leveling', guild_id=guild.id) }}" method="post" class="inline">
+                    <form data-ajax="true" action="{{ url_for('manage_leveling', guild_id=guild.id) }}" method="post"
+                        class="inline">
                         <input type="hidden" name="action" value="remove_level_role">
                         <input type="hidden" name="level_to_remove" value="{{level}}">
                         <button

@@ -26,7 +26,7 @@
         </h2>
     </div>
     <div class="p-6">
-        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+        <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
             <input type="hidden" name="cog_name" value="Moderation">
             <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
             <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -72,8 +72,8 @@
                             {{ command_data.description or 'Keine Beschreibung' }}
                         </td>
                         <td class="py-3 px-4 text-right">
-                            <form action="{{ url_for('manage_moderation', guild_id=guild.id) }}" method="post"
-                                class="inline">
+                            <form data-ajax="true" action="{{ url_for('manage_moderation', guild_id=guild.id) }}"
+                                method="post" class="inline">
                                 <input type="hidden" name="action" value="toggle_command">
                                 <input type="hidden" name="command_name" value="{{ command_name }}">
                                 <label class="relative inline-flex items-center cursor-pointer">

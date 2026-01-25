@@ -31,7 +31,8 @@
                 <h3 class="text-lg font-bold text-white mb-4">Streamer Status hinzufügen</h3>
                 <p class="text-text-secondary mb-6 text-sm">Erstellt einen dedizierten Kanal, der zwischen 🔴｜live und
                     ⚫｜offline wechselt.</p>
-                <form method="POST" action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}" class="space-y-4">
+                <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}"
+                    class="space-y-4">
                     <input type="hidden" name="action" value="set_config">
                     <div class="flex flex-col gap-2">
                         <label class="text-sm font-medium text-text-secondary">Twitch Benutzername</label>
@@ -106,7 +107,8 @@
                                 </p>
                             </div>
                         </div>
-                        <form method="POST" action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}">
+                        <form data-ajax="true" method="POST"
+                            action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}">
                             <input type="hidden" name="action" value="remove_streamer">
                             <input type="hidden" name="streamer_key" value="{{ s_key }}">
                             <button type="submit"
@@ -150,7 +152,8 @@
                 <h3 class="text-lg font-bold text-white mb-4">Stream planen</h3>
                 <p class="text-text-secondary mb-6 text-sm">Erstellt ein Discord Event, das automatisch startet, wenn
                     der Streamer live geht.</p>
-                <form method="POST" action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}" class="space-y-4">
+                <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}"
+                    class="space-y-4">
                     <input type="hidden" name="action" value="add_planned">
                     <div class="flex flex-col gap-2">
                         <label class="text-sm font-medium text-text-secondary">Twitch Benutzername</label>
@@ -204,7 +207,8 @@
                                     class="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
                                     <span class="material-symbols-outlined text-lg">edit</span>
                                 </button>
-                                <form method="POST" action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}">
+                                <form data-ajax="true" method="POST"
+                                    action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}">
                                     <input type="hidden" name="action" value="remove_planned">
                                     <input type="hidden" name="streamer_key" value="{{ p_uid }}">
                                     <button type="submit"
@@ -216,7 +220,8 @@
                         </div>
 
                         <!-- Edit Mode (Hidden by default) -->
-                        <form method="POST" action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}"
+                        <form data-ajax="true" method="POST"
+                            action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}"
                             class="hidden space-y-3 p-3 bg-white/5 rounded-lg border border-primary/20"
                             id="edit-form-{{ p_uid }}">
                             <input type="hidden" name="action" value="edit_planned">
@@ -293,7 +298,7 @@
             <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
                 <h3 class="text-lg font-bold text-white mb-4">Feed Einstellungen</h3>
                 <p class="text-text-secondary mb-6 text-sm">Postet mehrere Streamer in einen gemeinsamen Kanal.</p>
-                <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
+                <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
                     class="flex flex-col gap-4">
                     <input type="hidden" name="action" value="set_multi_stream_config">
 
@@ -343,7 +348,8 @@
             <!-- Manage Streamers -->
             <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e] flex flex-col h-full">
                 <h3 class="text-lg font-bold text-white mb-4">Streamer Liste</h3>
-                <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}" class="flex gap-2 mb-4">
+                <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
+                    class="flex gap-2 mb-4">
                     <input type="hidden" name="action" value="add_streamer">
                     <input type="text" name="streamer_name" class="form-input flex-1" placeholder="Twitch Username"
                         required>
@@ -363,7 +369,7 @@
                                 class="size-8 rounded-full">
                             <span class="text-white font-medium">{{ s_data.get('display_name') or s_key }}</span>
                         </div>
-                        <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}">
+                        <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}">
                             <input type="hidden" name="action" value="remove_streamer">
                             <input type="hidden" name="streamer_name" value="{{ s_key }}">
                             <button type="submit"
@@ -410,7 +416,7 @@
 
             {% if clips_is_enabled %}
             <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
-                <form method="POST" action="{{ url_for('manage_twitch_clips', guild_id=guild.id) }}"
+                <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch_clips', guild_id=guild.id) }}"
                     class="flex flex-col gap-4">
                     <input type="hidden" name="action" value="set_config">
                     <div class="flex flex-col gap-2">
@@ -454,7 +460,7 @@
 
             {% if multi_stream_is_enabled %}
             <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
-                <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
+                <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
                     class="flex flex-col gap-4">
                     <input type="hidden" name="action" value="set_streamer_command_config">
                     <div class="flex flex-col gap-2">
