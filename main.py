@@ -2406,13 +2406,14 @@ def twitch_add_command():
     channel_name = request.form.get("channel_name")
     command = request.form.get("command")
     response = request.form.get("response")
+    permission = request.form.get("permission", "everyone")
     
     if not channel_name or not command or not response:
         return jsonify({"success": False, "message": "Unvollständige Daten"})
 
     cog = bot.get_cog("Twitch-Bot")
     if cog:
-        cog.save_custom_command(channel_name, command, response)
+        cog.save_custom_command(channel_name, command, response, permission)
         return jsonify({"success": True, "message": f"Befehl !{command} hinzugefügt"})
     
     return jsonify({"success": False, "message": "Bot Modul nicht geladen"})

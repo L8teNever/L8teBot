@@ -26,7 +26,8 @@ class TwitchChatBot(t_commands.Bot):
 
         # Handle custom commands
         if message.content.startswith('!'):
-            cmd_name = message.content[1:].split(' ')[0].lower()
+            parts = message.content[1:].split(' ')
+            cmd_name = parts[0].lower()
             
             # Load config to check for custom command
             config = self.discord_cog.bot.data.load_json(self.discord_cog.config_path, {"channels": {}})
@@ -36,8 +37,32 @@ class TwitchChatBot(t_commands.Bot):
             custom_cmds = chan_config.get("custom_commands", {})
             
             if cmd_name in custom_cmds:
-                response = custom_cmds[cmd_name]
-                await message.channel.send(response)
+                cmd_data = custom_cmds[cmd_name]
+                
+                # Check if it's the old format (just a string) or new format (dict)
+                if isinstance(cmd_data, str):
+                    await message.channel.send(cmd_data)
+                    return
+
+                response = cmd_data.get("response")
+                permission = cmd_data.get("permission", "everyone")
+                
+                # Permission Check
+                is_mod = message.author.is_mod or message.author.name.lower() == channel_name
+                is_vip = 'vip' in (message.author.badges or {})
+                
+                allowed = False
+                if permission == "everyone":
+                    allowed = True
+                elif permission == "mods" and is_mod:
+                    allowed = True
+                elif permission == "vips" and (is_vip or is_mod):
+                    allowed = True
+                elif permission == "mods_vips" and (is_mod or is_vip):
+                    allowed = True
+                
+                if allowed:
+                    await message.channel.send(response)
 
     @t_commands.command(name='l8te')
     async def l8te_command(self, ctx):
@@ -101,7 +126,7 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
             else:
                 self.bot.loop.create_task(self.twitch_bot.part_channels([channel_name]))
 
-    def save_custom_command(self, channel_name: str, command: str, response: str):
+    def save_custom_command(self, channel_name: str, command: str, response: str, permission: str = "everyone"):
         """Speichert einen benutzerdefinierten Befehl für einen Kanal."""
         config = self.bot.data.load_json(self.config_path, {"channels": {}})
         channel_name = channel_name.lower()
@@ -112,7 +137,10 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
         if "custom_commands" not in config["channels"][channel_name]:
             config["channels"][channel_name]["custom_commands"] = {}
             
-        config["channels"][channel_name]["custom_commands"][command.lower()] = response
+        config["channels"][channel_name]["custom_commands"][command.lower()] = {
+            "response": response,
+            "permission": permission
+        }
         self.bot.data.save_json(self.config_path, config)
 
     def remove_custom_command(self, channel_name: str, command: str):
