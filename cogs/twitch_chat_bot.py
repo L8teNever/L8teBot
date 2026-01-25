@@ -7,6 +7,8 @@ import asyncio
 import os
 import json
 from typing import List, Optional
+import datetime
+import asyncio
 
 class TwitchChatBot(t_commands.Bot):
     def __init__(self, token, prefix, initial_channels, discord_cog, client_id, client_secret, bot_id):
@@ -108,11 +110,11 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
         data = {
             "tokens": token_data,
             "user": user_data,
-            "updated_at": datetime.now().isoformat()
+            "updated_at": datetime.datetime.now().isoformat()
         }
         self.bot.data.save_json(self.creds_path, data)
-        # Bot neu starten mit neuen Creds
-        self.bot.loop.create_task(self.initialize_twitch_bot())
+        # Bot neu starten mit neuen Creds (Thread-sicher da Aufruf von Flask kommt)
+        asyncio.run_coroutine_threadsafe(self.initialize_twitch_bot(), self.bot.loop)
 
     async def _refresh_bot_token(self):
         """Erneuert das Bot-Token mittels Refresh-Token."""
@@ -142,7 +144,7 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
                     if resp.status == 200:
                         new_tokens = await resp.json()
                         creds["tokens"].update(new_tokens)
-                        creds["updated_at"] = datetime.now().isoformat()
+                        creds["updated_at"] = datetime.datetime.now().isoformat()
                         self.bot.data.save_json(self.creds_path, creds)
                         return new_tokens["access_token"]
                     else:
@@ -215,9 +217,9 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
         
         if self.twitch_bot:
             if active:
-                self.bot.loop.create_task(self.twitch_bot.join_channels([channel_name]))
+                asyncio.run_coroutine_threadsafe(self.twitch_bot.join_channels([channel_name]), self.bot.loop)
             else:
-                self.bot.loop.create_task(self.twitch_bot.part_channels([channel_name]))
+                asyncio.run_coroutine_threadsafe(self.twitch_bot.part_channels([channel_name]), self.bot.loop)
 
     def save_custom_command(self, channel_name: str, command: str, response: str, permission: str = "everyone"):
         """Speichert einen benutzerdefinierten Befehl für einen Kanal."""
@@ -248,9 +250,6 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
     async def cog_unload(self):
         if self.twitch_bot:
             await self.twitch_bot.close()
-
-async def setup(bot: commands.Bot):
-    await bot.add_cog(TwitchChatBotCog(bot))
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(TwitchChatBotCog(bot))
