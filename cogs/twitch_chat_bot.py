@@ -10,7 +10,7 @@ from typing import List, Optional
 import datetime
 import asyncio
 
-class TwitchChatBot(t_commands.Bot):
+class TwitchChatBot(twitchio.Bot):
     def __init__(self, token, prefix, initial_channels, discord_cog, client_id, client_secret, bot_id):
         super().__init__(
             token=token, 
@@ -23,8 +23,8 @@ class TwitchChatBot(t_commands.Bot):
         self.discord_cog = discord_cog
 
     async def event_ready(self):
-        print(f'[Twitch IRC] Bot eingeloggt als | {self.nick}')
-        print(f'[Twitch IRC] Verbunden mit {len(self.connected_channels)} Kanälen: {list(self.connected_channels)}')
+        print(f'[Twitch IRC] Bot eingeloggt als | {self.user.name}')
+        print(f'[Twitch IRC] Verbunden mit Kanälen: {list(self.channels)}')
 
     async def event_message(self, message):
         if message.echo:
@@ -193,9 +193,11 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
             )
             
             print("[Twitch IRC] Starte Verbindungs-Task...")
-            self.bot.loop.create_task(self.twitch_bot.connect())
+            self.bot.loop.create_task(self.twitch_bot.start())
         except Exception as e:
             print(f"[Twitch IRC] Fehler beim Starten des Twitch-Bots: {e}")
+            import traceback
+            traceback.print_exc()
 
     def get_active_channels(self) -> List[str]:
         """Lädt die Liste der Kanäle, auf denen der Bot aktiv sein soll."""
@@ -216,10 +218,16 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
         self.bot.data.save_json(self.config_path, config)
         
         if self.twitch_bot:
-            if active:
-                asyncio.run_coroutine_threadsafe(self.twitch_bot.join_channels([channel_name]), self.bot.loop)
+            # TwitchIO 3.x support - join_channels is the method, but let's be safe
+            join_method = getattr(self.twitch_bot, "join_channels", None)
+            part_method = getattr(self.twitch_bot, "part_channels", None)
+            
+            if active and join_method:
+                asyncio.run_coroutine_threadsafe(join_method([channel_name]), self.bot.loop)
+            elif not active and part_method:
+                asyncio.run_coroutine_threadsafe(part_method([channel_name]), self.bot.loop)
             else:
-                asyncio.run_coroutine_threadsafe(self.twitch_bot.part_channels([channel_name]), self.bot.loop)
+                print(f"[Twitch IRC] Warnung: Konnte join/part Methode auf {type(self.twitch_bot)} nicht finden.")
 
     def save_custom_command(self, channel_name: str, command: str, response: str, permission: str = "everyone"):
         """Speichert einen benutzerdefinierten Befehl für einen Kanal."""
