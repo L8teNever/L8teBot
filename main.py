@@ -2349,6 +2349,15 @@ def twitch_dashboard():
     if cog:
         bot_identity = cog.get_bot_identity()
 
+    # Admin Check für den zentralen Bot-Setup Button
+    # Wir nehmen an, der User ist Admin, wenn er auf IRGENDEINEM Server des Bots Admin-Rechte hat
+    from flask import session
+    is_admin = False
+    admin_guilds = get_admin_guilds()
+    if admin_guilds:
+        is_admin = True
+    session['is_admin'] = is_admin
+
     # Kanäle holen, die der User moderiert
     moderated_channels = []
     try:
