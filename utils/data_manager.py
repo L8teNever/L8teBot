@@ -85,19 +85,12 @@ class DataManager:
         for key in keys:
             env_val = os.environ.get(key)
             if env_val:
-                # Bereinigung: Entferne eventuelle Anführungszeichen (passiert oft in Docker-Configs)
                 env_val = env_val.strip("'\"")
                 config[key] = env_val
-                
-                # Debug log to see what's being loaded (mask sensitive values)
-                val_display = f"{env_val[:4]}...{env_val[-4:]}" if len(env_val) > 8 else "****"
-                print(f"[DataManager] OK: Key '{key}' aus Environment geladen ({val_display})")
             else:
-                # Falls nicht im Env, prüfen ob es schon in der config.json war
                 if key not in config or not config[key]:
-                    print(f"[DataManager] FEHLT: Key '{key}' wurde weder in Environment noch in config.json gefunden!")
-                else:
-                    print(f"[DataManager] INFO: Key '{key}' wird aus config.json verwendet.")
+                    if key in ["token", "DISCORD_CLIENT_ID", "TWITCH_CLIENT_ID"]:
+                        print(f"  [!] Kritische Info fehlt: {key}")
                 
         return config
 

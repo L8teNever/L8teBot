@@ -1594,16 +1594,24 @@ def manage_moderation(guild_id):
 # --- BOT-EVENTS & START ---
 @bot.event
 async def on_ready():
-    """Wird ausgeführt, wenn der Bot erfolgreich mit Discord verbunden ist."""
-    print(f"✅ Bot ist eingeloggt als {bot.user}")
-    print(f"🌐 Web-Oberfläche läuft auf http://0.0.0.0:5002")
-    
+    # --- STARTUP BANNER ---
+    def print_banner():
+        width = 50
+        print("\n" + "╔" + "═" * (width-2) + "╗")
+        print(f"║ {'L8teBot Core System':^{width-4}} ║")
+        print(f"║ {VERSION:^{width-4}} ║")
+        print("╠" + "═" * (width-2) + "╣")
+        print(f"║ User:   {str(bot.user):<{width-12}} ║")
+        print(f"║ Web:    {str(bot.base_url):<{width-12}} ║")
+        print(f"║ Guilds: {len(bot.guilds):<{width-12}} ║")
+        print("╚" + "═" * (width-2) + "╝\n")
+
+    print_banner()
+
     # Konfiguration für alle Server sicherstellen, dass Standard-Cogs aktiv sind
-    print("-> Überprüfe Server-Konfigurationen auf Standard-Cogs...")
+    print(" 🛠️  Prüfe Server-Profile...")
     default_cogs_to_enable = ["Utility", "Settings", "Global-Ban", "Wordle", "Contexto"]
-    any_guild_updated = False
     for guild in bot.guilds:
-        # Nutzung des DataManagers
         guild_config = bot.data.get_server_config(guild.id)
         if not guild_config:
             guild_config = {"prefix": "!", "enabled_cogs": []}
@@ -1618,11 +1626,7 @@ async def on_ready():
         
         if local_updated:
             bot.data.save_server_config(guild.id, guild_config)
-            any_guild_updated = True
-    
-    if any_guild_updated:
-        print("-> Server-Konfigurationen wurden mit Standard-Cogs aktualisiert.")
-        
+            
     # Lade alle Cogs aus dem 'cogs' Verzeichnis
     cogs_to_load = [
         'cogs.settings', 'cogs.utility', 'cogs.birthday', 'cogs.counting', 
@@ -1632,21 +1636,24 @@ async def on_ready():
         'cogs.lfg', 'cogs.monthly_stats', 'cogs.leaderboard_display', 'cogs.wordle', 'cogs.contexto', 'cogs.info',
         'cogs.twitch_chat_bot'
     ]
+    
+    print(f" 📦 Lade {len(cogs_to_load)} Erweiterungen...")
     for cog in cogs_to_load:
         try:
             await bot.load_extension(cog)
-            print(f"-> Cog '{cog}' geladen.")
         except commands.ExtensionAlreadyLoaded:
-            pass # Ignoriere, falls schon geladen (z.B. bei reconnect)
+            pass
         except Exception as e:
-            print(f"Fehler beim Laden von Cog '{cog}': {e}")
+            print(f"  [!] Fehler in '{cog}': {e}")
 
-    # Synchronisiere die Slash-Befehle, nachdem der Bot bereit ist
+    # Synchronisiere die Slash-Befehle
     try:
         synced = await bot.tree.sync()
-        print(f"-> {len(synced)} Slash-Befehl(e) synchronisiert.")
+        print(f" ✅ {len(synced)} Slash-Befehle bereit.")
     except Exception as e:
-        print(f"Fehler beim Synchronisieren der Befehle: {e}")
+        print(f"  [!] Sync Fehler: {e}")
+    
+    print(f" 🚀 System vollständig einsatzbereit.\n")
 
 @bot.event
 async def on_guild_join(guild):
@@ -2550,9 +2557,9 @@ if __name__ == "__main__":
     token = config.get("token")
     
     if not token:
-        print("❌ Kein Token in der Konfiguration gefunden!")
+        print("  [!] Error: Kein Discord Token gefunden!")
     else:
-        print(f"🚀 Starte Bot...")
+        print("  [*] Verbinde mit Discord...")
         while True:
             try:
                 bot.run(token)
