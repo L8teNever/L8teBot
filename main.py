@@ -2429,7 +2429,8 @@ def twitch_admin_setup():
     redirect_uri = f"{bot.base_url}/twitch/admin/callback"
     
     # Scopes die der BOT-Account braucht um zu chatten und zu moderieren
-    scope = "chat:read chat:edit whispers:read whispers:edit moderation:read"
+    # TwitchIO 3.x benötigt user:read:chat für Eventsub Chat Subscription
+    scope = "chat:read chat:edit whispers:read whispers:edit moderation:read user:read:chat user:bot channel:bot"
     
     params = {
         "client_id": client_id,
