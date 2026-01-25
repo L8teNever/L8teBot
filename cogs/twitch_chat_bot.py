@@ -143,23 +143,39 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
             print(f"[Twitch IRC] Fehler beim Starten des Twitch-Bots: {e}")
 
     async def _get_bot_id(self, username: str, token: str, client_id: str) -> Optional[str]:
-        """Holt die Twitch User ID für den Bot-Account."""
+        """
+        Holt die Twitch User ID für den Bot-Account.
+        Wir nutzen Client Credentials (App Token) für den API-Call, 
+        da das Bot-Token oft eine andere Client-ID hat (z.B. von TwitchApps).
+        """
         import aiohttp
-        clean_token = token.replace("oauth:", "")
-        headers = {
-            "Client-ID": client_id,
-            "Authorization": f"Bearer {clean_token}"
-        }
-        url = f"https://api.twitch.tv/helix/users?login={username}"
+        client_secret = self.bot.config.get("TWITCH_CLIENT_SECRET")
+        
+        # 1. App Access Token holen
+        auth_url = f"https://id.twitch.tv/oauth2/token?client_id={client_id}&client_secret={client_secret}&grant_type=client_credentials"
+        
         try:
             async with aiohttp.ClientSession() as session:
+                async with session.post(auth_url) as auth_resp:
+                    if auth_resp.status != 200:
+                        print(f"[Twitch IRC] Konnte App-Token für ID-Check nicht generieren: {auth_resp.status}")
+                        return None
+                    auth_data = await auth_resp.json()
+                    app_token = auth_data['access_token']
+
+                # 2. User ID mit App Token abrufen
+                headers = {
+                    "Client-ID": client_id,
+                    "Authorization": f"Bearer {app_token}"
+                }
+                url = f"https://api.twitch.tv/helix/users?login={username}"
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
                         if data.get('data'):
                             return data['data'][0]['id']
                     else:
-                        print(f"[Twitch IRC] API Fehler beim ID-Abruf: {response.status} - {await response.text()}")
+                        print(f"[Twitch IRC] API Fehler beim ID-Abruf (Helix): {response.status} - {await response.text()}")
         except Exception as e:
             print(f"[Twitch IRC] Netzwerkfehler beim ID-Abruf: {e}")
         return None
