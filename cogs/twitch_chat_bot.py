@@ -10,10 +10,12 @@ from typing import List, Optional
 import datetime
 import asyncio
 
-class TwitchChatBot(twitchio.Bot):
+class TwitchChatBot(t_commands.Bot):
     def __init__(self, token, prefix, initial_channels, discord_cog, client_id, client_secret, bot_id):
+        # In TwitchIO 3.x, token should be just the string (without oauth:)
+        clean_token = token.replace("oauth:", "")
         super().__init__(
-            token=token, 
+            token=clean_token, 
             prefix=prefix, 
             initial_channels=initial_channels,
             client_id=client_id,
