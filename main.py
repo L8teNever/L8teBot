@@ -90,8 +90,8 @@ else:
 required_web_keys = ["DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_REDIRECT_URI"]
 missing_web_keys = [key for key in required_web_keys if not config.get(key)]
 if missing_web_keys:
-    print(f"WARNUNG: Fehlende Konfiguration für das Web-Dashboard in config.json: {', '.join(missing_web_keys)}")
-    print("Das Dashboard wird nicht funktionieren, bis diese Werte gesetzt sind.")
+    print(f"WARNUNG: Fehlende Konfiguration für das Web-Dashboard: {', '.join(missing_web_keys)}")
+    print("Bitte prüfe deine environment Variablen in docker-compose.yml oder deine config.json.")
 
 # --- WEB-SERVER (FLASK) SETUP ---
 app = Flask(__name__, template_folder='web/templates', static_folder='web/static')

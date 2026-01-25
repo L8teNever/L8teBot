@@ -21,7 +21,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
         """Initialisiert den Cog, holt den Token und startet den Loop."""
         await self.bot.wait_until_ready()
         if not self.TWITCH_CLIENT_ID or not self.TWITCH_CLIENT_SECRET:
-            print("FEHLER: Twitch Client ID/Secret nicht in config.json gefunden. Der Twitch-Cog wird nicht gestartet.")
+            print("FEHLER: Twitch Client ID/Secret nicht in der Konfiguration (Env oder config.json) gefunden. Der Twitch-Cog wird nicht gestartet.")
             return
         await self.get_twitch_oauth_token()
         # Nach dem Neustart: Prüfe, ob gespeicherte Nachrichten noch existieren, sonst setze live_message_id auf None
