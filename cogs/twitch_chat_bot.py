@@ -14,12 +14,14 @@ class TwitchChatBot(t_commands.Bot):
         self.discord_cog = discord_cog
 
     async def event_ready(self):
-        print(f'Twitch Bot eingeloggt als | {self.nick}')
-        print(f'Verbunden mit {len(self.connected_channels)} Kanälen')
+        print(f'[Twitch IRC] Bot eingeloggt als | {self.nick}')
+        print(f'[Twitch IRC] Verbunden mit {len(self.connected_channels)} Kanälen: {list(self.connected_channels)}')
 
     async def event_message(self, message):
         if message.echo:
             return
+
+        print(f"[Twitch IRC] Nachricht von {message.author.name} in {message.channel.name}: {message.content}")
 
         # Handle built-in commands
         await self.handle_commands(message)
@@ -33,11 +35,14 @@ class TwitchChatBot(t_commands.Bot):
             config = self.discord_cog.bot.data.load_json(self.discord_cog.config_path, {"channels": {}})
             channel_name = message.channel.name.lower()
             
+            print(f"[Twitch IRC] Suche Befehl !{cmd_name} für Kanal {channel_name}")
+            
             chan_config = config.get("channels", {}).get(channel_name, {})
             custom_cmds = chan_config.get("custom_commands", {})
             
             if cmd_name in custom_cmds:
                 cmd_data = custom_cmds[cmd_name]
+                print(f"[Twitch IRC] Befehl gefunden: {cmd_data}")
                 
                 # Check if it's the old format (just a string) or new format (dict)
                 if isinstance(cmd_data, str):
@@ -49,7 +54,11 @@ class TwitchChatBot(t_commands.Bot):
                 
                 # Permission Check
                 is_mod = message.author.is_mod or message.author.name.lower() == channel_name
-                is_vip = 'vip' in (message.author.badges or {})
+                # Note: badges are a dict of strings in twitchio
+                badges = message.author.badges if message.author.badges else {}
+                is_vip = 'vip' in badges
+                
+                print(f"[Twitch IRC] User: {message.author.name}, Mod: {is_mod}, VIP: {is_vip}, Perm: {permission}")
                 
                 allowed = False
                 if permission == "everyone":
@@ -63,6 +72,8 @@ class TwitchChatBot(t_commands.Bot):
                 
                 if allowed:
                     await message.channel.send(response)
+                else:
+                    print(f"[Twitch IRC] Zugriff verweigert für !{cmd_name}")
 
     @t_commands.command(name='l8te')
     async def l8te_command(self, ctx):
@@ -85,25 +96,33 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
         username = self.bot.config.get("TWITCH_BOT_USERNAME")
         
         if not token or not username:
-            print("WARNUNG: TWITCH_BOT_TOKEN oder TWITCH_BOT_USERNAME fehlt in config.json. Twitch IRC Bot wird nicht gestartet.")
+            print("[Twitch IRC] WARNUNG: TWITCH_BOT_TOKEN oder TWITCH_BOT_USERNAME fehlt in config.json. Twitch IRC Bot wird nicht gestartet.")
             return
+
+        print(f"[Twitch IRC] Initialisiere Bot für User: {username}")
 
         # Lade Kanäle, denen der Bot beitreten soll
         channels = self.get_active_channels()
+        print(f"[Twitch IRC] Aktive Kanäle aus Config: {channels}")
         
         # Falls keine Kanäle da sind, aber der Bot starten soll, nehmen wir den Bot-Acc selbst als Test
         if not channels:
             channels = [username]
+            print(f"[Twitch IRC] Keine Kanäle konfiguriert, trete eigenem Kanal bei: {channels}")
 
-        self.twitch_bot = TwitchChatBot(
-            token=f"oauth:{token}" if not token.startswith("oauth:") else token,
-            prefix="!",
-            initial_channels=channels,
-            discord_cog=self
-        )
-        
-        # Startet den Twitch Bot in der bestehenden Ereignisschleife
-        self.bot.loop.create_task(self.twitch_bot.connect())
+        try:
+            self.twitch_bot = TwitchChatBot(
+                token=f"oauth:{token}" if not token.startswith("oauth:") else token,
+                prefix="!",
+                initial_channels=channels,
+                discord_cog=self
+            )
+            
+            print("[Twitch IRC] Starte Verbindungs-Task...")
+            # Startet den Twitch Bot in der bestehenden Ereignisschleife
+            self.bot.loop.create_task(self.twitch_bot.connect())
+        except Exception as e:
+            print(f"[Twitch IRC] Fehler beim Starten des Twitch-Bots: {e}")
 
     def get_active_channels(self) -> List[str]:
         """Lädt die Liste der Kanäle, auf denen der Bot aktiv sein soll."""
