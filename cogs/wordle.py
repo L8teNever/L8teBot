@@ -82,7 +82,9 @@ class WordleCog(commands.Cog, name="Wordle"):
             }
 
         if game_state["solved"]:
-            await message.channel.send("Das heutige Wordle wurde bereits gelöst! Komm morgen wieder. 🏁", delete_after=5)
+            try: await message.delete()
+            except: pass
+            await message.channel.send(f"❌ {message.author.mention}, das heutige Wordle wurde bereits gelöst!", delete_after=5)
             return
 
         # Regeln prüfen
@@ -90,15 +92,22 @@ class WordleCog(commands.Cog, name="Wordle"):
         
         # 1. Man darf nicht zweimal hintereinander raten
         if game_state["guesses"] and game_state["guesses"][-1]["user_id"] == user_id:
-            await message.reply("Du darfst nicht zweimal hintereinander raten! Jemand anderes muss zuerst. 🤝", delete_after=5)
+            try: await message.delete()
+            except: pass
+            await message.channel.send(f"❌ {message.author.mention}, du darfst nicht zweimal hintereinander raten!", delete_after=5)
             return
 
         # 2. Man darf nur einmal pro Tag raten
         if any(g["user_id"] == user_id for g in game_state["guesses"]):
-            await message.reply("Du hast dein rateguthaben für heute bereits verbraucht! 🛑", delete_after=5)
+            try: await message.delete()
+            except: pass
+            await message.channel.send(f"❌ {message.author.mention}, du hast heute bereits geraten!", delete_after=5)
             return
 
-        # Rateversuch verarbeiten
+        # Rateversuch verarbeiten - Jetzt löschen wir die Nachricht des Users
+        try: await message.delete()
+        except: pass
+
         target = game_state["target"]
         emoji_res = self._get_status_emoji(content, target)
         
@@ -112,22 +121,33 @@ class WordleCog(commands.Cog, name="Wordle"):
         if content == target:
             game_state["solved"] = True
             
-        # UI Update senden
+        # UI Update
         embed = discord.Embed(title=f"Wordle vom {today_str}", color=discord.Color.gold() if game_state["solved"] else discord.Color.blue())
-        
         board_text = ""
         for g in game_state["guesses"]:
             board_text += f"`{g['word']}` {g['result']} - {g['name']}\n"
-        
         embed.description = board_text
         
         if game_state["solved"]:
-            embed.description += f"\n🎉 **GELÖST!** Das Wort war **{target}**.\nDanke an alle Teilnehmer!"
+            embed.description += f"\n🎉 **GELÖST!** Das Wort war **{target}**."
         elif len(game_state["guesses"]) >= 6:
-            embed.description += f"\n❌ **Gescheitert!** Die 6 Versuche sind aufgebraucht.\nDas Wort war **{target}**."
-            game_state["solved"] = True # Tag beenden
+            embed.description += f"\n❌ **Gescheitert!** Das Wort war **{target}**."
+            game_state["solved"] = True
 
-        await message.channel.send(embed=embed)
+        # Versuche die existierende Board-Nachricht zu bearbeiten
+        last_msg_id = game_state.get("last_msg_id")
+        board_sent = False
+        if last_msg_id:
+            try:
+                msg = await message.channel.fetch_message(last_msg_id)
+                await msg.edit(embed=embed)
+                board_sent = True
+            except:
+                pass
+        
+        if not board_sent:
+            new_msg = await message.channel.send(embed=embed)
+            game_state["last_msg_id"] = new_msg.id
         
         # Speichern
         config["game_state"] = game_state

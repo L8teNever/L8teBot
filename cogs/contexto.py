@@ -107,12 +107,19 @@ class ContextoCog(commands.Cog, name="Contexto"):
             }
 
         if game_state["solved"]:
-            return # Bereits gelöst
+            try: await message.delete()
+            except: pass
+            await message.channel.send(f"❌ {message.author.mention}, das heutige Contexto wurde bereits gelöst!", delete_after=5)
+            return
 
         # Rang berechnen
         target = game_state["target"]
         rank = self._calculate_similarity(content, target)
         
+        # Nachricht löschen
+        try: await message.delete()
+        except: pass
+
         # Fortschrittsbalken oder Indikator
         indicator = "🔴" # Kalt
         if rank < 100: indicator = "🔥" # Heiß
@@ -123,8 +130,13 @@ class ContextoCog(commands.Cog, name="Contexto"):
             game_state["solved"] = True
             msg = f"🎉 **{message.author.display_name}** hat das Wort erraten! Es war **{target}**! 🏆"
             indicator = "✅"
+            await message.channel.send(msg)
         else:
-            msg = f"**{content}** | Rang: `{rank}` {indicator}"
+            # Privat oder als temporäre Info? 
+            # Der User wollte "wenn er ncohmals chribet soll die auch geloshct werdne mit ner nachirht"
+            # Wir schicken die Info für den Rang als temporäre Nachricht oder normale Antwort (die stehen bleibt)
+            # Da es ein Ranking gibt, schicken wir es normal, aber löschen die Eingabe.
+            await message.channel.send(f"**{content}** | Rang: `{rank}` {indicator} (von {message.author.display_name})")
 
         # In Liste speichern
         game_state["guesses"].append({
