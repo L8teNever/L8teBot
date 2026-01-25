@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import discord
 from discord.ext import commands
-from discord import Embed, Color, ui, Interaction, Member, Forbidden, HTTPException, TextChannel
+from discord import Embed, Color, Interaction, Member, Forbidden, HTTPException, TextChannel
 from typing import Tuple, Optional
 import datetime
+import re
 
 class GuardActionView(discord.ui.View):
     def __init__(self):
@@ -92,7 +93,6 @@ class GuardActionView(discord.ui.View):
 
         await self._disable_all_buttons(interaction, "Timeout (10 Min)")
         try:
-            import datetime
             await target_member.timeout(datetime.timedelta(minutes=10), reason=f"Guard-Aktion durch {interaction.user.name}")
             await interaction.response.send_message(f"{interaction.user.mention} hat {target_member.mention} für 10 Minuten in ein Timeout versetzt.", allowed_mentions=discord.AllowedMentions.none())
         except Forbidden:

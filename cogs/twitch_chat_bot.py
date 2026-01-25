@@ -26,7 +26,21 @@ class TwitchChatBot(t_commands.Bot):
 
     async def event_ready(self):
         print(f'[Twitch IRC] Bot eingeloggt als | {self.user.name}')
-        print(f'[Twitch IRC] Verbunden mit Kanälen: {list(self.channels)}')
+        
+        # Sicherer Zugriff auf Kanäle in TwitchIO 3.x
+        chans = []
+        if hasattr(self, 'channels'):
+            # self.channels ist in 3.x oft ein dict-artiges Objekt
+            try:
+                chans = list(self.channels.keys())
+            except:
+                try: chans = list(self.channels)
+                except: pass
+        
+        if chans:
+            print(f'[Twitch IRC] Verbunden mit Kanälen: {chans}')
+        else:
+            print(f'[Twitch IRC] Bot ist bereit und wartet auf Nachrichten.')
 
     async def event_message(self, message):
         if message.echo:
