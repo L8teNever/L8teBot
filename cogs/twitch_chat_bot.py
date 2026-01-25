@@ -33,7 +33,8 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.twitch_bot: Optional[TwitchChatBot] = None
-        self.config_path = os.path.join(self.bot.data._ensure_directory(self.bot.data.DATA_DIR), "twitch_bot.json")
+        from utils.config import DATA_DIR
+        self.config_path = os.path.join(DATA_DIR, "twitch_bot.json")
         self.bot.loop.create_task(self.initialize_twitch_bot())
 
     async def initialize_twitch_bot(self):
