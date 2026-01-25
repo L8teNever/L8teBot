@@ -27,7 +27,7 @@
 
             <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
                 <form method="POST" action="{{ url_for('manage_contexto', guild_id=guild.id) }}"
-                    class="flex flex-col gap-4">
+                    class="flex flex-col gap-4" data-ajax="true">
                     <input type="hidden" name="action" value="set_config">
                     <div class="flex flex-col gap-2">
                         <label class="text-sm font-medium text-text-secondary">Contexto Kanal</label>

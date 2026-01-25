@@ -35,7 +35,7 @@
                     </div>
                 </div>
 
-                <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+                <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" data-ajax="true">
                     <input type="hidden" name="cog_name" value="{{ cog_name }}">
                     <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
                     <input type="hidden" name="redirect_url" value="{{ request.url }}">

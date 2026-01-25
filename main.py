@@ -519,7 +519,10 @@ def toggle_module(guild_id):
                     asyncio.run_coroutine_threadsafe(bday_cog.web_cleanup(guild_id), bot.loop)
         
         bot.data.save_server_config(guild_id, guild_config)
-        flash(f"Modul '{cog_name}' wurde {'aktiviert' if is_enabled else 'deaktiviert'}.", "success")
+        msg = f"Modul '{cog_name}' wurde {'aktiviert' if is_enabled else 'deaktiviert'}."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': msg})
+        flash(msg, "success")
 
     redirect_url = request.form.get('redirect_url', url_for('dashboard'))
     return redirect(redirect_url)
@@ -1104,6 +1107,8 @@ def manage_wordle(guild_id):
         
         if future:
             success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
             flash(message, 'success' if success else 'danger')
         return redirect(url_for('manage_wordle', guild_id=guild_id))
 
@@ -1148,6 +1153,8 @@ def manage_contexto(guild_id):
         
         if future:
             success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
             flash(message, 'success' if success else 'danger')
         return redirect(url_for('manage_contexto', guild_id=guild_id))
 
