@@ -10,6 +10,8 @@ from typing import List, Optional
 import datetime
 import asyncio
 
+from twitchio import eventsub
+
 class TwitchChatBot(t_commands.Bot):
     def __init__(self, token, prefix, initial_channels, discord_cog, client_id, client_secret, bot_id):
         # In TwitchIO 3.x, token should be just the string (without oauth:)
@@ -17,30 +19,89 @@ class TwitchChatBot(t_commands.Bot):
         super().__init__(
             token=clean_token, 
             prefix=prefix, 
-            initial_channels=initial_channels,
             client_id=client_id,
             client_secret=client_secret,
             bot_id=bot_id
         )
         self.discord_cog = discord_cog
+        self.initial_channels_names = initial_channels or []
 
     async def event_ready(self):
         print(f'[Twitch IRC] Bot eingeloggt als | {self.user.name}')
         
-        # Sicherer Zugriff auf Kanäle in TwitchIO 3.x
-        chans = []
-        if hasattr(self, 'channels'):
-            # self.channels ist in 3.x oft ein dict-artiges Objekt
+        # Subscribe to initial channels via EventSub
+        if self.initial_channels_names:
             try:
-                chans = list(self.channels.keys())
-            except:
-                try: chans = list(self.channels)
-                except: pass
-        
-        if chans:
-            print(f'[Twitch IRC] Verbunden mit Kanälen: {chans}')
-        else:
-            print(f'[Twitch IRC] Bot ist bereit und wartet auf Nachrichten.')
+                print(f"[Twitch IRC] Resolving IDs for channels: {self.initial_channels_names}")
+                users = await self.fetch_users(logins=self.initial_channels_names)
+                for user in users:
+                    await self.join_target_channel(user)
+                print(f'[Twitch IRC] Initial subscriptions completed.')
+            except Exception as e:
+                print(f"[Twitch IRC] Fehler beim Verbinden mit initialen Kanälen: {e}")
+                import traceback
+                traceback.print_exc()
+
+    async def join_target_channel(self, user):
+        """Subscribes to chat messages for a specific user (broadcaster)."""
+        try:
+            # We need broadcaster_user_id (the channel) and user_id (the bot)
+            payload = eventsub.ChatMessageSubscription(broadcaster_user_id=user.id, user_id=self.bot_id)
+            await self.subscribe_websocket(payload=payload)
+            print(f"[Twitch IRC] Joined channel {user.name} ({user.id}) via EventSub")
+        except Exception as e:
+            # Check if it is "already exists" error, which we can ignore
+            if "already exists" in str(e):
+                pass
+            else:
+                print(f"[Twitch IRC] Error joining channel {user.name}: {e}")
+
+    async def part_target_channel(self, user):
+        """Unsubscribes from chat messages for a specific user."""
+        try:
+            # Find subscription
+            # Filter by broadcaster (user_id argument in fetch_eventsub_subscriptions works as filter for condition user_id?)
+            # Actually, per docs: "Filter subscriptions by user ID... The response contains subscriptions where this ID matches a user ID that you specified in the Condition object"
+            # ChatMessageSubscription condition has user_id (bot for us?) and broadcaster_user_id (channel).
+            # Let's try to fetch all enabled chat message subscriptions and filter manually to be safe, or try to filter by type.
+            
+            subs = await self.fetch_eventsub_subscriptions(type='channel.chat.message', status='enabled')
+            target_sub = None
+            for sub in subs:
+                # Condition keys are strings. 
+                # For ChatMessageSubscription: broadcaster_user_id, user_id
+                if sub.condition.get('broadcaster_user_id') == str(user.id) and sub.condition.get('user_id') == str(self.bot_id):
+                    target_sub = sub
+                    break
+            
+            if target_sub:
+                await self.delete_eventsub_subscription(target_sub.id)
+                print(f"[Twitch IRC] Parted channel {user.name}")
+            else:
+                print(f"[Twitch IRC] No active subscription found for {user.name}")
+                
+        except Exception as e:
+            print(f"[Twitch IRC] Error parting channel {user.name}: {e}")
+
+    async def join_channel_by_name(self, channel_name: str):
+        try:
+            users = await self.fetch_users(logins=[channel_name])
+            if users:
+                await self.join_target_channel(users[0])
+            else:
+                print(f"[Twitch IRC] Channel not found: {channel_name}")
+        except Exception as e:
+            print(f"[Twitch IRC] Error resolving channel {channel_name}: {e}")
+
+    async def part_channel_by_name(self, channel_name: str):
+        try:
+            users = await self.fetch_users(logins=[channel_name])
+            if users:
+                await self.part_target_channel(users[0])
+            else:
+                print(f"[Twitch IRC] Channel not found: {channel_name}")
+        except Exception as e:
+            print(f"[Twitch IRC] Error resolving channel {channel_name}: {e}")
 
     async def event_message(self, message):
         if message.echo:
@@ -234,29 +295,20 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
         self.bot.data.save_json(self.config_path, config)
         
         if self.twitch_bot:
-            # TwitchIO 3.x kann zickig sein: Wir prüfen verschiedene Varianten
-            async def perform_action(action, name):
+            async def perform_action_safe(action, name):
                 try:
                     target = self.twitch_bot
-                    method = None
                     if action == "join":
-                        method = getattr(target, "join_channels", None) or getattr(target, "join", None)
+                         await target.join_channel_by_name(name)
                     else:
-                        method = getattr(target, "part_channels", None) or getattr(target, "part", None)
-                        
-                    if method:
-                        await method([name])
-                        print(f"[Twitch IRC] Kanal {name} erfolgreich {action}ed.")
-                    else:
-                        # Fallback: Versuche direkt über das Client-Objekt
-                        print(f"[Twitch IRC] Methode '{action}' nicht direkt gefunden, suche Alternativen...")
+                         await target.part_channel_by_name(name)
                 except Exception as e:
                     print(f"[Twitch IRC] Fehler beim {action} von {name}: {e}")
 
             if active:
-                asyncio.run_coroutine_threadsafe(perform_action("join", channel_name), self.bot.loop)
+                asyncio.run_coroutine_threadsafe(perform_action_safe("join", channel_name), self.bot.loop)
             else:
-                asyncio.run_coroutine_threadsafe(perform_action("part", channel_name), self.bot.loop)
+                asyncio.run_coroutine_threadsafe(perform_action_safe("part", channel_name), self.bot.loop)
 
     def save_custom_command(self, channel_name: str, command: str, response: str, permission: str = "everyone"):
         """Speichert einen benutzerdefinierten Befehl für einen Kanal."""
