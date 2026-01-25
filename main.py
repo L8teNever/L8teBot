@@ -1082,8 +1082,10 @@ def manage_wordle(guild_id):
     wordle_config = bot.data.get_guild_data(guild_id, "wordle_game") or {}
 
     if request.method == 'POST':
-        if not is_enabled or not cog:
-            flash("Das Wordle-Modul ist nicht aktiv.", "danger")
+        # Erlaube das Speichern auch wenn der Cog noch nicht geladen ist (nach Neustart)
+        # Aber die Variable is_enabled muss True sein (aus Modules-Seite)
+        if not is_enabled:
+            flash("Bitte aktiviere zuerst das Wordle-Modul in der Modul-Übersicht.", "danger")
             return redirect(url_for('manage_wordle', guild_id=guild_id))
 
         action = request.form.get('action')
@@ -1091,7 +1093,14 @@ def manage_wordle(guild_id):
         if action == 'set_config':
             channel_id_str = request.form.get('channel_id')
             channel_id = int(channel_id_str) if channel_id_str else None
-            future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, channel_id), bot.loop)
+            
+            # Direkt in die Daten schreiben, falls Cog noch nicht da ist
+            if not cog:
+                wordle_config["channel_id"] = channel_id
+                bot.data.save_guild_data(guild_id, "wordle_game", wordle_config)
+                flash("Kanal gespeichert. Hinweis: Starte den Bot neu, damit das Spiel aktiv wird.", "warning")
+            else:
+                future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, channel_id), bot.loop)
         
         if future:
             success, message = future.result()
@@ -1120,8 +1129,8 @@ def manage_contexto(guild_id):
     contexto_config = bot.data.get_guild_data(guild_id, "contexto_game") or {}
 
     if request.method == 'POST':
-        if not is_enabled or not cog:
-            flash("Das Contexto-Modul ist nicht aktiv.", "danger")
+        if not is_enabled:
+            flash("Bitte aktiviere zuerst das Contexto-Modul in der Modul-Übersicht.", "danger")
             return redirect(url_for('manage_contexto', guild_id=guild_id))
 
         action = request.form.get('action')
@@ -1129,7 +1138,13 @@ def manage_contexto(guild_id):
         if action == 'set_config':
             channel_id_str = request.form.get('channel_id')
             channel_id = int(channel_id_str) if channel_id_str else None
-            future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, channel_id), bot.loop)
+            
+            if not cog:
+                contexto_config["channel_id"] = channel_id
+                bot.data.save_guild_data(guild_id, "contexto_game", contexto_config)
+                flash("Kanal gespeichert. Hinweis: Starte den Bot neu, damit das Spiel aktiv wird.", "warning")
+            else:
+                future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, channel_id), bot.loop)
         
         if future:
             success, message = future.result()
@@ -1547,7 +1562,7 @@ async def on_ready():
     
     # Konfiguration für alle Server sicherstellen, dass Standard-Cogs aktiv sind
     print("-> Überprüfe Server-Konfigurationen auf Standard-Cogs...")
-    default_cogs_to_enable = ["Utility", "Settings", "Global-Ban"]
+    default_cogs_to_enable = ["Utility", "Settings", "Global-Ban", "Wordle", "Contexto"]
     any_guild_updated = False
     for guild in bot.guilds:
         # Nutzung des DataManagers
