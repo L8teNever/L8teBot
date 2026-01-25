@@ -14,3 +14,14 @@ services:
       - ./data:/app/data
     environment:
       - TZ=Europe/Berlin
+      - token=DEIN_DISCORD_BOT_TOKEN
+      - DISCORD_CLIENT_ID=DEINE_DISCORD_CLIENT_ID
+      - DISCORD_CLIENT_SECRET=DEINE_DISCORD_CLIENT_SECRET
+      - DISCORD_REDIRECT_URI=https://deine-domain.com/callback
+      - SECRET_KEY=ein_geheimer_string_123
+      - WEB_BASE_URL=https://deine-domain.com
+      - TWITCH_CLIENT_ID=DEIN_TWITCH_APP_CLIENT_ID
+      - TWITCH_CLIENT_SECRET=DEIN_TWITCH_APP_CLIENT_SECRET
+      - TWITCH_BOT_USERNAME=L8teBot_Name
+      - TWITCH_BOT_TOKEN=oauth:dein_token
+      - TWITCH_REDIRECT_URI=https://deine-domain.com/twitch/callback

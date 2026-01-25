@@ -65,5 +65,27 @@ class DataManager:
 
     # --- Global Config ---
     def load_global_config(self, path):
-        return self.load_json(path)
+        """
+        Loads configuration from environment variables first, then falls back to config.json.
+        """
+        import os
+        config = {}
+        
+        # Load from config.json if it exists
+        if os.path.exists(path):
+            config = self.load_json(path)
+            
+        # Keys to check in environment variables (case-insensitive)
+        keys = [
+            "token", "DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_REDIRECT_URI",
+            "SECRET_KEY", "WEB_BASE_URL", "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET",
+            "TWITCH_BOT_USERNAME", "TWITCH_BOT_TOKEN", "TWITCH_REDIRECT_URI"
+        ]
+        
+        for key in keys:
+            env_val = os.environ.get(key)
+            if env_val:
+                config[key] = env_val
+                
+        return config
 

@@ -26,22 +26,28 @@ from utils.config import *
 import setup_server
 
 # --- CONFIG CHECK & SETUP ---
-if not os.path.exists(BOT_CONFIG_FILE):
+def check_config_exists():
+    # If token is in environment, we are good
+    if os.environ.get('token') and os.environ.get('DISCORD_CLIENT_ID'):
+        return True
+    
+    # Check if config.json exists and is valid
+    if os.path.exists(BOT_CONFIG_FILE):
+        try:
+            with open(BOT_CONFIG_FILE, 'r') as f:
+                c = json.load(f)
+                if c.get('token') and c.get('DISCORD_CLIENT_ID'):
+                    return True
+        except Exception:
+            pass
+    return False
+
+if not check_config_exists():
     print("-------------------------------------------------")
-    print("Config file not found. Starting Web Setup Wizard...")
+    print("Config not found in environment or config.json.")
+    print("Starting Web Setup Wizard...")
     print("Please go to: http://localhost:5000")
     print("-------------------------------------------------")
-    setup_server.run_setup_server()
-
-# Verify content
-try:
-    with open(BOT_CONFIG_FILE, 'r') as f:
-        c = json.load(f)
-        if not c.get('token') or not c.get('DISCORD_CLIENT_ID'):
-            print("Config incomplete. Starting Setup Wizard...")
-            setup_server.run_setup_server()
-except Exception:
-    print("Config invalid. Starting Setup Wizard...")
     setup_server.run_setup_server()
 
 
@@ -1623,7 +1629,8 @@ async def on_ready():
         'cogs.level_system', 'cogs.moderation', 'cogs.ticket_system', 'cogs.twitch', 
         'cogs.twitch_live_alert', 'cogs.temp_channel', 'cogs.twitch_clips', 'cogs.streak', 
         'cogs.gatekeeper', 'cogs.guard', 'cogs.global_ban', 'cogs.maintenance', 'cogs.wrapped',
-        'cogs.lfg', 'cogs.monthly_stats', 'cogs.leaderboard_display', 'cogs.wordle', 'cogs.contexto', 'cogs.info'
+        'cogs.lfg', 'cogs.monthly_stats', 'cogs.leaderboard_display', 'cogs.wordle', 'cogs.contexto', 'cogs.info',
+        'cogs.twitch_chat_bot'
     ]
     for cog in cogs_to_load:
         try:
@@ -2255,10 +2262,139 @@ def post_leaderboard_to_channel(guild_id):
 
     except Exception as e:
         print(f"Error posting leaderboard: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
+# --- TWITCH BOT ROUTES ---
+@app.route("/twitch/login")
+def twitch_login():
+    import urllib.parse
+    client_id = config.get("TWITCH_CLIENT_ID")
+    redirect_uri = config.get("TWITCH_REDIRECT_URI") or f"{bot.base_url}/twitch/callback"
+    # user:read:email moderation:read or user:read:moderated_channels?
+    # user:read:moderated_channels is better to see where user is mod
+    scope = "user:read:email user:read:moderated_channels"
+    
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": scope
+    }
+    url = f"https://id.twitch.tv/oauth2/authorize?{urllib.parse.urlencode(params)}"
+    return redirect(url)
+
+@app.route("/twitch/callback")
+def twitch_callback():
+    import requests
+    from flask import session
+    code = request.args.get("code")
+    if not code:
+        flash("Twitch Login abgebrochen.", "warning")
+        return redirect(url_for("twitch_dashboard"))
+
+    client_id = config.get("TWITCH_CLIENT_ID")
+    client_secret = config.get("TWITCH_CLIENT_SECRET")
+    redirect_uri = config.get("TWITCH_REDIRECT_URI") or f"{bot.base_url}/twitch/callback"
+
+    # Token Austausch
+    token_url = "https://id.twitch.tv/oauth2/token"
+    data = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "code": code,
+        "grant_type": "authorization_code",
+        "redirect_uri": redirect_uri
+    }
+    
+    try:
+        r = requests.post(token_url, data=data)
+        r.raise_for_status()
+        token_data = r.json()
+        access_token = token_data.get("access_token")
+        
+        # User Info holen
+        headers = {
+            "Client-ID": client_id,
+            "Authorization": f"Bearer {access_token}"
+        }
+        user_r = requests.get("https://api.twitch.tv/helix/users", headers=headers)
+        user_r.raise_for_status()
+        user_data = user_r.json()["data"][0]
+        
+        # In Session speichern
+        session["twitch_user"] = user_data
+        session["twitch_token"] = access_token
+        
+        flash(f"Erfolgreich als {user_data['display_name']} bei Twitch angemeldet!", "success")
+    except Exception as e:
+        flash(f"Twitch Login Fehler: {e}", "danger")
+    
+    return redirect(url_for("twitch_dashboard"))
+
+@app.route("/twitch")
+def twitch_dashboard():
+    from flask import session
+    import requests
+    
+    twitch_user = session.get("twitch_user")
+    if not twitch_user:
+        return render_template("twitch_bot_login.html")
+
+    access_token = session.get("twitch_token")
+    client_id = config.get("TWITCH_CLIENT_ID")
+    
+    # Kanäle holen, die der User moderiert
+    moderated_channels = []
+    try:
+        headers = {
+            "Client-ID": client_id,
+            "Authorization": f"Bearer {access_token}"
+        }
+        params = {"user_id": twitch_user["id"], "first": 100}
+        r = requests.get("https://api.twitch.tv/helix/moderation/moderated", headers=headers, params=params)
+        if r.status_code == 200:
+            moderated_channels = r.json().get("data", [])
+    except Exception as e:
+        print(f"Fehler beim Laden der moderierten Kanäle: {e}")
+
+    # Eigener Kanal ist immer dabei
+    is_already_in = False
+    for ch in moderated_channels:
+        if ch["broadcaster_id"] == twitch_user["id"]:
+            is_already_in = True
+            break
+    if not is_already_in:
+        moderated_channels.insert(0, {
+            "broadcaster_id": twitch_user["id"],
+            "broadcaster_login": twitch_user["login"],
+            "broadcaster_name": twitch_user["display_name"]
+        })
+
+    # Bot Status für diese Kanäle prüfen
+    cog = bot.get_cog("Twitch-Bot")
+    bot_config = {"channels": {}}
+    if cog:
+        bot_config = bot.data.load_json(cog.config_path, {"channels": {}})
+
+    return render_template("twitch_bot_dashboard.html", 
+                           user=twitch_user, 
+                           channels=moderated_channels,
+                           bot_config=bot_config)
+
+@app.route("/twitch/toggle/<channel_name>")
+def twitch_toggle_bot(channel_name):
+    from flask import session
+    twitch_user = session.get("twitch_user")
+    if not twitch_user:
+        return jsonify({"success": False, "message": "Nicht eingeloggt"})
+
+    active = request.args.get("active") == "true"
+    cog = bot.get_cog("Twitch-Bot")
+    if cog:
+        cog.save_channel_config(channel_name, active)
+        return jsonify({"success": True, "message": f"Bot {'aktiviert' if active else 'deaktiviert'} für {channel_name}"})
+    
+    return jsonify({"success": False, "message": "Bot Modul nicht geladen"})
 
 if __name__ == "__main__":
     pass  # Lock-Logik entfernt
