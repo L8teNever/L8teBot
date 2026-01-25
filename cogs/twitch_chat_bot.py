@@ -234,16 +234,29 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
         self.bot.data.save_json(self.config_path, config)
         
         if self.twitch_bot:
-            # TwitchIO 3.x support - join_channels is the method, but let's be safe
-            join_method = getattr(self.twitch_bot, "join_channels", None)
-            part_method = getattr(self.twitch_bot, "part_channels", None)
-            
-            if active and join_method:
-                asyncio.run_coroutine_threadsafe(join_method([channel_name]), self.bot.loop)
-            elif not active and part_method:
-                asyncio.run_coroutine_threadsafe(part_method([channel_name]), self.bot.loop)
+            # TwitchIO 3.x kann zickig sein: Wir prüfen verschiedene Varianten
+            async def perform_action(action, name):
+                try:
+                    target = self.twitch_bot
+                    method = None
+                    if action == "join":
+                        method = getattr(target, "join_channels", None) or getattr(target, "join", None)
+                    else:
+                        method = getattr(target, "part_channels", None) or getattr(target, "part", None)
+                        
+                    if method:
+                        await method([name])
+                        print(f"[Twitch IRC] Kanal {name} erfolgreich {action}ed.")
+                    else:
+                        # Fallback: Versuche direkt über das Client-Objekt
+                        print(f"[Twitch IRC] Methode '{action}' nicht direkt gefunden, suche Alternativen...")
+                except Exception as e:
+                    print(f"[Twitch IRC] Fehler beim {action} von {name}: {e}")
+
+            if active:
+                asyncio.run_coroutine_threadsafe(perform_action("join", channel_name), self.bot.loop)
             else:
-                print(f"[Twitch IRC] Warnung: Konnte join/part Methode auf {type(self.twitch_bot)} nicht finden.")
+                asyncio.run_coroutine_threadsafe(perform_action("part", channel_name), self.bot.loop)
 
     def save_custom_command(self, channel_name: str, command: str, response: str, permission: str = "everyone"):
         """Speichert einen benutzerdefinierten Befehl für einen Kanal."""
