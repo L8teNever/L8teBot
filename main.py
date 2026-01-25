@@ -2343,6 +2343,12 @@ def twitch_dashboard():
     access_token = session.get("twitch_token")
     client_id = config.get("TWITCH_CLIENT_ID")
     
+    # Prüfen ob der Haupt-Bot-Account bereits verknüpft ist
+    cog = bot.get_cog("Twitch-Bot")
+    bot_identity = None
+    if cog:
+        bot_identity = cog.get_bot_identity()
+
     # Kanäle holen, die der User moderiert
     moderated_channels = []
     try:
@@ -2371,7 +2377,6 @@ def twitch_dashboard():
         })
 
     # Bot Status für diese Kanäle prüfen
-    cog = bot.get_cog("Twitch-Bot")
     bot_config = {"channels": {}}
     if cog:
         bot_config = bot.data.load_json(cog.config_path, {"channels": {}})
@@ -2379,7 +2384,78 @@ def twitch_dashboard():
     return render_template("twitch_bot_dashboard.html", 
                            user=twitch_user, 
                            channels=moderated_channels,
-                           bot_config=bot_config)
+                           bot_config=bot_config,
+                           bot_identity=bot_identity)
+
+@app.route("/twitch/admin/setup")
+def twitch_admin_setup():
+    """Startet den Auth-Flow für den BOT-Account selbst."""
+    import urllib.parse
+    client_id = config.get("TWITCH_CLIENT_ID")
+    redirect_uri = f"{bot.base_url}/twitch/admin/callback"
+    
+    # Scopes die der BOT-Account braucht um zu chatten und zu moderieren
+    scope = "chat:read chat:edit whispers:read whispers:edit moderation:read"
+    
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": scope,
+        "force_verify": "true" # Damit man den Account auswählen/wechseln kann
+    }
+    url = f"https://id.twitch.tv/oauth2/authorize?{urllib.parse.urlencode(params)}"
+    return redirect(url)
+
+@app.route("/twitch/admin/callback")
+def twitch_admin_callback():
+    """Empfängt den Token für den BOT-ACCOUNT."""
+    import requests
+    code = request.args.get("code")
+    if not code:
+        flash("Bot Setup abgebrochen.", "warning")
+        return redirect(url_for("twitch_dashboard"))
+
+    client_id = config.get("TWITCH_CLIENT_ID")
+    client_secret = config.get("TWITCH_CLIENT_SECRET")
+    redirect_uri = f"{bot.base_url}/twitch/admin/callback"
+
+    # Token Austausch
+    token_url = "https://id.twitch.tv/oauth2/token"
+    data = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "code": code,
+        "grant_type": "authorization_code",
+        "redirect_uri": redirect_uri
+    }
+    
+    try:
+        r = requests.post(token_url, data=data)
+        r.raise_for_status()
+        token_data = r.json()
+        
+        # User Info holen um zu wissen WELCHER Account verknüpft wurde
+        headers = {
+            "Client-ID": client_id,
+            "Authorization": f"Bearer {token_data['access_token']}"
+        }
+        user_r = requests.get("https://api.twitch.tv/helix/users", headers=headers)
+        user_r.raise_for_status()
+        user_data = user_r.json()["data"][0]
+        
+        # Im Twitch-Bot Cog speichern
+        cog = bot.get_cog("Twitch-Bot")
+        if cog:
+            cog.save_bot_creds(token_data, user_data)
+            flash(f"Bot-Account {user_data['display_name']} erfolgreich verknüpft!", "success")
+        else:
+            flash("Fehler: Twitch-Bot Modul nicht geladen.", "danger")
+            
+    except Exception as e:
+        flash(f"Bot Setup Fehler: {e}", "danger")
+    
+    return redirect(url_for("twitch_dashboard"))
 
 @app.route("/twitch/toggle/<channel_name>")
 def twitch_toggle_bot(channel_name):

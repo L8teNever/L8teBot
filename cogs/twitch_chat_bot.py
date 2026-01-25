@@ -93,37 +93,91 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
         self.twitch_bot: Optional[TwitchChatBot] = None
         from utils.config import DATA_DIR
         self.config_path = os.path.join(DATA_DIR, "twitch_bot.json")
+        self.creds_path = os.path.join(DATA_DIR, "twitch_bot_creds.json")
         self.bot.loop.create_task(self.initialize_twitch_bot())
+
+    def get_bot_identity(self):
+        """Gibt Infos zum verknüpften Bot-Account zurück."""
+        creds = self.bot.data.load_json(self.creds_path)
+        if creds and "user" in creds:
+            return creds["user"]
+        return None
+
+    def save_bot_creds(self, token_data, user_data):
+        """Speichert die Tokens und User-Infos für den Bot-Account."""
+        data = {
+            "tokens": token_data,
+            "user": user_data,
+            "updated_at": datetime.now().isoformat()
+        }
+        self.bot.data.save_json(self.creds_path, data)
+        # Bot neu starten mit neuen Creds
+        self.bot.loop.create_task(self.initialize_twitch_bot())
+
+    async def _refresh_bot_token(self):
+        """Erneuert das Bot-Token mittels Refresh-Token."""
+        import aiohttp
+        creds = self.bot.data.load_json(self.creds_path)
+        if not creds or "tokens" not in creds:
+            return None
+            
+        refresh_token = creds["tokens"].get("refresh_token")
+        client_id = self.bot.config.get("TWITCH_CLIENT_ID")
+        client_secret = self.bot.config.get("TWITCH_CLIENT_SECRET")
+        
+        if not refresh_token or not client_id or not client_secret:
+            return None
+
+        url = "https://id.twitch.tv/oauth2/token"
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": client_id,
+            "client_secret": client_secret
+        }
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, data=data) as resp:
+                    if resp.status == 200:
+                        new_tokens = await resp.json()
+                        creds["tokens"].update(new_tokens)
+                        creds["updated_at"] = datetime.now().isoformat()
+                        self.bot.data.save_json(self.creds_path, creds)
+                        return new_tokens["access_token"]
+                    else:
+                        print(f"[Twitch IRC] Token Refresh fehlgeschlagen: {resp.status}")
+        except Exception as e:
+            print(f"[Twitch IRC] Fehler beim Token Refresh: {e}")
+        return None
 
     async def initialize_twitch_bot(self):
         """Initialisiert den Twitch Bot IRC Client."""
         await self.bot.wait_until_ready()
         
-        token = self.bot.config.get("TWITCH_BOT_TOKEN")
-        username = self.bot.config.get("TWITCH_BOT_USERNAME")
+        # Falls ein Bot läuft, erst beenden
+        if self.twitch_bot:
+            try: await self.twitch_bot.close()
+            except: pass
+
+        creds = self.bot.data.load_json(self.creds_path)
         client_id = self.bot.config.get("TWITCH_CLIENT_ID")
         client_secret = self.bot.config.get("TWITCH_CLIENT_SECRET")
         
-        if not token or not username or not client_id or not client_secret:
-            print("[Twitch IRC] WARNUNG: Zugangsdaten (TOKEN, USERNAME, CLIENT_ID oder SECRET) fehlen. Twitch IRC Bot wird nicht gestartet.")
+        if not creds or "tokens" not in creds:
+            print("[Twitch IRC] Kein Bot-Account verknüpft. Bitte im Dashboard einrichten.")
             return
+
+        token = creds["tokens"]["access_token"]
+        username = creds["user"]["login"]
+        bot_id = creds["user"]["id"]
 
         print(f"[Twitch IRC] Initialisiere Bot für User: {username}")
 
-        # Bot ID holen (Erforderlich für twitchio 3.0)
-        bot_id = await self._get_bot_id(username, token, client_id)
-        if not bot_id:
-            print("[Twitch IRC] FEHLER: Konnte die Twitch Bot-ID nicht ermitteln. IRC Bot wird nicht gestartet.")
-            return
-
         # Lade Kanäle, denen der Bot beitreten soll
         channels = self.get_active_channels()
-        print(f"[Twitch IRC] Aktive Kanäle aus Config: {channels}")
-        
-        # Falls keine Kanäle da sind, aber der Bot starten soll, nehmen wir den Bot-Acc selbst als Test
         if not channels:
             channels = [username]
-            print(f"[Twitch IRC] Keine Kanäle konfiguriert, trete eigenem Kanal bei: {channels}")
 
         try:
             self.twitch_bot = TwitchChatBot(
@@ -137,48 +191,9 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
             )
             
             print("[Twitch IRC] Starte Verbindungs-Task...")
-            # Startet den Twitch Bot in der bestehenden Ereignisschleife
             self.bot.loop.create_task(self.twitch_bot.connect())
         except Exception as e:
             print(f"[Twitch IRC] Fehler beim Starten des Twitch-Bots: {e}")
-
-    async def _get_bot_id(self, username: str, token: str, client_id: str) -> Optional[str]:
-        """
-        Holt die Twitch User ID für den Bot-Account.
-        Wir nutzen Client Credentials (App Token) für den API-Call, 
-        da das Bot-Token oft eine andere Client-ID hat (z.B. von TwitchApps).
-        """
-        import aiohttp
-        client_secret = self.bot.config.get("TWITCH_CLIENT_SECRET")
-        
-        # 1. App Access Token holen
-        auth_url = f"https://id.twitch.tv/oauth2/token?client_id={client_id}&client_secret={client_secret}&grant_type=client_credentials"
-        
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(auth_url) as auth_resp:
-                    if auth_resp.status != 200:
-                        print(f"[Twitch IRC] Konnte App-Token für ID-Check nicht generieren: {auth_resp.status}")
-                        return None
-                    auth_data = await auth_resp.json()
-                    app_token = auth_data['access_token']
-
-                # 2. User ID mit App Token abrufen
-                headers = {
-                    "Client-ID": client_id,
-                    "Authorization": f"Bearer {app_token}"
-                }
-                url = f"https://api.twitch.tv/helix/users?login={username}"
-                async with session.get(url, headers=headers) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        if data.get('data'):
-                            return data['data'][0]['id']
-                    else:
-                        print(f"[Twitch IRC] API Fehler beim ID-Abruf (Helix): {response.status} - {await response.text()}")
-        except Exception as e:
-            print(f"[Twitch IRC] Netzwerkfehler beim ID-Abruf: {e}")
-        return None
 
     def get_active_channels(self) -> List[str]:
         """Lädt die Liste der Kanäle, auf denen der Bot aktiv sein soll."""
@@ -188,13 +203,16 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
     def save_channel_config(self, channel_name: str, active: bool, guild_id: Optional[int] = None):
         """Speichert die Kanal-Konfiguration."""
         config = self.bot.data.load_json(self.config_path, {"channels": {}})
-        config["channels"][channel_name.lower()] = {
-            "active": active,
-            "guild_id": guild_id
-        }
+        channel_name = channel_name.lower()
+        
+        if channel_name not in config["channels"]:
+            config["channels"][channel_name] = {"active": False, "custom_commands": {}}
+        
+        config["channels"][channel_name]["active"] = active
+        if guild_id: config["channels"][channel_name]["guild_id"] = guild_id
+            
         self.bot.data.save_json(self.config_path, config)
         
-        # Wenn der Bot läuft, tritt er dem Kanal bei oder verlässt ihn
         if self.twitch_bot:
             if active:
                 self.bot.loop.create_task(self.twitch_bot.join_channels([channel_name]))
@@ -230,6 +248,9 @@ class TwitchChatBotCog(commands.Cog, name="Twitch-Bot"):
     async def cog_unload(self):
         if self.twitch_bot:
             await self.twitch_bot.close()
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(TwitchChatBotCog(bot))
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(TwitchChatBotCog(bot))
