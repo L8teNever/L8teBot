@@ -101,6 +101,35 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
     def cog_unload(self):
         self.check_stream_status.cancel()
 
+    async def _cleanup_expired_planned_streams(self):
+        """Entfernt abgelaufene geplante Streams (z.B. älter als 24h)."""
+        for guild in self.bot.guilds:
+            status_config = self.bot.data.get_guild_data(guild.id, "twitch_alerts")
+            planned = status_config.get("planned_streams", {})
+            if not planned: continue
+            
+            now = datetime.now(timezone.utc)
+            changed = False
+            for s_key, s_data in list(planned.items()):
+                try:
+                    sched_time = datetime.fromisoformat(s_data["scheduled_time"])
+                    if sched_time.tzinfo is None:
+                        sched_time = sched_time.replace(tzinfo=timezone.utc)
+                    
+                    # Wenn älter als 24h und nicht live gegangen
+                    if (now - sched_time).total_seconds() > 86400:
+                        # Event löschen falls es noch existiert
+                        if event_id := s_data.get("event_id"):
+                            await self._delete_discord_event(guild, event_id)
+                        del planned[s_key]
+                        changed = True
+                except:
+                    del planned[s_key]
+                    changed = True
+            
+            if changed:
+                self.bot.data.save_guild_data(guild.id, "twitch_alerts", status_config)
+
     @staticmethod
     def _format_last_stream_time(iso_timestamp_str: Optional[str]) -> str:
         if not iso_timestamp_str:
@@ -198,24 +227,36 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         embed.set_image(url=offline_img_url)
         return embed
 
-    async def _create_discord_event(self, guild: discord.Guild, stream_info: Dict[str, Any], twitch_url: str) -> Optional[discord.ScheduledEvent]:
-        """Erstellt ein Discord Scheduled Event für einen Live-Stream."""
+    async def _create_discord_event(self, guild: discord.Guild, stream_info: Dict[str, Any], twitch_url: str, scheduled_start: Optional[datetime] = None, custom_title: Optional[str] = None) -> Optional[discord.ScheduledEvent]:
+        """Erstellt ein Discord Scheduled Event für einen Live-Stream oder einen geplanten Stream."""
         try:
             from datetime import timedelta
-            # Event-Zeit: 10 Sekunden in der Zukunft bis in 8 Stunden
-            # (Discord erlaubt keine Events in der Vergangenheit)
-            start_time = datetime.now(timezone.utc) + timedelta(seconds=10)
-            end_time = start_time + timedelta(hours=8)
+            
+            if scheduled_start:
+                # Geplanter Stream
+                start_time = scheduled_start
+                # Discord braucht ein End-Datum. Wir nehmen +4h für geplante Streams
+                end_time = start_time + timedelta(hours=4)
+                name = custom_title if custom_title else f"📅 Stream: {stream_info.get('display_name', 'Twitch')}"
+                description = f"Geplanter Stream von {stream_info.get('display_name')}\n\n🔗 {twitch_url}"
+            else:
+                # Live Stream
+                start_time = datetime.now(timezone.utc) + timedelta(seconds=10)
+                end_time = start_time + timedelta(hours=8)
+                name = f"🔴 {stream_info.get('user_name', 'Stream')} ist LIVE!"
+                description = f"{stream_info.get('title', 'Kein Titel')}\n\n🎮 Spiel: {stream_info.get('game_name', 'N/A')}\n👁️ Zuschauer: {stream_info.get('viewer_count', '0')}\n\n🔗 {twitch_url}"
             
             # Thumbnail URL
             image_url = None
             if thumb_template := stream_info.get('thumbnail_url'):
                 image_url = str(thumb_template).replace('{width}', '1280').replace('{height}', '720')
+            elif profile_img := stream_info.get('profile_image_url'):
+                image_url = profile_img
             
             # Event erstellen
             event = await guild.create_scheduled_event(
-                name=f"🔴 {stream_info.get('user_name', 'Stream')} ist LIVE!",
-                description=f"{stream_info.get('title', 'Kein Titel')}\n\n🎮 Spiel: {stream_info.get('game_name', 'N/A')}\n👁️ Zuschauer: {stream_info.get('viewer_count', '0')}\n\n🔗 {twitch_url}",
+                name=name[:100],
+                description=description[:1000],
                 start_time=start_time,
                 end_time=end_time,
                 entity_type=discord.EntityType.external,
@@ -291,6 +332,10 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
 
         try:
             if is_live:
+                # Prüfe ob es einen geplanten Stream für diesen User gibt
+                planned_streams = status_config.get("planned_streams", {})
+                planned_data = planned_streams.get(streamer_key)
+                
                 # === KANAL MANAGEMENT ===
                 if event_mode in ["channel_only", "both"] and channel:
                     # Kanal-Name ändern
@@ -328,11 +373,36 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
                 # === EVENT MANAGEMENT ===
                 if event_mode in ["event_only", "both"]:
                     if not was_live:
-                        # Event erstellen
-                        event = await self._create_discord_event(guild, stream_info, twitch_url)
-                        if event:
-                            s_data["event_id"] = event.id
-                            print(f"[Twitch-Alert] Event erstellt für {twitch_user}: {event.id}")
+                        # Wenn ein geplantes Event existiert, dieses starten
+                        if planned_data and (planned_event_id := planned_data.get("event_id")):
+                            try:
+                                event = guild.get_scheduled_event(planned_event_id)
+                                if event and event.status == discord.EventStatus.scheduled:
+                                    await event.edit(
+                                        status=discord.EventStatus.active,
+                                        name=f"🔴 {stream_info.get('user_name', 'Stream')} ist LIVE!",
+                                        description=f"{stream_info.get('title', 'Kein Titel')}\n\n🎮 Spiel: {stream_info.get('game_name', 'N/A')}\n👁️ Zuschauer: {stream_info.get('viewer_count', '0')}\n\n🔗 {twitch_url}"
+                                    )
+                                    s_data["event_id"] = planned_event_id
+                                    print(f"[Twitch-Alert] Geplantes Event gestartet für {twitch_user}: {planned_event_id}")
+                                else:
+                                    # Fallback: Event existiert nicht oder ist in falschem Status -> neu erstellen
+                                    event = await self._create_discord_event(guild, stream_info, twitch_url)
+                                    if event: s_data["event_id"] = event.id
+                            except:
+                                event = await self._create_discord_event(guild, stream_info, twitch_url)
+                                if event: s_data["event_id"] = event.id
+                            
+                            # Aus Liste der geplanten Streams entfernen
+                            del planned_streams[streamer_key]
+                            status_config["planned_streams"] = planned_streams
+                            self.bot.data.save_guild_data(guild.id, "twitch_alerts", status_config)
+                        else:
+                            # Kein geplantes Event -> neu erstellen
+                            event = await self._create_discord_event(guild, stream_info, twitch_url)
+                            if event:
+                                s_data["event_id"] = event.id
+                                print(f"[Twitch-Alert] Event erstellt für {twitch_user}: {event.id}")
                     else:
                         # Event aktualisieren (falls es noch existiert)
                         if event_id := s_data.get("event_id"):
@@ -407,9 +477,10 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
             if streamers:
                 self.bot.data.save_guild_data(guild.id, "twitch_alerts", status_config)
 
-    @tasks.loop(minutes=5)
+    @tasks.loop(minutes=2)
     async def check_stream_status(self):
         await self._run_update_all_guilds()
+        await self._cleanup_expired_planned_streams()
 
     @check_stream_status.before_loop
     async def before_check_stream_status(self):
@@ -503,6 +574,107 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
             return True, f"Twitch-Alert für '{stream_info['display_name']}' wurde konfiguriert (nur Events)."
         else:  # both
             return True, f"Twitch-Alert für '{stream_info['display_name']}' wurde in {channel.mention} konfiguriert (mit Events)."
+
+    async def web_add_planned_stream(self, guild_id: int, twitch_user: str, start_time_iso: str, title: Optional[str] = None) -> Tuple[bool, str]:
+        guild = self.bot.get_guild(guild_id)
+        if not guild: return False, "Server nicht gefunden."
+        
+        try:
+            # Zeit parsen. Erwarte ISO Format (z.B. 2026-01-23T18:00)
+            scheduled_start = datetime.fromisoformat(start_time_iso)
+            if scheduled_start.tzinfo is None:
+                # Wir nehmen an der Web-User gibt Lokalzeit an, aber Discord braucht UTC.
+                # Da wir die Server-Zeitzone nicht kennen, nehmen wir hier einfachheitshalber an es ist bereits UTC oder wir nutzen die Systemzeit.
+                # TODO: Zeitzonen-Handling verbessern.
+                scheduled_start = scheduled_start.replace(tzinfo=timezone.utc)
+            
+            if scheduled_start < datetime.now(timezone.utc):
+                return False, "Die geplante Zeit liegt in der Vergangenheit."
+        except ValueError:
+            return False, "Ungültiges Zeitformat."
+
+        stream_info = await self.get_stream_info(twitch_user)
+        if not stream_info or stream_info.get('status') == 'NOT_FOUND':
+            return False, f"Twitch-Benutzer `{twitch_user}` wurde nicht gefunden."
+        
+        s_key = stream_info['login'].lower()
+        twitch_url = f"https://twitch.tv/{stream_info['login']}"
+        
+        # Event erstellen
+        event = await self._create_discord_event(guild, stream_info, twitch_url, scheduled_start=scheduled_start, custom_title=title)
+        if not event:
+            return False, "Fehler beim Erstellen des Discord-Events. Prüfe die Bot-Rechte."
+
+        status_config = self.bot.data.get_guild_data(guild_id, "twitch_alerts")
+        planned = status_config.setdefault("planned_streams", {})
+        
+        planned[s_key] = {
+            "twitch_user": stream_info['login'],
+            "display_name": stream_info['display_name'],
+            "scheduled_time": scheduled_start.isoformat(),
+            "title": title or f"Stream: {stream_info['display_name']}",
+            "event_id": event.id,
+            "status": "planned"
+        }
+        
+        self.bot.data.save_guild_data(guild_id, "twitch_alerts", status_config)
+        return True, f"Stream für '{stream_info['display_name']}' am {scheduled_start.strftime('%d.%m.%Y %H:%M')} geplant. Discord Event erstellt."
+
+    async def web_remove_planned_stream(self, guild_id: int, streamer_key: str) -> Tuple[bool, str]:
+        guild = self.bot.get_guild(guild_id)
+        if not guild: return False, "Server nicht gefunden."
+        
+        status_config = self.bot.data.get_guild_data(guild_id, "twitch_alerts")
+        planned = status_config.get("planned_streams", {})
+        
+        if streamer_key not in planned:
+            return False, "Geplanter Stream nicht gefunden."
+        
+        data = planned.pop(streamer_key)
+        
+        # Event löschen
+        if event_id := data.get("event_id"):
+            await self._delete_discord_event(guild, event_id)
+        
+        self.bot.data.save_guild_data(guild_id, "twitch_alerts", status_config)
+        return True, "Geplanter Stream entfernt."
+
+    @discord.app_commands.command(name="twitch-plan", description="Plant einen zukünftigen Stream und erstellt ein Discord Event.")
+    @discord.app_commands.describe(twitch_user="Twitch Benutzername", datum="Datum (TT.MM.JJJJ)", uhrzeit="Uhrzeit (HH:MM)", titel="Optionaler Titel für das Event")
+    async def slash_twitch_plan(self, interaction: discord.Interaction, twitch_user: str, datum: str, uhrzeit: str, titel: Optional[str] = None):
+        if not interaction.guild_id: return
+        
+        # Check permissions (Admin)
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Nur Administratoren können Streams planen.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            # Parser für deutsches Format TT.MM.JJJJ HH:MM
+            dt_str = f"{datum} {uhrzeit}"
+            local_dt = datetime.strptime(dt_str, "%d.%m.%Y %H.%M") # Supports . or : if we are careful
+        except ValueError:
+            try:
+                dt_str = f"{datum} {uhrzeit}"
+                local_dt = datetime.strptime(dt_str, "%d.%m.%Y %H:%M")
+            except ValueError:
+                await interaction.followup.send("❌ Ungültiges Datums- oder Zeitformat. Bitte verwende `TT.MM.JJJJ` und `HH:MM`.", ephemeral=True)
+                return
+
+        # Umwandeln in UTC (Annahme: Bot-Systemzeit ist Lokalzeit des Users oder wir nehmen einfach UTC)
+        # Da wir keine TZ-Info haben, nehmen wir an es ist UTC für den Vergleich, aber Discord braucht TZ-bewusste Objekte.
+        now = datetime.now()
+        if local_dt < now:
+             await interaction.followup.send("❌ Die geplante Zeit liegt in der Vergangenheit.", ephemeral=True)
+             return
+             
+        # In ISO konvertieren für die interne Methode
+        iso_str = local_dt.strftime("%Y-%m-%dT%H:%M:%S")
+        
+        success, message = await self.web_add_planned_stream(interaction.guild_id, twitch_user, iso_str, titel)
+        await interaction.followup.send(message, ephemeral=True)
 
 async def setup(bot: commands.Bot):
     cog = TwitchLiveAlertCog(bot)

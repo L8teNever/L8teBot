@@ -1040,6 +1040,14 @@ def manage_twitch_status(guild_id):
         role_id = int(role_id_str) if role_id_str else None
         event_mode = request.form.get('event_mode', 'channel_only')
         future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, twitch_user, role_id, event_mode), bot.loop)
+    elif action == 'add_planned':
+        twitch_user = request.form.get('twitch_user')
+        start_time = request.form.get('start_time')
+        title = request.form.get('title')
+        future = asyncio.run_coroutine_threadsafe(cog.web_add_planned_stream(guild_id, twitch_user, start_time, title), bot.loop)
+    elif action == 'remove_planned':
+        streamer_key = request.form.get('streamer_key')
+        future = asyncio.run_coroutine_threadsafe(cog.web_remove_planned_stream(guild_id, streamer_key), bot.loop)
     elif action == 'reset':
         future = asyncio.run_coroutine_threadsafe(cog.web_reset_config(guild_id), bot.loop)
     elif action == 'remove_streamer':
