@@ -130,6 +130,10 @@
                                 class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_wordle' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
                                 Wordle
                             </a>
+                            <a href="{{ url_for('manage_contexto', guild_id=guild.id) }}"
+                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_contexto' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                Contexto
+                            </a>
                             <a href="{{ url_for('manage_guard', guild_id=guild.id) }}"
                                 class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_guard' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
                                 Guard

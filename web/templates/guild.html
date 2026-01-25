@@ -172,6 +172,19 @@
                 class="material-symbols-outlined text-text-secondary group-hover:text-primary transition-colors">arrow_forward</span>
         </a>
 
+        <a href="{{ url_for('manage_contexto', guild_id=guild.id) }}"
+            class="group flex items-center gap-4 p-4 rounded-lg bg-card-dark border border-[#2e3e5e] hover:border-primary/50 transition-all">
+            <div class="h-12 w-12 rounded-lg bg-orange-500/20 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-orange-400">psychology</span>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-white font-bold group-hover:text-primary transition-colors">Contexto</h3>
+                <p class="text-text-secondary text-sm">Semantisches Ratespiel</p>
+            </div>
+            <span
+                class="material-symbols-outlined text-text-secondary group-hover:text-primary transition-colors">arrow_forward</span>
+        </a>
+
         <a href="{{ url_for('manage_modules', guild_id=guild.id) }}"
             class="group flex items-center gap-4 p-4 rounded-lg bg-card-dark border border-[#2e3e5e] hover:border-primary/50 transition-all">
             <div class="h-12 w-12 rounded-lg bg-cyan-500/20 flex items-center justify-center shrink-0">

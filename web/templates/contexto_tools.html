@@ -1,0 +1,121 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Header -->
+    <header class="flex flex-col gap-2 pb-4 border-b border-[#2e3e5e]">
+        <h1 class="text-3xl md:text-4xl font-black text-white">Contexto Game</h1>
+        <p class="text-text-secondary">Errate das geheime Wort durch semantische Nähe.</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Configuration -->
+        <section class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-orange-400">psychology</span>
+                    Spiel-Einstellungen
+                </h2>
+                {% if is_enabled %}
+                <span
+                    class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Aktiv</span>
+                {% else %}
+                <span
+                    class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/20">Inaktiv</span>
+                {% endif %}
+            </div>
+
+            <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
+                <form method="POST" action="{{ url_for('manage_contexto', guild_id=guild.id) }}"
+                    class="flex flex-col gap-4">
+                    <input type="hidden" name="action" value="set_config">
+                    <div class="flex flex-col gap-2">
+                        <label class="text-sm font-medium text-text-secondary">Contexto Kanal</label>
+                        <select name="channel_id" class="form-input">
+                            <option value="">-- Deaktiviert --</option>
+                            {% for channel in guild.text_channels|sort(attribute='position') %}
+                            <option value="{{ channel.id }}" {% if settings.get('channel_id')|string==channel.id|string
+                                %}selected{% endif %}>
+                                #{{ channel.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-text-secondary/70 mt-1">
+                            Alle Nachrichten in diesem Kanal werden als Rateversuche gewertet.
+                        </p>
+                    </div>
+                    <button type="submit"
+                        class="w-full px-6 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
+                        Kanal speichern
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Rules -->
+        <section class="space-y-4">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-400">help</span>
+                Wie man spielt
+            </h2>
+            <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e] space-y-4">
+                <p class="text-sm text-text-secondary">
+                    Contexto ist ein Spiel, bei dem du ein geheimes Wort finden musst.
+                    Jeder Versuch erhält einen <strong>Rang</strong>.
+                </p>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="text-orange-400 font-bold">Rang 1:</span>
+                        <span class="text-white">Das geheime Wort (Treffer!)</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="text-green-400 font-bold">Niedriger Rang:</span>
+                        <span class="text-white">Das Wort ist semantisch sehr nah (Heiß)</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="text-red-400 font-bold">Hoher Rang:</span>
+                        <span class="text-white">Das Wort hat kaum Ähnlichkeit (Kalt)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    {% if settings.get('game_state') %}
+    <!-- Today's Ranking -->
+    <section class="space-y-4">
+        <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+            <span class="material-symbols-outlined text-purple-400">format_list_numbered</span>
+            Beste Versuche heute ({{ settings.game_state.date }})
+        </h2>
+        <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="text-text-secondary border-b border-[#2e3e5e]">
+                            <th class="pb-2">Wort</th>
+                            <th class="pb-2">Rang</th>
+                            <th class="pb-2">User</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#2e3e5e]">
+                        {% for g in settings.game_state.guesses %}
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="py-2 text-white font-bold">{{ g.word }}</td>
+                            <td class="py-2">
+                                <span
+                                    class="px-2 py-0.5 rounded {% if g.rank < 100 %}bg-orange-500/20 text-orange-400 border border-orange-500/30{% elif g.rank < 500 %}bg-yellow-500/20 text-yellow-400 border border-yellow-500/30{% else %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% endif %}">
+                                    {{ g.rank }}
+                                </span>
+                            </td>
+                            <td class="py-2 text-text-secondary">{{ g.user }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
