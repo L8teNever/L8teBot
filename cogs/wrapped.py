@@ -127,8 +127,12 @@ class WrappedCog(commands.Cog, name="Wrapped"):
             "total_voice_minutes": 0
         })
         server_stats.setdefault("total_messages", 0)
+        server_stats.setdefault("top_emojis", {})
+        server_stats.setdefault("active_channels", {})
+        server_stats.setdefault("total_voice_minutes", 0)
+
         server_stats["total_messages"] += 1
-        
+
         cid = str(message.channel.id)
         server_stats["active_channels"][cid] = server_stats["active_channels"].get(cid, 0) + 1
 
@@ -163,15 +167,21 @@ class WrappedCog(commands.Cog, name="Wrapped"):
             "top_channel": {},
             "top_emojis": {},
             "voice_minutes": 0,
-            "top_voice_channel": {} 
+            "top_voice_channel": {}
         })
+        u_data.setdefault("total_messages", 0)
+        u_data.setdefault("top_channel", {})
+        u_data.setdefault("top_emojis", {})
+        u_data.setdefault("voice_minutes", 0)
+        u_data.setdefault("top_voice_channel", {})
+
         u_data["total_messages"] += 1
         u_data["top_channel"][cid] = u_data["top_channel"].get(cid, 0) + 1
-        
+
         # User-Emoji-Stats aktualisieren
         for emoji_key in all_emojis:
             u_data["top_emojis"][emoji_key] = u_data["top_emojis"].get(emoji_key, 0) + 1
-        
+
         # 3. Interaction Tracking (für Best Buddy)
         # Initialisiere interactions dict wenn nicht vorhanden
         u_data.setdefault("interactions", {})

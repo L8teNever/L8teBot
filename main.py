@@ -94,7 +94,10 @@ if missing_web_keys:
     print("Bitte prüfe deine environment Variablen in docker-compose.yml oder deine config.json.")
 
 # --- WEB-SERVER (FLASK) SETUP ---
-app = Flask(__name__, template_folder='web/templates', static_folder='web/static')
+# Use absolute paths for template and static folders to work from any working directory
+template_folder = os.path.join(os.path.dirname(__file__), 'web', 'templates')
+static_folder = os.path.join(os.path.dirname(__file__), 'web', 'static')
+app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = config.get("SECRET_KEY", "dev_secret_key_123456789")
 
