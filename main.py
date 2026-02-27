@@ -945,7 +945,7 @@ def manage_temp_channel(guild_id):
     guild_config = bot.data.get_server_config(guild_id)
     is_enabled = 'Temp-Channel' in guild_config.get('enabled_cogs', [])
 
-    temp_data = bot.data.get_guild_data(guild_id, "temp_channels")
+    temp_data = bot.data.get_guild_data(guild_id, "temp_channel")
     temp_data.setdefault('config', {})
     temp_data.setdefault('active_channels', {})
 
@@ -961,7 +961,7 @@ def manage_temp_channel(guild_id):
         config['channel_name_format'] = channel_name_format
 
         # 2. Speicher
-        bot.data.save_guild_data(guild_id, "temp_channels", temp_data)
+        bot.data.save_guild_data(guild_id, "temp_channel", temp_data)
         
         msg = "Temp-Channel Einstellungen erfolgreich gespeichert!"
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
