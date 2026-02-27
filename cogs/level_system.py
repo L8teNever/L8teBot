@@ -67,6 +67,22 @@ class LevelSystemCog(commands.Cog, name="Level-System"):
         if str(level) in custom_thresholds:
             return custom_thresholds[str(level)]
         
+        default_thresholds = {
+            1: 50,
+            2: 350,
+            3: 6000,
+            4: 25000,
+            5: 80000,
+            6: 200000,
+            7: 550000,
+            8: 1000000,
+            9: 2000000,
+            10: 5000000
+        }
+        
+        if level in default_thresholds:
+            return default_thresholds[level]
+        
         base = guild_config.get("xp_formula_base", DEFAULT_XP_FORMULA_BASE)
         increment = guild_config.get("xp_formula_increment", DEFAULT_XP_FORMULA_INCREMENT)
         return int(5 * (level ** 2) + (base - 5) * level + increment * (level * (level - 1) / 2))

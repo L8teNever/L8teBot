@@ -7,7 +7,8 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nFix Flask template loading and wrapped.py KeyError issues\n\n- Use absolute paths for Flask template/static folders to work from any working directory \\(fixes dashboard.html 500 error\\)\n- Add defensive setdefault\\(\\) calls for nested dict keys in wrapped.py to handle incomplete/legacy data structures \\(fixes active_channels KeyError\\)\n- Ensures bot remains stable with old or corrupted data\n\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push:*)",
       "Bash(git check-ignore:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(ls -la \"c:\\\\Users\\\\simon\\\\Documents\\\\L8teBot\\\\utils\"\" && find \"c:UserssimonDocumentsL8teBotutils\" -name \"*.py \" -type f)"
     ]
   }
 }
