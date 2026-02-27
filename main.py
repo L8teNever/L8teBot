@@ -2560,7 +2560,7 @@ if __name__ == "__main__":
         port = 5000
         print(f"Flask startet auf Port {port}...")
         try:
-            app.run(port=port, host="0.0.0.0", debug=True, use_reloader=True)
+            app.run(port=port, host="0.0.0.0", debug=False, use_reloader=False)
         except Exception as e:
             print(f"⚠️ Webserver konnte nicht starten (evtl. Port belegt): {e}")
 
