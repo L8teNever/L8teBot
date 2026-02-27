@@ -96,12 +96,12 @@
         </div>
         <div class="p-6 space-y-4">
             <form data-ajax="true" action="{{ url_for('manage_leveling', guild_id=guild.id) }}" method="post"
-                class="flex gap-2">
+                class="flex gap-2 flex-wrap">
                 <input type="hidden" name="action" value="add_level_role">
                 <input type="number" name="level" placeholder="Level" required
-                    class="flex-1 px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    class="px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none w-32">
                 <select name="role_id" required
-                    class="flex-1 px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    class="px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none flex-1 min-w-48">
                     <option value="" disabled selected>Rolle wählen</option>
                     {% for role in guild.roles|sort(attribute='position', reverse=true) %}
                     {% if not role.is_default() %}
@@ -110,7 +110,7 @@
                     {% endfor %}
                 </select>
                 <button type="submit"
-                    class="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">+</button>
+                    class="px-6 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors whitespace-nowrap">+ Hinzufügen</button>
             </form>
 
             <div class="space-y-2">
