@@ -492,7 +492,7 @@ def guild_settings(guild_id):
         return redirect(url_for('guild_settings', guild_id=guild_id))
 
     guild_data = bot.data.get_server_config(guild_id)
-    return render_template('guild.html', guild=guild, settings=guild_data, admin_guilds=get_admin_guilds())
+    return render_template('guild.html', guild=guild, settings=guild_data, admin_guilds=get_admin_guilds(), manageable_cogs=MANAGEABLE_COGS)
 
 @app.route('/guild/<int:guild_id>/modules')
 @requires_authorization
