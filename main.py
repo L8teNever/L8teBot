@@ -1684,12 +1684,12 @@ async def on_ready():
             
     # Lade alle Cogs aus dem 'cogs' Verzeichnis
     cogs_to_load = [
-        'cogs.settings', 'cogs.utility', 'cogs.birthday', 'cogs.counting', 
-        'cogs.level_system', 'cogs.moderation', 'cogs.ticket_system', 'cogs.twitch', 
-        'cogs.twitch_live_alert', 'cogs.temp_channel', 'cogs.twitch_clips', 'cogs.streak', 
+        'cogs.settings', 'cogs.utility', 'cogs.birthday', 'cogs.counting',
+        'cogs.level_system', 'cogs.moderation', 'cogs.ticket_system', 'cogs.twitch',
+        'cogs.twitch_live_alert', 'cogs.temp_channel', 'cogs.twitch_clips', 'cogs.streak',
         'cogs.gatekeeper', 'cogs.guard', 'cogs.global_ban', 'cogs.maintenance', 'cogs.wrapped',
         'cogs.lfg', 'cogs.monthly_stats', 'cogs.leaderboard_display', 'cogs.wordle', 'cogs.contexto', 'cogs.info',
-        'cogs.twitch_chat_bot'
+        'cogs.twitch_chat_bot', 'cogs.backup'
     ]
     
     print(f" 📦 Lade {len(cogs_to_load)} Erweiterungen...")
