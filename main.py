@@ -1060,9 +1060,13 @@ def upload_server_backup(guild_id):
         return redirect(url_for('manage_backup', guild_id=guild_id))
 
     try:
-        temp_dir = os.path.join(BASE_DIR, 'temp_backup_restore', str(guild_id))
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
+        import uuid
+        temp_base_dir = os.path.join(BASE_DIR, 'temp_backup_restore', str(guild_id))
+        if os.path.exists(temp_base_dir):
+            shutil.rmtree(temp_base_dir)
+            
+        restore_id = str(uuid.uuid4())
+        temp_dir = os.path.join(temp_base_dir, restore_id)
         os.makedirs(temp_dir, exist_ok=True)
         
         # Determine sorting keys (natural sort to ensure .part10 comes after .part9, not .part1)
@@ -1081,31 +1085,73 @@ def upload_server_backup(guild_id):
             for file in files:
                 outfile.write(file.read())
 
-        # Extract it to guild data dir
-        guild_data_dir = os.path.join(GUILDS_DATA_DIR, str(guild_id))
-        
+        # Extract it
         extract_dir = os.path.join(temp_dir, 'extracted')
         os.makedirs(extract_dir, exist_ok=True)
-        # Unpack archive
         shutil.unpack_archive(combined_zip_path, extract_dir)
         
-        # Replace guild_data_dir
-        if os.path.exists(guild_data_dir):
-            shutil.rmtree(guild_data_dir)
-        shutil.copytree(extract_dir, guild_data_dir)
+        # Find json files to offer
+        modules = []
+        for f in os.listdir(extract_dir):
+            if f.endswith('.json'):
+                modules.append(f[:-5])
+                
+        modules.sort()
+        guild = bot.get_guild(guild_id)
         
-        # Cleanup
-        shutil.rmtree(temp_dir)
-        
-        # Reload bots data for this guild
-        bot.data._cache.pop(guild_id, None)
-        bot.data.get_server_config(guild_id) # reload
-        
-        flash("Server-Backup erfolgreich hochgeladen und wiederhergestellt!", "success")
+        return render_template('backup_restore.html', guild=guild, modules=modules, restore_id=restore_id, admin_guilds=get_admin_guilds())
         
     except Exception as e:
         print(f"[Backup Restore] Error: {e}")
         flash(f"Fehler: {e}. Lade alle Teile des ZIP-Archivs gleichzeitig hoch.", "danger")
+        return redirect(url_for('manage_backup', guild_id=guild_id))
+
+@app.route('/guild/<int:guild_id>/backup/restore_confirm/<restore_id>', methods=['POST'])
+@requires_authorization
+def confirm_server_backup(guild_id, restore_id):
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung.", "danger")
+        return redirect(url_for('dashboard'))
+        
+    selected_modules = request.form.getlist('modules')
+    if not selected_modules:
+        flash("Keine Module zur Wiederherstellung ausgewählt.", "warning")
+        return redirect(url_for('manage_backup', guild_id=guild_id))
+        
+    extract_dir = os.path.join(BASE_DIR, 'temp_backup_restore', str(guild_id), restore_id, 'extracted')
+    if not os.path.exists(extract_dir):
+        flash("Sitzung abgelaufen oder Backup nicht gefunden. Bitte lade die Datei(en) erneut hoch.", "danger")
+        return redirect(url_for('manage_backup', guild_id=guild_id))
+        
+    guild_data_dir = os.path.join(GUILDS_DATA_DIR, str(guild_id))
+    os.makedirs(guild_data_dir, exist_ok=True)
+    
+    restored_count = 0
+    try:
+        if 'ALL_DATA' in selected_modules:
+            # Overwrite entire folder
+            if os.path.exists(guild_data_dir):
+                shutil.rmtree(guild_data_dir)
+            shutil.copytree(extract_dir, guild_data_dir)
+            restored_count = len([f for f in os.listdir(extract_dir) if f.endswith('.json')])
+        else:
+            for mod in selected_modules:
+                src_file = os.path.join(extract_dir, f"{mod}.json")
+                dst_file = os.path.join(guild_data_dir, f"{mod}.json")
+                if os.path.exists(src_file):
+                    shutil.copy2(src_file, dst_file)
+                    restored_count += 1
+                    
+        # Cleanup
+        temp_base_dir = os.path.join(BASE_DIR, 'temp_backup_restore', str(guild_id))
+        if os.path.exists(temp_base_dir):
+            shutil.rmtree(temp_base_dir)
+            
+        bot.data.get_server_config(guild_id) # reload
+        
+        flash(f"{restored_count} Modul(e) erfolgreich wiederhergestellt!", "success")
+    except Exception as e:
+        flash(f"Fehler bei der Wiederherstellung: {e}", "danger")
         
     return redirect(url_for('manage_backup', guild_id=guild_id))
 
