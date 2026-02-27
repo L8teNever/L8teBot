@@ -115,6 +115,26 @@
     </div>
 </section>
 
+<!-- Manual Backup Trigger Section -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden mt-6">
+    <div class="p-6 border-b border-[#2e3e5e] flex justify-between items-center flex-wrap gap-4">
+        <div>
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined">backup</span>
+                Manuelles Backup auslösen
+            </h2>
+            <p class="text-text-secondary text-sm mt-1">Erstelle jetzt sofort ein Backup und sende es in den Kanal.</p>
+        </div>
+        <form data-ajax="true" action="{{ url_for('manage_backup', guild_id=guild.id) }}" method="post" class="m-0">
+            <input type="hidden" name="action" value="trigger_manual">
+            <button type="submit"
+                class="px-6 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors whitespace-nowrap">
+                Jetzt Backup erstellen
+            </button>
+        </form>
+    </div>
+</section>
+
 <!-- Restore Backup Form -->
 <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden mt-6">
     <div class="p-6 border-b border-[#2e3e5e]">

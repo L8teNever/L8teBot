@@ -998,7 +998,28 @@ def manage_backup(guild_id):
     backup_config.setdefault('backup_frequency_days', 1)
 
     if request.method == 'POST' and is_enabled:
-        # Hole Form-Daten
+        action = request.form.get('action')
+        
+        if action == 'trigger_manual':
+            if not backup_config.get('channel_id'):
+                msg = "Bitte konfiguriere zuerst einen Backup-Kanal!"
+                success = False
+            else:
+                cog = bot.get_cog('Backup')
+                if cog:
+                    asyncio.run_coroutine_threadsafe(cog._perform_backup(guild, backup_config), bot.loop)
+                    msg = "Manuelles Backup wird erstellt und in den Kanal gesendet."
+                    success = True
+                else:
+                    msg = "Backup-Modul konnte nicht geladen werden."
+                    success = False
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': msg})
+            flash(msg, "success" if success else "danger")
+            return redirect(url_for('manage_backup', guild_id=guild_id))
+
+        # Default: Hole Form-Daten für Konfiguration
         channel_id_str = request.form.get('channel_id')
         channel_id = int(channel_id_str) if channel_id_str else None
         backup_time = request.form.get('backup_time', '03:00')
