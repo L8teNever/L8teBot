@@ -121,11 +121,12 @@ class WrappedCog(commands.Cog, name="Wrapped"):
 
         # 1. Server Stats
         server_stats = data.setdefault("server", {
-            "total_messages": 0, 
+            "total_messages": 0,
             "top_emojis": {},
             "active_channels": {},
             "total_voice_minutes": 0
         })
+        server_stats.setdefault("total_messages", 0)
         server_stats["total_messages"] += 1
         
         cid = str(message.channel.id)

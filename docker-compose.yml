@@ -9,6 +9,8 @@ services:
       - "5002:5000"
     volumes:
       - ./data:/app/data
+      - ./web/templates:/app/web/templates
+      - ./cogs:/app/cogs
     environment:
       - TZ=Europe/Berlin
       # --- Discord Config ---
