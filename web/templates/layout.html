@@ -350,7 +350,7 @@
 
                 try {
                     const formData = new FormData(form);
-                    const response = await fetch(form.action, {
+                    const response = await fetch(form.getAttribute('action'), {
                         method: form.method || 'POST',
                         body: formData,
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
