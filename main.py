@@ -1026,6 +1026,69 @@ def manage_backup(guild_id):
                          admin_guilds=get_admin_guilds())
 
 
+@app.route('/guild/<int:guild_id>/backup/upload', methods=['POST'])
+@requires_authorization
+def upload_server_backup(guild_id):
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung.", "danger")
+        return redirect(url_for('dashboard'))
+
+    files = request.files.getlist('backup_files')
+    if not files or len(files) == 0 or files[0].filename == '':
+        flash("Keine Dateien ausgewählt.", "danger")
+        return redirect(url_for('manage_backup', guild_id=guild_id))
+
+    try:
+        temp_dir = os.path.join(BASE_DIR, 'temp_backup_restore', str(guild_id))
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Determine sorting keys (natural sort to ensure .part10 comes after .part9, not .part1)
+        import re
+        def sort_key(f):
+            # Extract trailing numbers for sorting if present
+            m = re.search(r'\d+$', f.filename)
+            if m:
+                return int(m.group())
+            return f.filename
+        files.sort(key=sort_key)
+        
+        combined_zip_path = os.path.join(temp_dir, 'combined_backup.zip')
+        
+        with open(combined_zip_path, 'wb') as outfile:
+            for file in files:
+                outfile.write(file.read())
+
+        # Extract it to guild data dir
+        guild_data_dir = os.path.join(GUILDS_DATA_DIR, str(guild_id))
+        
+        extract_dir = os.path.join(temp_dir, 'extracted')
+        os.makedirs(extract_dir, exist_ok=True)
+        # Unpack archive
+        shutil.unpack_archive(combined_zip_path, extract_dir)
+        
+        # Replace guild_data_dir
+        if os.path.exists(guild_data_dir):
+            shutil.rmtree(guild_data_dir)
+        shutil.copytree(extract_dir, guild_data_dir)
+        
+        # Cleanup
+        shutil.rmtree(temp_dir)
+        
+        # Reload bots data for this guild
+        bot.data._cache.pop(guild_id, None)
+        bot.data.get_server_config(guild_id) # reload
+        
+        flash("Server-Backup erfolgreich hochgeladen und wiederhergestellt!", "success")
+        
+    except Exception as e:
+        print(f"[Backup Restore] Error: {e}")
+        flash(f"Fehler: {e}. Lade alle Teile des ZIP-Archivs gleichzeitig hoch.", "danger")
+        
+    return redirect(url_for('manage_backup', guild_id=guild_id))
+
+
 @app.route('/guild/<int:guild_id>/twitch_clips', methods=['GET', 'POST'])
 @requires_authorization
 def manage_twitch_clips(guild_id):

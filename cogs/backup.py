@@ -133,57 +133,79 @@ class BackupCog(commands.Cog, name="Backup"):
                     pass
                 return
 
-            # Prüfe Dateigröße
+            # Dateigröße und Splitting
             try:
                 file_size_bytes = os.path.getsize(backup_file_path)
-                file_size_mb = file_size_bytes / (1024 * 1024)
             except OSError:
                 if os.path.exists(backup_file_path):
                     os.remove(backup_file_path)
                 return
 
-            if file_size_mb > MAX_FILE_SIZE_MB:
-                try:
-                    await channel.send(
-                        f"⚠️ **Backup zu groß** ({file_size_mb:.1f}MB)\n"
-                        f"Discord-Limit: {MAX_FILE_SIZE_MB}MB\n"
-                        "Bitte kontaktiere einen Administrator."
-                    )
-                except discord.Forbidden:
-                    pass
-
-                os.remove(backup_file_path)
-                return
+            MAX_FILE_SIZE_BYTES = int(MAX_FILE_SIZE_MB * 1024 * 1024)
+            parts = []
+            
+            if file_size_bytes > MAX_FILE_SIZE_BYTES:
+                part_num = 1
+                with open(backup_file_path, 'rb') as f:
+                    while True:
+                        chunk = f.read(MAX_FILE_SIZE_BYTES)
+                        if not chunk:
+                            break
+                        part_file = f"{backup_file_path}.part{part_num}"
+                        with open(part_file, 'wb') as p:
+                            p.write(chunk)
+                        parts.append(part_file)
+                        part_num += 1
+            else:
+                parts = [backup_file_path]
 
             # Sende zu Discord
             timestamp = datetime.datetime.now(GERMAN_TZ).strftime('%d.%m.%Y %H:%M Uhr')
-            filename = f"{guild.name}_Backup_{datetime.datetime.now(GERMAN_TZ).strftime('%Y%m%d_%H%M%S')}.zip"
+            filename_base = f"{guild.name}_Backup_{datetime.datetime.now(GERMAN_TZ).strftime('%Y%m%d_%H%M%S')}.zip"
 
             try:
-                with open(backup_file_path, 'rb') as f:
-                    discord_file = discord.File(f, filename=filename)
-                    embed = discord.Embed(
-                        title="✅ Server-Backup erstellt",
-                        description=f"Automatisches Backup vom {timestamp}",
-                        color=discord.Color.green()
-                    )
-                    embed.add_field(name="Dateigröße", value=f"{file_size_mb:.2f} MB", inline=True)
-                    embed.add_field(name="Server", value=f"{guild.name}", inline=True)
-                    embed.set_footer(text=f"Guild ID: {guild.id}")
+                for i, part_path in enumerate(parts):
+                    part_filename = filename_base if len(parts) == 1 else f"{filename_base}.part{i+1}"
+                    
+                    with open(part_path, 'rb') as f:
+                        discord_file = discord.File(f, filename=part_filename)
+                        
+                        if len(parts) == 1:
+                            title = "✅ Server-Backup erstellt"
+                            desc = f"Automatisches Backup vom {timestamp}"
+                        else:
+                            title = f"✅ Server-Backup erstellt (Teil {i+1}/{len(parts)})"
+                            desc = f"Teil {i+1} des automatischen Backups vom {timestamp}"
+                            
+                        embed = discord.Embed(
+                            title=title,
+                            description=desc,
+                            color=discord.Color.green()
+                        )
+                        part_size_mb = os.path.getsize(part_path) / (1024 * 1024)
+                        embed.add_field(name="Dateigröße", value=f"{part_size_mb:.2f} MB", inline=True)
+                        embed.add_field(name="Server", value=f"{guild.name}", inline=True)
+                        embed.set_footer(text=f"Guild ID: {guild.id}")
 
-                    await channel.send(embed=embed, file=discord_file)
-
+                        await channel.send(embed=embed, file=discord_file)
+                        
             except discord.Forbidden:
                 print(f"[Backup] Keine Berechtigung, in Kanal {channel_id} zu schreiben")
             except discord.HTTPException as e:
                 print(f"[Backup] HTTP-Fehler beim Upload: {e}")
             finally:
-                # Cleanup: Lösche temp-Datei
+                # Cleanup: Lösche temp-Dateien
                 if os.path.exists(backup_file_path):
                     try:
                         os.remove(backup_file_path)
                     except OSError:
                         pass
+                for part_path in parts:
+                    if part_path != backup_file_path and os.path.exists(part_path):
+                        try:
+                            os.remove(part_path)
+                        except OSError:
+                            pass
 
             # Aktualisiere last_backup_timestamp
             config['last_backup_timestamp'] = datetime.datetime.now(GERMAN_TZ).isoformat()

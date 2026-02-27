@@ -29,7 +29,8 @@
                 <div class="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" {% if is_enabled %}checked{% endif %} onchange="this.form.submit()"
                         class="sr-only peer">
-                    <div class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                    <div
+                        class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
                     </div>
                 </div>
                 <span class="text-white">Backup-Modul {{ 'aktiviert' if is_enabled else 'deaktiviert' }}</span>
@@ -49,13 +50,15 @@
         <p class="text-text-secondary text-sm mt-1">Automatische Backups deiner Server-Daten</p>
     </div>
     <div class="p-6">
-        <form data-ajax="true" action="{{ url_for('manage_backup', guild_id=guild.id) }}" method="post" class="space-y-4">
+        <form data-ajax="true" action="{{ url_for('manage_backup', guild_id=guild.id) }}" method="post"
+            class="space-y-4">
 
             <!-- Channel Selection -->
             <div>
                 <label class="block text-text-secondary text-sm mb-2">Backup-Kanal</label>
                 <p class="text-text-secondary text-xs mb-2">Kanal, in den Backups gesendet werden</p>
-                <select name="channel_id" class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                <select name="channel_id"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
                     <option value="">Deaktiviert</option>
                     {% for channel in guild.text_channels|sort(attribute='position') %}
                     <option value="{{ channel.id }}" {% if channel.id==config.get('channel_id') %}selected{% endif %}>
@@ -77,11 +80,16 @@
             <div>
                 <label class="block text-text-secondary text-sm mb-2">Backup-Häufigkeit</label>
                 <p class="text-text-secondary text-xs mb-2">Wie oft sollen Backups erstellt werden?</p>
-                <select name="backup_frequency_days" class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
-                    <option value="1" {% if config.get('backup_frequency_days', 1)==1 %}selected{% endif %}>Täglich</option>
-                    <option value="2" {% if config.get('backup_frequency_days')==2 %}selected{% endif %}>Alle 2 Tage</option>
-                    <option value="3" {% if config.get('backup_frequency_days')==3 %}selected{% endif %}>Alle 3 Tage</option>
-                    <option value="7" {% if config.get('backup_frequency_days')==7 %}selected{% endif %}>Wöchentlich</option>
+                <select name="backup_frequency_days"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="1" {% if config.get('backup_frequency_days', 1)==1 %}selected{% endif %}>Täglich
+                    </option>
+                    <option value="2" {% if config.get('backup_frequency_days')==2 %}selected{% endif %}>Alle 2 Tage
+                    </option>
+                    <option value="3" {% if config.get('backup_frequency_days')==3 %}selected{% endif %}>Alle 3 Tage
+                    </option>
+                    <option value="7" {% if config.get('backup_frequency_days')==7 %}selected{% endif %}>Wöchentlich
+                    </option>
                 </select>
             </div>
 
@@ -99,30 +107,59 @@
             {% endif %}
 
             <!-- Save Button -->
-            <button type="submit" class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+            <button type="submit"
+                class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
                 Speichern
             </button>
         </form>
     </div>
 </section>
 
-<!-- Info Section -->
-<div class="rounded-lg p-6 bg-blue-500/10 border border-blue-500/30">
+<!-- Restore Backup Form -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden mt-6">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">settings_backup_restore</span>
+            Backup Wiederherstellen
+        </h2>
+        <p class="text-text-secondary text-sm mt-1">Lade manuell ein Backup für diesen Server hoch. Wähle bei
+            gesplitteten Backups alle Teile (z.B. part1, part2) gleichzeitig aus.</p>
+    </div>
+    <div class="p-6">
+        <form action="{{ url_for('upload_server_backup', guild_id=guild.id) }}" method="post"
+            enctype="multipart/form-data" class="space-y-4">
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Backup Dateien (.zip oder Teile)</label>
+                <input type="file" name="backup_files" multiple accept="*"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none file:mr-4 file:py-2 file:px-4 file:border-0 file:rounded-lg file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-blue-600 cursor-pointer">
+            </div>
+            <button type="submit"
+                class="w-full px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold transition-colors mt-2">
+                Hochladen & Wiederherstellen
+            </button>
+        </form>
+    </div>
+</section>
+
+<div class="rounded-lg p-6 bg-blue-500/10 border border-blue-500/30 mt-6">
     <div class="flex items-start gap-4">
         <span class="material-symbols-outlined text-blue-400 text-3xl">info</span>
         <div class="space-y-2">
             <h3 class="text-white font-bold">ℹ️ Backup-Information</h3>
             <p class="text-blue-200 text-sm">
-                <strong>Was wird gebackupt:</strong> Alle Daten deines Servers (Level, Geburtstage, Einstellungen, Statistiken, etc.) als ZIP-Datei.
+                <strong>Was wird gebackupt:</strong> Alle Daten deines Servers (Level, Geburtstage, Einstellungen,
+                Statistiken, etc.) als ZIP-Datei.
             </p>
             <p class="text-blue-200 text-sm">
-                <strong>Wie funktioniert es:</strong> Zur konfigurierten Zeit wird automatisch ein Backup erstellt und in den ausgewählten Kanal gesendet.
+                <strong>Wie funktioniert es:</strong> Zur konfigurierten Zeit wird automatisch ein Backup erstellt und
+                in den ausgewählten Kanal gesendet.
             </p>
             <p class="text-blue-200 text-sm">
                 <strong>Dateigröße:</strong> Maximum 8MB (Discord Free Server). Bei Boosted Servern bis zu 25-100MB.
             </p>
             <p class="text-blue-200 text-sm">
-                <strong>Zugriff:</strong> Nutze den Befehl <code class="bg-black/30 px-1 rounded">/backup</code> in Discord für ein manuelles Backup.
+                <strong>Zugriff:</strong> Nutze den Befehl <code class="bg-black/30 px-1 rounded">/backup</code> in
+                Discord für ein manuelles Backup.
             </p>
         </div>
     </div>
@@ -135,7 +172,8 @@
         <span class="material-symbols-outlined text-yellow-400 text-3xl">info</span>
         <div>
             <h3 class="text-white font-bold mb-1">Modul deaktiviert</h3>
-            <p class="text-yellow-200 text-sm">Aktiviere das Backup-Modul oben, um die Einstellungen zu konfigurieren.</p>
+            <p class="text-yellow-200 text-sm">Aktiviere das Backup-Modul oben, um die Einstellungen zu konfigurieren.
+            </p>
         </div>
     </div>
 </div>
