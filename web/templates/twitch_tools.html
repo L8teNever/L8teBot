@@ -15,13 +15,16 @@
                 <span class="material-symbols-outlined text-purple-400">person_play</span>
                 Live Status & Dedicated Channels
             </h2>
-            {% if single_stream_is_enabled %}
-            <span
-                class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Aktiv</span>
-            {% else %}
-            <span
-                class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/20">Inaktiv</span>
-            {% endif %}
+            <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" data-ajax="true" class="m-0">
+                <input type="hidden" name="cog_name" value="Twitch-Live-Alert">
+                <input type="hidden" name="is_enabled" value="{{ 'False' if single_stream_is_enabled else 'True' }}">
+                <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                <label class="flex items-center gap-3 cursor-pointer m-0">
+                    <input type="checkbox" {% if single_stream_is_enabled %}checked{% endif %} onchange="this.form.submit()" class="sr-only peer">
+                    <div class="w-8 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 relative"></div>
+                    <span class="text-sm font-medium {% if single_stream_is_enabled %}text-green-400{% else %}text-red-400{% endif %}">{{ 'Aktiv' if single_stream_is_enabled else 'Inaktiv' }}</span>
+                </label>
+            </form>
         </div>
 
         {% if single_stream_is_enabled %}
@@ -283,13 +286,16 @@
                 <span class="material-symbols-outlined text-purple-400">group</span>
                 Globaler Streamer Feed
             </h2>
-            {% if multi_stream_is_enabled %}
-            <span
-                class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Aktiv</span>
-            {% else %}
-            <span
-                class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/20">Inaktiv</span>
-            {% endif %}
+            <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" data-ajax="true" class="m-0">
+                <input type="hidden" name="cog_name" value="Twitch">
+                <input type="hidden" name="is_enabled" value="{{ 'False' if multi_stream_is_enabled else 'True' }}">
+                <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                <label class="flex items-center gap-3 cursor-pointer m-0">
+                    <input type="checkbox" {% if multi_stream_is_enabled %}checked{% endif %} onchange="this.form.submit()" class="sr-only peer">
+                    <div class="w-8 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 relative"></div>
+                    <span class="text-sm font-medium {% if multi_stream_is_enabled %}text-green-400{% else %}text-red-400{% endif %}">{{ 'Aktiv' if multi_stream_is_enabled else 'Inaktiv' }}</span>
+                </label>
+            </form>
         </div>
 
         {% if multi_stream_is_enabled %}
@@ -405,13 +411,16 @@
                     <span class="material-symbols-outlined text-purple-400">movie</span>
                     Twitch Clips
                 </h2>
-                {% if clips_is_enabled %}
-                <span
-                    class="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-medium border border-green-500/20">Aktiv</span>
-                {% else %}
-                <span
-                    class="px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/20">Inaktiv</span>
-                {% endif %}
+                <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" data-ajax="true" class="m-0">
+                    <input type="hidden" name="cog_name" value="Twitch-Clips">
+                    <input type="hidden" name="is_enabled" value="{{ 'False' if clips_is_enabled else 'True' }}">
+                    <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                    <label class="flex items-center gap-3 cursor-pointer m-0">
+                        <input type="checkbox" {% if clips_is_enabled %}checked{% endif %} onchange="this.form.submit()" class="sr-only peer">
+                        <div class="w-8 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 relative"></div>
+                        <span class="text-sm font-medium {% if clips_is_enabled %}text-green-400{% else %}text-red-400{% endif %}">{{ 'Aktiv' if clips_is_enabled else 'Inaktiv' }}</span>
+                    </label>
+                </form>
             </div>
 
             {% if clips_is_enabled %}
