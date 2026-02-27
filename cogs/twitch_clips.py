@@ -140,13 +140,18 @@ class TwitchClipsCog(commands.Cog, name="Twitch-Clips"):
         if not guild: return False, "Server nicht gefunden."
 
         config = self.bot.data.get_guild_data(guild_id, "twitch_clips")
-        
+
         # Leere Eingabe löscht die Konfiguration
         if not streamer_name or not channel_id:
             config["streamer_name"] = None
             config["channel_id"] = None
             self.bot.data.save_guild_data(guild_id, "twitch_clips", config)
             return True, "Clip-Benachrichtigungen deaktiviert."
+
+        # Parse Twitch URLs to extract username
+        streamer_name = streamer_name.strip()
+        if "twitch.tv/" in streamer_name:
+            streamer_name = streamer_name.split("twitch.tv/")[-1].strip("/").strip()
 
         # Überprüfen, ob der Streamer existiert
         if self.twitch_api:

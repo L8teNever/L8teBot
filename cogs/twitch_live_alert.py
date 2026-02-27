@@ -548,11 +548,16 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
     async def web_set_config(self, guild_id: int, twitch_user: str, role_id: Optional[int], event_mode: str = "channel_only") -> Tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
         if not guild: return False, "Server nicht gefunden."
-        
+
         # Validiere event_mode
         if event_mode not in ["channel_only", "event_only", "both"]:
             event_mode = "channel_only"
-        
+
+        # Parse Twitch URLs to extract username
+        twitch_user = twitch_user.strip()
+        if "twitch.tv/" in twitch_user:
+            twitch_user = twitch_user.split("twitch.tv/")[-1].strip("/").strip()
+
         stream_info = await self.get_stream_info(twitch_user)
         if not stream_info or stream_info.get('status') == 'NOT_FOUND':
             return False, f"Fehler: Twitch-Benutzer `{twitch_user}` wurde nicht gefunden."
@@ -606,7 +611,7 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
     async def web_add_planned_stream(self, guild_id: int, twitch_user: str, start_time_iso: str, title: Optional[str] = None) -> Tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
         if not guild: return False, "Server nicht gefunden."
-        
+
         try:
             # Zeit parsen. Erwarte ISO Format (z.B. 2026-01-23T18:00)
             scheduled_start = datetime.fromisoformat(start_time_iso)
@@ -615,11 +620,16 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
                 # Da wir die Server-Zeitzone nicht kennen, nehmen wir hier einfachheitshalber an es ist bereits UTC oder wir nutzen die Systemzeit.
                 # TODO: Zeitzonen-Handling verbessern.
                 scheduled_start = scheduled_start.replace(tzinfo=timezone.utc)
-            
+
             if scheduled_start < datetime.now(timezone.utc):
                 return False, "Die geplante Zeit liegt in der Vergangenheit."
         except ValueError:
             return False, "Ungültiges Zeitformat."
+
+        # Parse Twitch URLs to extract username
+        twitch_user = twitch_user.strip()
+        if "twitch.tv/" in twitch_user:
+            twitch_user = twitch_user.split("twitch.tv/")[-1].strip("/").strip()
 
         stream_info = await self.get_stream_info(twitch_user)
         if not stream_info or stream_info.get('status') == 'NOT_FOUND':

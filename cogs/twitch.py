@@ -474,7 +474,12 @@ class TwitchCog(commands.Cog, name="Twitch"):
     async def web_add_streamer(self, guild_id: int, streamer_name: str) -> Tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
         if not guild: return False, "Server nicht gefunden."
-        
+
+        # Parse Twitch URLs to extract username
+        streamer_name = streamer_name.strip()
+        if "twitch.tv/" in streamer_name:
+            streamer_name = streamer_name.split("twitch.tv/")[-1].strip("/").strip()
+
         user_data = await self.get_twitch_user_data(streamer_name)
         if not user_data:
             return False, f"Twitch-Benutzer '{streamer_name}' konnte nicht gefunden werden."
