@@ -1,0 +1,144 @@
+{% extends "layout.html" %}
+{% block title %}Backup - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">Backup</h1>
+        <p class="text-text-secondary text-base">Automatische Server-Backups</p>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if is_enabled %}
+        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+        <p class="text-sm font-medium text-green-500">Aktiv</p>
+        {% else %}
+        <span class="h-2 w-2 rounded-full bg-gray-500"></span>
+        <p class="text-sm font-medium text-gray-500">Inaktiv</p>
+        {% endif %}
+    </div>
+</header>
+
+<!-- Module Toggle Section -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6">
+        <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+            <input type="hidden" name="cog_name" value="Backup">
+            <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
+            <input type="hidden" name="redirect_url" value="{{ request.url }}">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <div class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" {% if is_enabled %}checked{% endif %} onchange="this.form.submit()"
+                        class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                    </div>
+                </div>
+                <span class="text-white">Backup-Modul {{ 'aktiviert' if is_enabled else 'deaktiviert' }}</span>
+            </label>
+        </form>
+    </div>
+</section>
+
+{% if is_enabled %}
+<!-- Configuration Form -->
+<section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+    <div class="p-6 border-b border-[#2e3e5e]">
+        <h2 class="text-white text-xl font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">settings</span>
+            Konfiguration
+        </h2>
+        <p class="text-text-secondary text-sm mt-1">Automatische Backups deiner Server-Daten</p>
+    </div>
+    <div class="p-6">
+        <form data-ajax="true" action="{{ url_for('manage_backup', guild_id=guild.id) }}" method="post" class="space-y-4">
+
+            <!-- Channel Selection -->
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Backup-Kanal</label>
+                <p class="text-text-secondary text-xs mb-2">Kanal, in den Backups gesendet werden</p>
+                <select name="channel_id" class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="">Deaktiviert</option>
+                    {% for channel in guild.text_channels|sort(attribute='position') %}
+                    <option value="{{ channel.id }}" {% if channel.id==config.get('channel_id') %}selected{% endif %}>
+                        #{{ channel.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Time Selection -->
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Backup-Zeit</label>
+                <p class="text-text-secondary text-xs mb-2">Uhrzeit für automatische Backups (deutsche Zeit)</p>
+                <input type="time" name="backup_time" value="{{ config.get('backup_time', '03:00') }}"
+                    class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+            </div>
+
+            <!-- Frequency Selection -->
+            <div>
+                <label class="block text-text-secondary text-sm mb-2">Backup-Häufigkeit</label>
+                <p class="text-text-secondary text-xs mb-2">Wie oft sollen Backups erstellt werden?</p>
+                <select name="backup_frequency_days" class="w-full px-4 py-2 rounded-lg bg-background-dark border border-[#2e3e5e] text-white focus:border-primary focus:outline-none">
+                    <option value="1" {% if config.get('backup_frequency_days', 1)==1 %}selected{% endif %}>Täglich</option>
+                    <option value="2" {% if config.get('backup_frequency_days')==2 %}selected{% endif %}>Alle 2 Tage</option>
+                    <option value="3" {% if config.get('backup_frequency_days')==3 %}selected{% endif %}>Alle 3 Tage</option>
+                    <option value="7" {% if config.get('backup_frequency_days')==7 %}selected{% endif %}>Wöchentlich</option>
+                </select>
+            </div>
+
+            <!-- Last Backup Info -->
+            {% if config.get('last_backup_timestamp') %}
+            <div class="rounded-lg p-4 bg-blue-500/10 border border-blue-500/30">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-400">info</span>
+                    <div>
+                        <p class="text-white text-sm font-medium">Letztes Backup:</p>
+                        <p class="text-blue-200 text-xs">{{ config.get('last_backup_timestamp') }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Save Button -->
+            <button type="submit" class="w-full px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors">
+                Speichern
+            </button>
+        </form>
+    </div>
+</section>
+
+<!-- Info Section -->
+<div class="rounded-lg p-6 bg-blue-500/10 border border-blue-500/30">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-blue-400 text-3xl">info</span>
+        <div class="space-y-2">
+            <h3 class="text-white font-bold">ℹ️ Backup-Information</h3>
+            <p class="text-blue-200 text-sm">
+                <strong>Was wird gebackupt:</strong> Alle Daten deines Servers (Level, Geburtstage, Einstellungen, Statistiken, etc.) als ZIP-Datei.
+            </p>
+            <p class="text-blue-200 text-sm">
+                <strong>Wie funktioniert es:</strong> Zur konfigurierten Zeit wird automatisch ein Backup erstellt und in den ausgewählten Kanal gesendet.
+            </p>
+            <p class="text-blue-200 text-sm">
+                <strong>Dateigröße:</strong> Maximum 8MB (Discord Free Server). Bei Boosted Servern bis zu 25-100MB.
+            </p>
+            <p class="text-blue-200 text-sm">
+                <strong>Zugriff:</strong> Nutze den Befehl <code class="bg-black/30 px-1 rounded">/backup</code> in Discord für ein manuelles Backup.
+            </p>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- Module Disabled Message -->
+<div class="rounded-lg p-6 bg-yellow-500/10 border border-yellow-500/30">
+    <div class="flex items-start gap-4">
+        <span class="material-symbols-outlined text-yellow-400 text-3xl">info</span>
+        <div>
+            <h3 class="text-white font-bold mb-1">Modul deaktiviert</h3>
+            <p class="text-yellow-200 text-sm">Aktiviere das Backup-Modul oben, um die Einstellungen zu konfigurieren.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

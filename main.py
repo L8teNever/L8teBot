@@ -329,7 +329,7 @@ def import_legacy_data():
     return redirect(url_for('admin_maintenance'))
 
 
-MANAGEABLE_COGS = ["Geburtstage", "Zählen", "Level-System", "Moderation", "Twitch", "Twitch-Live-Alert", "Ticket-System", "Temp-Channel", "Twitch-Clips", "Streak", "Gatekeeper", "Guard", "Global-Ban", "Wrapped", "LFG", "Mitspieler-Suche", "Wordle", "Contexto"]
+MANAGEABLE_COGS = ["Geburtstage", "Zählen", "Level-System", "Moderation", "Twitch", "Twitch-Live-Alert", "Ticket-System", "Temp-Channel", "Twitch-Clips", "Streak", "Gatekeeper", "Guard", "Global-Ban", "Wrapped", "LFG", "Mitspieler-Suche", "Wordle", "Contexto", "Backup"]
 
 # (Existing get_admin_guilds and check_guild_permissions are slightly below)
 
@@ -972,6 +972,58 @@ def manage_temp_channel(guild_id):
     # Konfiguration für das Template laden
     config_for_template = temp_data.get('config', {})
     return render_template('temp_channel.html', guild=guild, config=config_for_template, is_enabled=is_enabled, admin_guilds=get_admin_guilds())
+
+
+# --- Backup Web-Route ---
+@app.route('/guild/<int:guild_id>/backup', methods=['GET', 'POST'])
+@requires_authorization
+def manage_backup(guild_id):
+    """Verwaltet die Backup-Einstellungen für einen Server."""
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung, diese Seite anzuzeigen.", "error")
+        return redirect(url_for("dashboard"))
+
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return redirect(url_for('dashboard'))
+
+    guild_config = bot.data.get_server_config(guild_id)
+    is_enabled = 'Backup' in guild_config.get('enabled_cogs', [])
+
+    # Lade oder erstelle Backup-Konfiguration
+    backup_config = bot.data.get_guild_data(guild_id, "backup")
+    backup_config.setdefault('enabled', False)
+    backup_config.setdefault('channel_id', None)
+    backup_config.setdefault('backup_time', '03:00')
+    backup_config.setdefault('backup_frequency_days', 1)
+
+    if request.method == 'POST' and is_enabled:
+        # Hole Form-Daten
+        channel_id_str = request.form.get('channel_id')
+        channel_id = int(channel_id_str) if channel_id_str else None
+        backup_time = request.form.get('backup_time', '03:00')
+        frequency_days = int(request.form.get('backup_frequency_days', 1))
+
+        # Aktualisiere Konfiguration
+        backup_config['enabled'] = True
+        backup_config['channel_id'] = channel_id
+        backup_config['backup_time'] = backup_time
+        backup_config['backup_frequency_days'] = frequency_days
+
+        # Speichere
+        bot.data.save_guild_data(guild_id, "backup", backup_config)
+
+        msg = "Backup-Einstellungen erfolgreich gespeichert."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': msg})
+        flash(msg, "success")
+        return redirect(url_for('manage_backup', guild_id=guild_id))
+
+    return render_template('backup.html',
+                         guild=guild,
+                         config=backup_config,
+                         is_enabled=is_enabled,
+                         admin_guilds=get_admin_guilds())
 
 
 @app.route('/guild/<int:guild_id>/twitch_clips', methods=['GET', 'POST'])
