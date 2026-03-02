@@ -272,6 +272,76 @@
         </div>
     </section>
 
+    <!-- 4. ONBOARDING SECTION -->
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e] flex justify-between items-center">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-purple-400">verified_user</span>
+                Onboarding (Automatische Rollenvergabe)
+            </h2>
+            <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
+                <input type="hidden" name="cog_name" value="Onboarding">
+                <input type="hidden" name="is_enabled" value="{{ 'False' if onboarding_is_enabled else 'True' }}">
+                <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <div class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" {% if onboarding_is_enabled %}checked{% endif %} onchange="this.form.submit()" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </div>
+                </label>
+            </form>
+        </div>
+
+        <div class="p-6 {% if not onboarding_is_enabled %}opacity-50 pointer-events-none{% endif %}">
+            <p class="text-text-secondary text-sm mb-6">
+                Weise neuen Mitgliedern automatisch Rollen zu, wenn sie die Discord-Regeln akzeptieren.
+            </p>
+
+            <form data-ajax="true" action="{{ url_for('manage_onboarding', guild_id=guild.id) }}" method="post" class="space-y-6">
+                <!-- Multi-Role Selection -->
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">
+                        Zuzuweisende Rollen (Mehrfachauswahl möglich)
+                    </label>
+                    <select name="role_ids" multiple size="8" required
+                        class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                        {% for role in guild.roles|sort(attribute='position', reverse=true) %}
+                        {% if not role.is_default() and not role.is_bot_managed() %}
+                        <option value="{{ role.id }}"
+                            {% if role.id in onboarding_config.get('role_ids', []) %}selected{% endif %}>
+                            {{ role.name }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                    <p class="text-[10px] text-text-secondary mt-1">
+                        Strg/Cmd gedrückt halten für Mehrfachauswahl. Mind. 1 Rolle erforderlich.
+                    </p>
+                </div>
+
+                <!-- Log Channel (Optional) -->
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2">Log-Kanal (optional)</label>
+                    <select name="log_channel_id"
+                        class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                        <option value="">Kein Logging</option>
+                        {% for channel in guild.text_channels|sort(attribute='position') %}
+                        <option value="{{ channel.id }}"
+                            {% if channel.id == onboarding_config.get('log_channel_id') %}selected{% endif %}>
+                            #{{ channel.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit"
+                    class="bg-primary hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                    Onboarding-Einstellungen speichern
+                </button>
+            </form>
+        </div>
+    </section>
+
 </div>
 
 {% endblock %}

@@ -329,7 +329,7 @@ def import_legacy_data():
     return redirect(url_for('admin_maintenance'))
 
 
-MANAGEABLE_COGS = ["Geburtstage", "Zählen", "Level-System", "Moderation", "Twitch", "Twitch-Live-Alert", "Ticket-System", "Temp-Channel", "Twitch-Clips", "Streak", "Gatekeeper", "Guard", "Global-Ban", "Wrapped", "LFG", "Mitspieler-Suche", "Wordle", "Contexto", "Backup"]
+MANAGEABLE_COGS = ["Geburtstage", "Zählen", "Level-System", "Moderation", "Twitch", "Twitch-Live-Alert", "Ticket-System", "Temp-Channel", "Twitch-Clips", "Streak", "Gatekeeper", "Guard", "Global-Ban", "Wrapped", "LFG", "Mitspieler-Suche", "Wordle", "Contexto", "Backup", "Onboarding"]
 
 # (Existing get_admin_guilds and check_guild_permissions are slightly below)
 
@@ -1472,6 +1472,10 @@ def manage_guard(guild_id):
     global_ban_is_enabled = 'Global-Ban' in guild_config.get('enabled_cogs', [])
     global_ban_config = bot.data.get_guild_data(guild_id, "global_ban")
 
+    # Onboarding Daten
+    onboarding_is_enabled = 'Onboarding' in guild_config.get('enabled_cogs', [])
+    onboarding_config = bot.data.get_guild_data(guild_id, "onboarding")
+
     if gatekeeper_is_enabled:
         gatekeeper_cog = bot.get_cog('Gatekeeper')
         if gatekeeper_cog:
@@ -1482,7 +1486,8 @@ def manage_guard(guild_id):
                            guard_config=guard_config, guard_is_enabled=guard_is_enabled,
                            gatekeeper_config=gatekeeper_config, gatekeeper_is_enabled=gatekeeper_is_enabled,
                            pending_members=pending_members,
-                           global_ban_config=global_ban_config, global_ban_is_enabled=global_ban_is_enabled)
+                           global_ban_config=global_ban_config, global_ban_is_enabled=global_ban_is_enabled,
+                           onboarding_config=onboarding_config, onboarding_is_enabled=onboarding_is_enabled)
 
 @app.route('/guild/<int:guild_id>/global_ban', methods=['GET', 'POST'])
 @requires_authorization
@@ -1517,6 +1522,50 @@ def manage_global_ban(guild_id):
             return jsonify({'success': success, 'message': message})
         flash(message, 'success' if success else 'danger')
     
+    return redirect(url_for('manage_guard', guild_id=guild_id))
+
+# --- Onboarding Web-Route ---
+@app.route('/guild/<int:guild_id>/onboarding', methods=['GET', 'POST'])
+@requires_authorization
+def manage_onboarding(guild_id):
+    """Verwaltet die Onboarding-Einstellungen für einen Server."""
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung für diesen Server.", "danger")
+        return redirect(url_for('dashboard'))
+
+    # GET requests redirect to the unified guard page
+    if request.method == 'GET':
+        return redirect(url_for('manage_guard', guild_id=guild_id), code=301)
+
+    guild = bot.get_guild(guild_id)
+    guild_config = bot.data.get_server_config(guild_id)
+    is_enabled = 'Onboarding' in guild_config.get('enabled_cogs', [])
+    cog = bot.get_cog('Onboarding')
+
+    if request.method == 'POST':
+        if not is_enabled or not cog:
+            flash("Das Onboarding-Modul ist nicht aktiv.", "danger")
+            return redirect(url_for('manage_guard', guild_id=guild_id))
+
+        # Get form data
+        role_ids = request.form.getlist('role_ids')
+        role_ids = [int(rid) for rid in role_ids if rid]
+
+        log_channel_id_str = request.form.get('log_channel_id')
+        log_channel_id = int(log_channel_id_str) if log_channel_id_str else None
+
+        # Call cog method
+        future = asyncio.run_coroutine_threadsafe(
+            cog.web_set_config(guild_id, role_ids, log_channel_id),
+            bot.loop
+        )
+        success, message = future.result()
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': success, 'message': message})
+
+        flash(message, 'success' if success else 'danger')
+
     return redirect(url_for('manage_guard', guild_id=guild_id))
 
 @app.route('/guild/<int:guild_id>/wrapped', methods=['GET', 'POST'])
@@ -1819,7 +1868,7 @@ async def on_ready():
         'cogs.twitch_live_alert', 'cogs.temp_channel', 'cogs.twitch_clips', 'cogs.streak',
         'cogs.gatekeeper', 'cogs.guard', 'cogs.global_ban', 'cogs.maintenance', 'cogs.wrapped',
         'cogs.lfg', 'cogs.monthly_stats', 'cogs.leaderboard_display', 'cogs.wordle', 'cogs.contexto', 'cogs.info',
-        'cogs.twitch_chat_bot', 'cogs.backup'
+        'cogs.twitch_chat_bot', 'cogs.backup', 'cogs.onboarding'
     ]
     
     print(f" 📦 Lade {len(cogs_to_load)} Erweiterungen...")
