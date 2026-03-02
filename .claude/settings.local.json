@@ -10,7 +10,8 @@
       "Bash(git commit:*)",
       "Bash(ls -la \"c:\\\\Users\\\\simon\\\\Documents\\\\L8teBot\\\\utils\"\" && find \"c:UserssimonDocumentsL8teBotutils\" -name \"*.py \" -type f)",
       "Bash(find:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(python:*)"
     ]
   }
 }

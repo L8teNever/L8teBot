@@ -153,6 +153,10 @@
                                 class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_backup' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
                                 Backup
                             </a>
+                            <a href="{{ url_for('manage_logging', guild_id=guild.id) }}"
+                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_logging' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                Logging
+                            </a>
                         </div>
                     </details>
                 </nav>

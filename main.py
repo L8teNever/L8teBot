@@ -1568,6 +1568,70 @@ def manage_onboarding(guild_id):
 
     return redirect(url_for('manage_guard', guild_id=guild_id))
 
+@app.route('/guild/<int:guild_id>/logging', methods=['GET', 'POST'])
+@requires_authorization
+def manage_logging(guild_id):
+    """Manages logging configuration for a guild."""
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung für diesen Server.", "danger")
+        return redirect(url_for('dashboard'))
+
+    guild = bot.get_guild(guild_id)
+    guild_config = bot.data.get_server_config(guild_id)
+    is_enabled = 'Logging' in guild_config.get('enabled_cogs', [])
+    cog = bot.get_cog('Logging')
+
+    if request.method == 'POST':
+        if not is_enabled or not cog:
+            flash("Das Logging-Modul ist nicht aktiv.", "danger")
+            return redirect(url_for('manage_logging', guild_id=guild_id))
+
+        # Extract form data
+        log_channel_id_str = request.form.get('log_channel_id')
+        log_channel_id = int(log_channel_id_str) if log_channel_id_str else None
+
+        enabled_events = request.form.getlist('enabled_events')
+
+        ignored_channels_str = request.form.getlist('ignored_channels')
+        ignored_channels = [int(cid) for cid in ignored_channels_str if cid]
+
+        ignored_users_str = request.form.get('ignored_users', '')
+        ignored_users = []
+        if ignored_users_str:
+            for uid_str in ignored_users_str.split(','):
+                try:
+                    ignored_users.append(int(uid_str.strip()))
+                except ValueError:
+                    pass
+
+        retention_days = int(request.form.get('retention_days', 30))
+
+        # Call cog method
+        future = asyncio.run_coroutine_threadsafe(
+            cog.web_set_config(guild_id, {
+                'log_channel_id': log_channel_id,
+                'enabled_events': enabled_events,
+                'ignored_channels': ignored_channels,
+                'ignored_users': ignored_users,
+                'retention_days': retention_days
+            }),
+            bot.loop
+        )
+        success, message = future.result()
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': success, 'message': message})
+
+        flash(message, 'success' if success else 'danger')
+        return redirect(url_for('manage_logging', guild_id=guild_id))
+
+    # GET request
+    logging_config = bot.data.get_guild_data(guild_id, "logging")
+    return render_template('logging.html',
+                         guild=guild,
+                         logging_is_enabled=is_enabled,
+                         logging_config=logging_config)
+
 @app.route('/guild/<int:guild_id>/wrapped', methods=['GET', 'POST'])
 @requires_authorization
 def manage_wrapped(guild_id):
@@ -1868,7 +1932,7 @@ async def on_ready():
         'cogs.twitch_live_alert', 'cogs.temp_channel', 'cogs.twitch_clips', 'cogs.streak',
         'cogs.gatekeeper', 'cogs.guard', 'cogs.global_ban', 'cogs.maintenance', 'cogs.wrapped',
         'cogs.lfg', 'cogs.monthly_stats', 'cogs.leaderboard_display', 'cogs.wordle', 'cogs.contexto', 'cogs.info',
-        'cogs.twitch_chat_bot', 'cogs.backup', 'cogs.onboarding'
+        'cogs.twitch_chat_bot', 'cogs.backup', 'cogs.onboarding', 'cogs.logging'
     ]
     
     print(f" 📦 Lade {len(cogs_to_load)} Erweiterungen...")
