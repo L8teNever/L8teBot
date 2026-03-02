@@ -197,6 +197,33 @@ class LoggingCog(commands.Cog, name="Logging"):
         await self._send_log_embed(guild.id, embed)
 
     @commands.Cog.listener()
+    async def on_member_verify(self, member: discord.Member):
+        """Log when a member accepts server rules (member.pending changes)."""
+        if member.bot:
+            return
+
+        guild = member.guild
+        if not self.should_log_event(guild.id, "member_verify", user_id=member.id):
+            return
+
+        # Create embed
+        embed = Embed(title="✅ Mitglied verifiziert", color=Color.green())
+        embed.add_field(name="Mitglied", value=f"{member.mention} ({member.id})", inline=False)
+        embed.add_field(name="Aktion", value="Hat Server-Regeln akzeptiert", inline=False)
+        embed.timestamp = datetime.utcnow()
+
+        # Save to database
+        self.log_storage.save_log(guild.id, {
+            'event_type': 'member_verify',
+            'target_id': str(member.id),
+            'target_name': member.name,
+            'action': 'Accepted server rules',
+        })
+
+        # Send embed
+        await self._send_log_embed(guild.id, embed)
+
+    @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         """Log when a member leaves the server."""
         if member.bot:
@@ -534,6 +561,326 @@ class LoggingCog(commands.Cog, name="Logging"):
         })
 
         # Send embed
+        await self._send_log_embed(guild.id, embed)
+
+    # ==================== GUILD EVENTS ====================
+
+    @commands.Cog.listener()
+    async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
+        """Log when the guild is updated."""
+        if not self.should_log_event(after.id, "guild_update"):
+            return
+
+        changes = []
+
+        if before.name != after.name:
+            changes.append(f"Name: `{before.name}` → `{after.name}`")
+
+        if before.icon != after.icon:
+            changes.append("Icon geändert")
+
+        if before.banner != after.banner:
+            changes.append("Banner geändert")
+
+        if before.verification_level != after.verification_level:
+            changes.append(f"Verifizierungslevel: `{before.verification_level}` → `{after.verification_level}`")
+
+        if before.default_notifications != after.default_notifications:
+            changes.append(f"Benachrichtigungen: `{before.default_notifications}` → `{after.default_notifications}`")
+
+        if not changes:
+            return
+
+        # Create embed
+        embed = Embed(title="⚙️ Server geändert", color=Color.orange())
+        embed.add_field(name="Server", value=after.name, inline=False)
+        embed.add_field(name="Änderungen", value="\n".join(changes), inline=False)
+        embed.timestamp = datetime.utcnow()
+
+        # Save to database
+        self.log_storage.save_log(after.id, {
+            'event_type': 'guild_update',
+            'target_id': str(after.id),
+            'target_name': after.name,
+            'action': 'Updated guild',
+            'extra_data': {'changes': changes}
+        })
+
+        # Send embed
+        await self._send_log_embed(after.id, embed)
+
+    # ==================== VOICE EVENTS ====================
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+        """Log voice state changes."""
+        if member.bot:
+            return
+
+        guild = member.guild
+
+        # Member joined voice channel
+        if before.channel is None and after.channel is not None:
+            if not self.should_log_event(guild.id, "voice_join", user_id=member.id):
+                return
+
+            embed = Embed(title="🔊 Voice-Kanal betreten", color=Color.green())
+            embed.add_field(name="Mitglied", value=f"{member.mention} ({member.id})", inline=False)
+            embed.add_field(name="Kanal", value=after.channel.name, inline=False)
+            embed.timestamp = datetime.utcnow()
+
+            self.log_storage.save_log(guild.id, {
+                'event_type': 'voice_join',
+                'target_id': str(member.id),
+                'target_name': member.name,
+                'channel_id': str(after.channel.id),
+                'channel_name': after.channel.name,
+                'action': 'Joined voice channel',
+            })
+
+            await self._send_log_embed(guild.id, embed)
+
+        # Member left voice channel
+        elif before.channel is not None and after.channel is None:
+            if not self.should_log_event(guild.id, "voice_leave", user_id=member.id):
+                return
+
+            embed = Embed(title="🔇 Voice-Kanal verlassen", color=Color.red())
+            embed.add_field(name="Mitglied", value=f"{member.mention} ({member.id})", inline=False)
+            embed.add_field(name="Kanal", value=before.channel.name, inline=False)
+            embed.timestamp = datetime.utcnow()
+
+            self.log_storage.save_log(guild.id, {
+                'event_type': 'voice_leave',
+                'target_id': str(member.id),
+                'target_name': member.name,
+                'channel_id': str(before.channel.id),
+                'channel_name': before.channel.name,
+                'action': 'Left voice channel',
+            })
+
+            await self._send_log_embed(guild.id, embed)
+
+        # Member moved voice channels
+        elif before.channel != after.channel and before.channel is not None:
+            if not self.should_log_event(guild.id, "voice_move", user_id=member.id):
+                return
+
+            embed = Embed(title="↔️ Voice-Kanal gewechselt", color=Color.orange())
+            embed.add_field(name="Mitglied", value=f"{member.mention} ({member.id})", inline=False)
+            embed.add_field(name="Von", value=before.channel.name, inline=True)
+            embed.add_field(name="Zu", value=after.channel.name, inline=True)
+            embed.timestamp = datetime.utcnow()
+
+            self.log_storage.save_log(guild.id, {
+                'event_type': 'voice_move',
+                'target_id': str(member.id),
+                'target_name': member.name,
+                'action': f'Moved from {before.channel.name} to {after.channel.name}',
+                'extra_data': {
+                    'from_channel': before.channel.id,
+                    'to_channel': after.channel.id
+                }
+            })
+
+            await self._send_log_embed(guild.id, embed)
+
+        # Member muted/unmuted
+        if before.self_mute != after.self_mute:
+            if not self.should_log_event(guild.id, "voice_mute", user_id=member.id):
+                pass
+            else:
+                action = "gemutet" if after.self_mute else "entmutet"
+                embed = Embed(title=f"🔇 Mitglied {action}", color=Color.orange())
+                embed.add_field(name="Mitglied", value=f"{member.mention} ({member.id})", inline=False)
+                embed.add_field(name="Kanal", value=after.channel.name if after.channel else "Kein Kanal", inline=False)
+                embed.timestamp = datetime.utcnow()
+
+                self.log_storage.save_log(guild.id, {
+                    'event_type': 'voice_mute' if after.self_mute else 'voice_unmute',
+                    'target_id': str(member.id),
+                    'target_name': member.name,
+                    'action': action,
+                })
+
+                await self._send_log_embed(guild.id, embed)
+
+        # Member deafened/undeafened
+        if before.self_deaf != after.self_deaf:
+            if not self.should_log_event(guild.id, "voice_deaf", user_id=member.id):
+                pass
+            else:
+                action = "gehört deaktiviert" if after.self_deaf else "gehört aktiviert"
+                embed = Embed(title=f"🔕 Mitglied {action}", color=Color.orange())
+                embed.add_field(name="Mitglied", value=f"{member.mention} ({member.id})", inline=False)
+                embed.add_field(name="Kanal", value=after.channel.name if after.channel else "Kein Kanal", inline=False)
+                embed.timestamp = datetime.utcnow()
+
+                self.log_storage.save_log(guild.id, {
+                    'event_type': 'voice_deaf' if after.self_deaf else 'voice_undeaf',
+                    'target_id': str(member.id),
+                    'target_name': member.name,
+                    'action': action,
+                })
+
+                await self._send_log_embed(guild.id, embed)
+
+    # ==================== EMOJI EVENTS ====================
+
+    @commands.Cog.listener()
+    async def on_guild_emojis_update(self, guild: discord.Guild, before: List[discord.Emoji], after: List[discord.Emoji]):
+        """Log emoji changes."""
+        if not self.should_log_event(guild.id, "emoji_update"):
+            return
+
+        before_set = set(e.id for e in before)
+        after_set = set(e.id for e in after)
+
+        # Emojis added
+        added = set(after) - set(before)
+        if added:
+            embed = Embed(title="➕ Emoji hinzugefügt", color=Color.green())
+            emoji_names = ", ".join([f"{e.name}" for e in added])
+            embed.add_field(name="Emojis", value=emoji_names, inline=False)
+            embed.timestamp = datetime.utcnow()
+
+            self.log_storage.save_log(guild.id, {
+                'event_type': 'emoji_add',
+                'action': f'Added {len(added)} emoji(s)',
+                'extra_data': {'emoji_names': [e.name for e in added]}
+            })
+
+            await self._send_log_embed(guild.id, embed)
+
+        # Emojis removed
+        removed = set(before) - set(after)
+        if removed:
+            embed = Embed(title="➖ Emoji entfernt", color=Color.red())
+            emoji_names = ", ".join([f"{e.name}" for e in removed])
+            embed.add_field(name="Emojis", value=emoji_names, inline=False)
+            embed.timestamp = datetime.utcnow()
+
+            self.log_storage.save_log(guild.id, {
+                'event_type': 'emoji_remove',
+                'action': f'Removed {len(removed)} emoji(s)',
+                'extra_data': {'emoji_names': [e.name for e in removed]}
+            })
+
+            await self._send_log_embed(guild.id, embed)
+
+    # ==================== STICKER EVENTS ====================
+
+    @commands.Cog.listener()
+    async def on_guild_stickers_update(self, guild: discord.Guild, before: List[discord.GuildSticker], after: List[discord.GuildSticker]):
+        """Log sticker changes."""
+        if not self.should_log_event(guild.id, "sticker_update"):
+            return
+
+        # Stickers added
+        added = set(after) - set(before)
+        if added:
+            embed = Embed(title="➕ Sticker hinzugefügt", color=Color.green())
+            sticker_names = ", ".join([f"{s.name}" for s in added])
+            embed.add_field(name="Sticker", value=sticker_names, inline=False)
+            embed.timestamp = datetime.utcnow()
+
+            self.log_storage.save_log(guild.id, {
+                'event_type': 'sticker_add',
+                'action': f'Added {len(added)} sticker(s)',
+                'extra_data': {'sticker_names': [s.name for s in added]}
+            })
+
+            await self._send_log_embed(guild.id, embed)
+
+        # Stickers removed
+        removed = set(before) - set(after)
+        if removed:
+            embed = Embed(title="➖ Sticker entfernt", color=Color.red())
+            sticker_names = ", ".join([f"{s.name}" for s in removed])
+            embed.add_field(name="Sticker", value=sticker_names, inline=False)
+            embed.timestamp = datetime.utcnow()
+
+            self.log_storage.save_log(guild.id, {
+                'event_type': 'sticker_remove',
+                'action': f'Removed {len(removed)} sticker(s)',
+                'extra_data': {'sticker_names': [s.name for s in removed]}
+            })
+
+            await self._send_log_embed(guild.id, embed)
+
+    # ==================== WEBHOOK EVENTS ====================
+
+    @commands.Cog.listener()
+    async def on_webhooks_update(self, channel: discord.TextChannel):
+        """Log webhook changes."""
+        guild = channel.guild
+
+        if not self.should_log_event(guild.id, "webhook_update", channel.id):
+            return
+
+        embed = Embed(title="🪝 Webhooks geändert", color=Color.orange())
+        embed.add_field(name="Kanal", value=f"{channel.mention}", inline=False)
+        embed.add_field(name="Aktion", value="Webhook erstellt/gelöscht/geändert", inline=False)
+        embed.timestamp = datetime.utcnow()
+
+        self.log_storage.save_log(guild.id, {
+            'event_type': 'webhook_update',
+            'channel_id': str(channel.id),
+            'channel_name': channel.name,
+            'action': 'Webhook updated',
+        })
+
+        await self._send_log_embed(guild.id, embed)
+
+    # ==================== INVITE EVENTS ====================
+
+    @commands.Cog.listener()
+    async def on_invite_create(self, invite: discord.Invite):
+        """Log when an invite is created."""
+        guild = invite.guild
+
+        if not self.should_log_event(guild.id, "invite_create"):
+            return
+
+        embed = Embed(title="🔗 Einladung erstellt", color=Color.green())
+        embed.add_field(name="Code", value=f"`{invite.code}`", inline=False)
+        embed.add_field(name="Ersteller", value=f"{invite.inviter.mention if invite.inviter else 'Unbekannt'}", inline=True)
+        embed.add_field(name="Kanal", value=f"{invite.channel.mention if invite.channel else 'Unbekannt'}", inline=True)
+        embed.timestamp = datetime.utcnow()
+
+        self.log_storage.save_log(guild.id, {
+            'event_type': 'invite_create',
+            'user_id': str(invite.inviter.id) if invite.inviter else None,
+            'user_name': invite.inviter.name if invite.inviter else None,
+            'channel_id': str(invite.channel.id) if invite.channel else None,
+            'channel_name': invite.channel.name if invite.channel else None,
+            'action': f'Created invite {invite.code}',
+            'extra_data': {'invite_code': invite.code}
+        })
+
+        await self._send_log_embed(guild.id, embed)
+
+    @commands.Cog.listener()
+    async def on_invite_delete(self, invite: discord.Invite):
+        """Log when an invite is deleted."""
+        guild = invite.guild
+
+        if not self.should_log_event(guild.id, "invite_delete"):
+            return
+
+        embed = Embed(title="🔗 Einladung gelöscht", color=Color.red())
+        embed.add_field(name="Code", value=f"`{invite.code}`", inline=False)
+        embed.add_field(name="Kanal", value=f"{invite.channel.mention if invite.channel else 'Unbekannt'}", inline=False)
+        embed.timestamp = datetime.utcnow()
+
+        self.log_storage.save_log(guild.id, {
+            'event_type': 'invite_delete',
+            'channel_id': str(invite.channel.id) if invite.channel else None,
+            'channel_name': invite.channel.name if invite.channel else None,
+            'action': f'Deleted invite {invite.code}',
+            'extra_data': {'invite_code': invite.code}
+        })
+
         await self._send_log_embed(guild.id, embed)
 
     # ==================== WEB INTEGRATION ====================

@@ -157,6 +157,10 @@
                                 class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_logging' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
                                 Logging
                             </a>
+                            <a href="{{ url_for('view_logs', guild_id=guild.id) }}"
+                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'view_logs' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                Log-Viewer
+                            </a>
                         </div>
                     </details>
                 </nav>

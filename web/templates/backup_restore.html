@@ -41,7 +41,8 @@
                     class="flex items-center gap-3 cursor-pointer p-3 rounded-lg bg-background-dark border border-[#2e3e5e] hover:border-primary/50 transition-colors">
                     <input type="checkbox" name="modules" value="{{ module }}"
                         class="module-checkbox w-5 h-5 rounded border-[#2e3e5e] text-primary focus:ring-primary focus:ring-offset-background-dark bg-[#111722]">
-                    <span class="text-white capitalize">{{ module | replace('_', ' ') }}</span>
+                    <span class="text-white capitalize">{{ module | replace('.json', '') | replace('.db', '') |
+                        replace('_', ' ') }}</span>
                 </label>
                 {% endfor %}
             </div>

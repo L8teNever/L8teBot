@@ -180,6 +180,97 @@
                             </label>
                         </div>
                     </div>
+
+                    <!-- Guild Events -->
+                    <div class="mb-6 p-4 bg-background-dark rounded-lg border border-[#2e3e5e]">
+                        <h3 class="text-white font-semibold mb-3 flex items-center gap-2">
+                            <span class="text-red-400">🏠</span> Server
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="guild_update"
+                                    {% if 'guild_update' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Server-Einstellungen geändert</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Voice Events -->
+                    <div class="mb-6 p-4 bg-background-dark rounded-lg border border-[#2e3e5e]">
+                        <h3 class="text-white font-semibold mb-3 flex items-center gap-2">
+                            <span class="text-yellow-400">🎤</span> Voice
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="voice_join"
+                                    {% if 'voice_join' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Voice-Kanal betreten</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="voice_leave"
+                                    {% if 'voice_leave' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Voice-Kanal verlassen</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="voice_move"
+                                    {% if 'voice_move' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Voice-Kanal gewechselt</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="voice_mute"
+                                    {% if 'voice_mute' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Mitglied gemutet/entmutet</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="voice_deaf"
+                                    {% if 'voice_deaf' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Mitglied gehört deaktiviert</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Emoji & Sticker Events -->
+                    <div class="mb-6 p-4 bg-background-dark rounded-lg border border-[#2e3e5e]">
+                        <h3 class="text-white font-semibold mb-3 flex items-center gap-2">
+                            <span class="text-pink-400">😊</span> Emojis & Sticker
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="emoji_update"
+                                    {% if 'emoji_update' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Emojis hinzugefügt/entfernt</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="sticker_update"
+                                    {% if 'sticker_update' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Sticker hinzugefügt/entfernt</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Webhook & Invite Events -->
+                    <div class="mb-6 p-4 bg-background-dark rounded-lg border border-[#2e3e5e]">
+                        <h3 class="text-white font-semibold mb-3 flex items-center gap-2">
+                            <span class="text-cyan-400">🔐</span> Webhooks & Einladungen
+                        </h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="webhook_update"
+                                    {% if 'webhook_update' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Webhooks geändert</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="invite_create"
+                                    {% if 'invite_create' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Einladung erstellt</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" name="enabled_events" value="invite_delete"
+                                    {% if 'invite_delete' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <span class="text-text-secondary">Einladung gelöscht</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 3. IGNORED CHANNELS -->
@@ -241,8 +332,14 @@
         <div class="p-6 space-y-4 text-text-secondary text-sm">
             <p>
                 <span class="text-green-400 font-semibold">✅ Was wird geloggt:</span><br>
-                Alle Änderungen auf deinem Server werden automatisch protokolliert: Nachrichten löschen/bearbeiten,
-                Mitglieder beitreten/verlassen, Rollen erstellen/löschen, Kanäle ändern, und mehr.
+                <strong>Nachrichten:</strong> Löschen, Bearbeiten, Bulk-Delete<br>
+                <strong>Mitglieder:</strong> Join, Leave, Ban, Unban, Spitzname-Änderung, Rollen-Änderung<br>
+                <strong>Rollen:</strong> Erstellen, Löschen, Ändern<br>
+                <strong>Kanäle:</strong> Erstellen, Löschen, Umbenennen<br>
+                <strong>Server:</strong> Name, Icon, Verifizierungslevel, Benachrichtigungen<br>
+                <strong>Voice:</strong> Join, Leave, Wechsel, Mute, Deaf<br>
+                <strong>Emojis & Sticker:</strong> Hinzufügen, Entfernen<br>
+                <strong>Webhooks & Invites:</strong> Erstellen, Löschen, Ändern
             </p>
 
             <p>

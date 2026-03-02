@@ -1,0 +1,222 @@
+{% extends "layout.html" %}
+{% block title %}Log-Viewer - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight">📋 Log-Viewer</h1>
+        <p class="text-text-secondary text-base">Alle Änderungen auf deinem Server ansehen und filtern</p>
+    </div>
+    <div class="text-text-secondary text-sm">
+        <strong>{{ total_logs }}</strong> Logs insgesamt
+    </div>
+</header>
+
+<div class="grid grid-cols-1 gap-8">
+
+    <!-- FILTER SECTION -->
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e]">
+            <h2 class="text-white text-lg font-bold">🔍 Filter & Suche</h2>
+        </div>
+
+        <div class="p-6">
+            <form id="filter-form" method="get" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Event Type Filter -->
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Event-Typ</label>
+                        <select name="event_type"
+                            class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white text-sm">
+                            <option value="">Alle</option>
+                            <option value="message_delete" {% if request.args.get('event_type') == 'message_delete' %}selected{% endif %}>Nachricht gelöscht</option>
+                            <option value="message_edit" {% if request.args.get('event_type') == 'message_edit' %}selected{% endif %}>Nachricht bearbeitet</option>
+                            <option value="member_join" {% if request.args.get('event_type') == 'member_join' %}selected{% endif %}>Mitglied beigetreten</option>
+                            <option value="member_remove" {% if request.args.get('event_type') == 'member_remove' %}selected{% endif %}>Mitglied verlassen</option>
+                            <option value="member_update_nickname" {% if request.args.get('event_type') == 'member_update_nickname' %}selected{% endif %}>Spitzname geändert</option>
+                            <option value="member_role_add" {% if request.args.get('event_type') == 'member_role_add' %}selected{% endif %}>Rolle hinzugefügt</option>
+                            <option value="member_role_remove" {% if request.args.get('event_type') == 'member_role_remove' %}selected{% endif %}>Rolle entfernt</option>
+                            <option value="role_create" {% if request.args.get('event_type') == 'role_create' %}selected{% endif %}>Rolle erstellt</option>
+                            <option value="role_delete" {% if request.args.get('event_type') == 'role_delete' %}selected{% endif %}>Rolle gelöscht</option>
+                            <option value="role_update" {% if request.args.get('event_type') == 'role_update' %}selected{% endif %}>Rolle geändert</option>
+                            <option value="channel_create" {% if request.args.get('event_type') == 'channel_create' %}selected{% endif %}>Kanal erstellt</option>
+                            <option value="channel_delete" {% if request.args.get('event_type') == 'channel_delete' %}selected{% endif %}>Kanal gelöscht</option>
+                            <option value="guild_update" {% if request.args.get('event_type') == 'guild_update' %}selected{% endif %}>Server geändert</option>
+                            <option value="voice_join" {% if request.args.get('event_type') == 'voice_join' %}selected{% endif %}>Voice-Kanal betreten</option>
+                            <option value="voice_leave" {% if request.args.get('event_type') == 'voice_leave' %}selected{% endif %}>Voice-Kanal verlassen</option>
+                        </select>
+                    </div>
+
+                    <!-- User Filter -->
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">User (ID oder Name)</label>
+                        <input type="text" name="user_search" value="{{ request.args.get('user_search', '') }}"
+                            placeholder="z.B. 123456789"
+                            class="form-input w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white text-sm">
+                    </div>
+
+                    <!-- Days Filter -->
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Zeitraum</label>
+                        <select name="days"
+                            class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white text-sm">
+                            <option value="">Alles</option>
+                            <option value="1" {% if request.args.get('days') == '1' %}selected{% endif %}>Heute</option>
+                            <option value="7" {% if request.args.get('days') == '7' %}selected{% endif %}>Letzte 7 Tage</option>
+                            <option value="30" {% if request.args.get('days') == '30' %}selected{% endif %}>Letzte 30 Tage</option>
+                        </select>
+                    </div>
+
+                    <!-- Limit -->
+                    <div>
+                        <label class="block text-text-secondary text-sm mb-2">Pro Seite</label>
+                        <select name="limit"
+                            class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white text-sm">
+                            <option value="25" {% if request.args.get('limit', '25') == '25' %}selected{% endif %}>25</option>
+                            <option value="50" {% if request.args.get('limit') == '50' %}selected{% endif %}>50</option>
+                            <option value="100" {% if request.args.get('limit') == '100' %}selected{% endif %}>100</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button type="submit"
+                        class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all">
+                        🔍 Filtern
+                    </button>
+                    <a href="{{ url_for('view_logs', guild_id=guild.id) }}"
+                        class="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-all">
+                        ↺ Zurücksetzen
+                    </a>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- LOGS TABLE -->
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e]">
+            <h2 class="text-white text-lg font-bold">📊 Log-Einträge</h2>
+        </div>
+
+        {% if logs %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-background-dark border-b border-[#2e3e5e]">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-text-secondary font-semibold">Zeit</th>
+                        <th class="px-6 py-3 text-left text-text-secondary font-semibold">Event</th>
+                        <th class="px-6 py-3 text-left text-text-secondary font-semibold">User</th>
+                        <th class="px-6 py-3 text-left text-text-secondary font-semibold">Aktion</th>
+                        <th class="px-6 py-3 text-left text-text-secondary font-semibold">Details</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#2e3e5e]">
+                    {% for log in logs %}
+                    <tr class="hover:bg-background-dark/50 transition-colors">
+                        <!-- Timestamp -->
+                        <td class="px-6 py-4 text-text-secondary whitespace-nowrap text-xs">
+                            {{ log.timestamp[:10] }}<br>
+                            {{ log.timestamp[11:16] }}
+                        </td>
+
+                        <!-- Event Type with Color -->
+                        <td class="px-6 py-4">
+                            <span class="px-3 py-1 rounded-lg text-xs font-semibold {% if 'delete' in log.event_type %}bg-red-900/30 text-red-400{% elif 'create' in log.event_type %}bg-green-900/30 text-green-400{% elif 'update' in log.event_type or 'edit' in log.event_type %}bg-orange-900/30 text-orange-400{% elif 'join' in log.event_type %}bg-blue-900/30 text-blue-400{% elif 'leave' in log.event_type %}bg-purple-900/30 text-purple-400{% else %}bg-gray-900/30 text-gray-400{% endif %}">
+                                {{ log.event_type }}
+                            </span>
+                        </td>
+
+                        <!-- User -->
+                        <td class="px-6 py-4 text-white">
+                            {% if log.user_name %}
+                                {{ log.user_name }}
+                                {% if log.user_id %}<br><span class="text-xs text-text-secondary">#{{ log.user_id }}</span>{% endif %}
+                            {% else %}
+                                <span class="text-text-secondary text-xs">-</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Action -->
+                        <td class="px-6 py-4 text-text-secondary">
+                            <span class="whitespace-pre-wrap">{{ log.action }}</span>
+                        </td>
+
+                        <!-- Details -->
+                        <td class="px-6 py-4 text-xs text-text-secondary">
+                            {% if log.channel_name %}
+                                <strong>Kanal:</strong> {{ log.channel_name }}<br>
+                            {% endif %}
+                            {% if log.target_name %}
+                                <strong>Target:</strong> {{ log.target_name }}<br>
+                            {% endif %}
+                            {% if log.before_value %}
+                                <strong>Von:</strong> {{ log.before_value[:50] }}{% if log.before_value|length > 50 %}...{% endif %}<br>
+                            {% endif %}
+                            {% if log.after_value %}
+                                <strong>Zu:</strong> {{ log.after_value[:50] }}{% if log.after_value|length > 50 %}...{% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Info -->
+        <div class="px-6 py-3 bg-background-dark border-t border-[#2e3e5e] text-text-secondary text-sm">
+            Zeige {{ logs|length }} von {{ total_logs }} Logs
+        </div>
+        {% else %}
+        <div class="p-12 text-center text-text-secondary">
+            <p class="text-lg mb-2">📭 Keine Logs gefunden</p>
+            <p class="text-sm">Mit den aktuellen Filtern wurden keine Einträge gefunden.</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- INFO CARD -->
+    <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
+        <div class="p-6 border-b border-[#2e3e5e]">
+            <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-cyan-400">info</span>
+                Tipps
+            </h3>
+        </div>
+
+        <div class="p-6 space-y-3 text-text-secondary text-sm">
+            <p>
+                <span class="text-green-400 font-semibold">💡 Filter kombinieren:</span>
+                Du kannst mehrere Filter gleichzeitig verwenden, um präzisere Ergebnisse zu erhalten.
+            </p>
+
+            <p>
+                <span class="text-blue-400 font-semibold">🔍 User suchen:</span>
+                Gib die User-ID oder einen Namensteile ein, um Logs von bestimmten Usern zu finden.
+            </p>
+
+            <p>
+                <span class="text-orange-400 font-semibold">📅 Zeitraum:</span>
+                Standardmäßig werden die letzten 30 Tage angezeigt. Ältere Logs werden je nach Konfiguration automatisch gelöscht.
+            </p>
+
+            <p>
+                <span class="text-purple-400 font-semibold">⚡ Performance:</span>
+                Bei sehr vielen Logs kann die Suche kurz dauern. Verwende spezifischere Filter für schnellere Ergebnisse.
+            </p>
+        </div>
+    </section>
+
+</div>
+
+<script>
+// Auto-submit filter form on change
+document.getElementById('filter-form').querySelectorAll('select, input').forEach(el => {
+    el.addEventListener('change', function() {
+        // Optional: auto-submit auf change
+        // document.getElementById('filter-form').submit();
+    });
+});
+</script>
+
+{% endblock %}

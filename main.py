@@ -1090,11 +1090,11 @@ def upload_server_backup(guild_id):
         os.makedirs(extract_dir, exist_ok=True)
         shutil.unpack_archive(combined_zip_path, extract_dir)
         
-        # Find json files to offer
+        # Find json and db files to offer
         modules = []
         for f in os.listdir(extract_dir):
-            if f.endswith('.json'):
-                modules.append(f[:-5])
+            if f.endswith('.json') or f.endswith('.db'):
+                modules.append(f)
                 
         modules.sort()
         guild = bot.get_guild(guild_id)
@@ -1133,11 +1133,13 @@ def confirm_server_backup(guild_id, restore_id):
             if os.path.exists(guild_data_dir):
                 shutil.rmtree(guild_data_dir)
             shutil.copytree(extract_dir, guild_data_dir)
-            restored_count = len([f for f in os.listdir(extract_dir) if f.endswith('.json')])
+            restored_count = len([f for f in os.listdir(extract_dir) if f.endswith('.json') or f.endswith('.db')])
         else:
             for mod in selected_modules:
-                src_file = os.path.join(extract_dir, f"{mod}.json")
-                dst_file = os.path.join(guild_data_dir, f"{mod}.json")
+                if not '.' in mod:
+                    mod = f"{mod}.json"
+                src_file = os.path.join(extract_dir, mod)
+                dst_file = os.path.join(guild_data_dir, mod)
                 if os.path.exists(src_file):
                     shutil.copy2(src_file, dst_file)
                     restored_count += 1
@@ -1631,6 +1633,88 @@ def manage_logging(guild_id):
                          guild=guild,
                          logging_is_enabled=is_enabled,
                          logging_config=logging_config)
+
+@app.route('/guild/<int:guild_id>/logs', methods=['GET'])
+@requires_authorization
+def view_logs(guild_id):
+    """View and filter audit logs."""
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung für diesen Server.", "danger")
+        return redirect(url_for('dashboard'))
+
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        flash("Server nicht gefunden.", "danger")
+        return redirect(url_for('dashboard'))
+
+    # Check if logging is enabled
+    guild_config = bot.data.get_server_config(guild_id)
+    is_enabled = 'Logging' in guild_config.get('enabled_cogs', [])
+    if not is_enabled:
+        flash("Das Logging-Modul ist auf diesem Server nicht aktiviert.", "warning")
+        return render_template('logs_viewer.html', guild=guild, logs=[], total_logs=0)
+
+    # Get logging cog
+    logging_cog = bot.get_cog('Logging')
+    if not logging_cog:
+        flash("Logging-Modul nicht geladen.", "danger")
+        return render_template('logs_viewer.html', guild=guild, logs=[], total_logs=0)
+
+    # Build filters
+    filters = {}
+
+    # Event type filter
+    event_type = request.args.get('event_type')
+    if event_type:
+        filters['event_type'] = event_type
+
+    # User search filter
+    user_search = request.args.get('user_search', '').strip()
+    if user_search:
+        try:
+            user_id = int(user_search)
+            filters['user_id'] = str(user_id)
+        except ValueError:
+            # Try searching by name (will need to search all logs and filter)
+            pass
+
+    # Days filter
+    days = request.args.get('days')
+    if days:
+        try:
+            filters['days'] = int(days)
+        except ValueError:
+            pass
+
+    # Limit
+    limit = request.args.get('limit', '25')
+    try:
+        limit = int(limit)
+    except ValueError:
+        limit = 25
+
+    # Get logs from storage
+    logs = logging_cog.log_storage.get_logs(guild_id, filters=filters, limit=limit)
+
+    # If user search was by name, filter in Python
+    if user_search:
+        try:
+            int(user_search)
+        except ValueError:
+            # Filter by name
+            logs = [log for log in logs if user_search.lower() in (log.get('user_name', '') or '').lower()]
+
+    # Convert sqlite3.Row to dict if needed
+    logs_list = [dict(log) for log in logs]
+
+    # Get total count
+    stats = logging_cog.log_storage.get_stats(guild_id)
+    total_logs = stats.get('total_logs', 0)
+
+    return render_template('logs_viewer.html',
+                         guild=guild,
+                         logs=logs_list,
+                         total_logs=total_logs)
 
 @app.route('/guild/<int:guild_id>/wrapped', methods=['GET', 'POST'])
 @requires_authorization
