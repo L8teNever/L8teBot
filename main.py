@@ -895,7 +895,8 @@ def manage_twitch(guild_id):
             channel_id_str = request.form.get('multi_channel_id')
             channel_id = int(channel_id_str) if channel_id_str else None
             display_mode = request.form.get('display_mode', 'channel')
-            future = asyncio.run_coroutine_threadsafe(cog.web_set_feed_config(guild_id, channel_id, display_mode), bot.loop)
+            auto_assign = request.form.get('auto_assign') == 'on'
+            future = asyncio.run_coroutine_threadsafe(cog.web_set_feed_config(guild_id, channel_id, display_mode, auto_assign), bot.loop)
         elif action == 'set_streamer_command_config':
             role_id_str = request.form.get('streamer_role_id')
             role_id = int(role_id_str) if role_id_str else None

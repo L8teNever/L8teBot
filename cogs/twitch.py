@@ -394,7 +394,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
             await interaction.response.send_message(f"❌ Ein Fehler ist aufgetreten: {e}", ephemeral=True)
 
     # --- Web API Methoden ---
-    async def web_set_feed_config(self, guild_id: int, feed_channel_id: Optional[int], display_mode: str = "channel") -> Tuple[bool, str]:
+    async def web_set_feed_config(self, guild_id: int, feed_channel_id: Optional[int], display_mode: str = "channel", auto_assign: bool = False) -> Tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
         if not guild: return False, "Server nicht gefunden."
         
@@ -406,6 +406,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
         
         guild_data["channel_id"] = feed_channel_id
         guild_data["display_mode"] = display_mode
+        guild_data["auto_assign_new_streamers"] = auto_assign
         
         self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
         
@@ -511,6 +512,12 @@ class TwitchCog(commands.Cog, name="Twitch"):
             try:
                 await self.process_streamer_status(guild_id, streamer_key, streamers[streamer_key])
                 self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
+                
+                # NEU: Prüfen ob Rollen automatisch an alle verteilt werden sollen
+                if guild_data.get("auto_assign_new_streamers"):
+                    self.bot.loop.create_task(self._bg_bulk_assign_streamer_roles(guild_id, role.id))
+                    return True, f"'{correct_name}' wurde hinzugefügt. Die neue Rolle wird im Hintergrund an alle verteilt."
+                
             except Exception as e:
                 print(f"Fehler bei sofortiger Aktualisierung für {correct_name}: {e}")
             
@@ -561,18 +568,25 @@ class TwitchCog(commands.Cog, name="Twitch"):
             return False, f"Fehler beim Erstellen der Rolle: {e}"
 
     async def web_bulk_assign_streamer_roles(self, guild_id: int) -> Tuple[bool, str]:
+        # Wir starten das Ganze als Hintergrundtask, damit das Web-Interface nicht blockiert
+        self.bot.loop.create_task(self._bg_bulk_assign_streamer_roles(guild_id))
+        return True, "Die Rollenverteilung wurde im Hintergrund gestartet. Dies kann bei vielen Mitgliedern einige Minuten dauern."
+
+    async def _bg_bulk_assign_streamer_roles(self, guild_id: int, target_role_id: Optional[int] = None):
+        """Hintergrund-Task für die schrittweise Verteilung von Rollen."""
         guild = self.bot.get_guild(guild_id)
-        if not guild: return False, "Server nicht gefunden."
+        if not guild: return
         
         guild_data = self.bot.data.get_guild_data(guild_id, "streamers")
         streamers_dict = guild_data.get("streamers", {})
         user_prefs = guild_data.get("user_preferences", {})
         
-        if not streamers_dict:
-            return False, "Keine Streamer konfiguriert."
+        if not streamers_dict: return
 
+        print(f"DEBUG: Starte Bulk-Rollenverteilung für Server {guild.name} ({guild_id})")
+        
         count = 0
-        # Wir gehen alle Member durch (die gecacht sind)
+        # Wir gehen alle Member durch
         for member in guild.members:
             if member.bot: continue
             
@@ -580,26 +594,40 @@ class TwitchCog(commands.Cog, name="Twitch"):
             prefs = user_prefs.get(u_id, {})
             
             roles_to_add = []
-            for s_key, s_data in streamers_dict.items():
-                # Wenn der User explizit "False" (abgewählt) hat, überspringen wir ihn
-                if prefs.get(s_key) is False:
-                    continue
-                
-                role_id = s_data.get("notification_role_id")
-                if not role_id: continue
-                
-                role = guild.get_role(role_id)
-                if role and role not in member.roles:
-                    roles_to_add.append(role)
+            
+            if target_role_id:
+                # Spezialfall: Nur eine bestimmte Rolle verteilen (z.B. neuer Streamer)
+                for s_key, s_data in streamers_dict.items():
+                    if s_data.get("notification_role_id") == target_role_id:
+                        if prefs.get(s_key) is not False:
+                            role = guild.get_role(target_role_id)
+                            if role and role not in member.roles:
+                                roles_to_add.append(role)
+            else:
+                # Normalfall: Alle Streamer-Rollen prüfen
+                for s_key, s_data in streamers_dict.items():
+                    if prefs.get(s_key) is False:
+                        continue
+                    
+                    role_id = s_data.get("notification_role_id")
+                    if not role_id: continue
+                    
+                    role = guild.get_role(role_id)
+                    if role and role not in member.roles:
+                        roles_to_add.append(role)
             
             if roles_to_add:
                 try:
-                    await member.add_roles(*roles_to_add, reason="Web-Dashboard: Bulk Join")
+                    await member.add_roles(*roles_to_add, reason="Twitch-System: Automatische Rollenverteilung")
                     count += 1
-                except:
-                    pass
+                    # Kurze Pause alle paar Rollenänderungen, um API-Limits zu schonen
+                    if count % 5 == 0:
+                        await asyncio.sleep(1)
+                except Exception as e:
+                    print(f"DEBUG: Fehler beim Zuweisen von Rollen an {member.name}: {e}")
+                    await asyncio.sleep(2) # Längere Pause bei Fehlern
         
-        return True, f"Rollen wurden an {count} Mitglieder verteilt (Opt-Outs wurden beachtet)."
+        print(f"DEBUG: Bulk-Rollenverteilung abgeschlossen. {count} Mitglieder aktualisiert.")
 
     async def web_sync_streamer_roles(self, guild_id: int) -> Tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
