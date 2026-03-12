@@ -26,13 +26,17 @@ class TwitchCog(commands.Cog, name="Twitch"):
         await self.get_twitch_oauth_token()
         # Nach dem Neustart: Prüfe, ob gespeicherte Nachrichten noch existieren, sonst setze live_message_id auf None
         await self._validate_live_messages_after_restart()
+        
+        # Persistente Views registrieren (für Buttons/Menus nach Neustart)
+        self.bot.add_view(TwitchSettingsView(self.bot))
+        
         if self.TWITCH_OAUTH_TOKEN:
             self.check_streams.start()
         else:
             print("FEHLER: Konnte keinen Twitch OAuth Token erhalten. Der Twitch-Cog wird nicht gestartet.")
 
     async def _validate_live_messages_after_restart(self):
-        """Nach einem Neustart prüft diese Funktion, ob gespeicherte Nachrichten noch existieren, und entfernt ungültige IDs."""
+        # ... (bestehender Code bleibt unverändert) ...
         for guild in self.bot.guilds:
             guild_data = self.bot.data.get_guild_data(guild.id, "streamers")
             if "streamers" in guild_data:
@@ -633,52 +637,40 @@ class TwitchCog(commands.Cog, name="Twitch"):
         except: pass
 
 class StreamerSelect(discord.ui.Select):
-    def __init__(self, bot, member, streamers_dict):
-        self.bot = bot
-        self.member = member
-        self.streamers_dict = streamers_dict # key: streamer_key, value: data
-        
-        # Aktuelle Rollen-IDs des Users holen
-        current_role_ids = [r.id for r in member.roles]
-        
-        # Optionen für das Dropdown erstellen
+    def __init__(self, bot, member=None, streamers_dict=None):
+        # Wenn member und streamers_dict da sind, initialisieren wir die Optionen (beim Senden der Nachricht)
         options = []
-        # Discord Select Menüs unterstützen maximal 25 Optionen
-        for s_key, s_data in list(streamers_dict.items())[:25]:
-            role_id = s_data.get("notification_role_id")
-            if not role_id: continue
-            
-            role = member.guild.get_role(role_id)
-            if not role: continue
-            
-            # Prüfen ob der User die Rolle bereits hat (über ID Vergleich für Sicherheit)
-            has_role = role.id in current_role_ids
-            
-            options.append(discord.SelectOption(
-                label=s_data.get("display_name", s_key),
-                value=s_key,
-                description="Status: Abonniert" if has_role else "Status: Nicht abonniert",
-                default=has_role
-            ))
-            
-        # Wenn keine Optionen da sind, Platzhalter einfügen
+        if member and streamers_dict:
+            current_role_ids = [r.id for r in member.roles]
+            for s_key, s_data in list(streamers_dict.items())[:25]:
+                role_id = s_data.get("notification_role_id")
+                if not role_id: continue
+                role = member.guild.get_role(role_id)
+                if not role: continue
+                has_role = role.id in current_role_ids
+                options.append(discord.SelectOption(
+                    label=s_data.get("display_name", s_key),
+                    value=s_key,
+                    description="Status: Abonniert" if has_role else "Status: Nicht abonniert",
+                    default=has_role
+                ))
+        
         if not options:
             options = [discord.SelectOption(label="Keine Streamer konfiguriert", value="none")]
             
-        max_vals = len(options)
-        
         super().__init__(
+            custom_id="twitch:settings:select",
             placeholder="Wähle deine Streamer aus...",
             min_values=0,
-            max_values=max_vals,
+            max_values=len(options),
             options=options
         )
 
     async def callback(self, interaction: discord.Interaction):
-        if interaction.user != self.member:
-            return await interaction.response.send_message("Nur der Besitzer dieses Kanals kann dies tun.", ephemeral=True)
-            
-        # Wir nutzen das aktuellste Member-Objekt aus der Interaction
+        # Hol dir die aktuellsten Daten für diese Guild
+        guild_data = self.view.bot.data.get_guild_data(interaction.guild.id, "streamers")
+        streamers_dict = guild_data.get("streamers", {})
+        
         member = interaction.user
         selected_keys = self.values
         if "none" in selected_keys:
@@ -689,11 +681,9 @@ class StreamerSelect(discord.ui.Select):
         added = []
         removed = []
         
-        # Alle Rollen durchgehen und anpassen
-        for s_key, s_data in self.streamers_dict.items():
+        for s_key, s_data in streamers_dict.items():
             role_id = s_data.get("notification_role_id")
             if not role_id: continue
-            
             role = guild.get_role(role_id)
             if not role: continue
             
@@ -707,45 +697,50 @@ class StreamerSelect(discord.ui.Select):
                 await member.remove_roles(role, reason="Twitch-Abo: Deaktiviert")
                 removed.append(f"@{role.name}")
         
-        # Feedback zusammenstellen
         if not added and not removed:
             return await interaction.response.send_message("Keine Änderungen vorgenommen.", ephemeral=True)
             
         msg_parts = []
         if added: msg_parts.append(f"✅ **Aktiviert:** {', '.join(added)}")
         if removed: msg_parts.append(f"❌ **Deaktiviert:** {', '.join(removed)}")
-        
         await interaction.response.send_message("\n".join(msg_parts), ephemeral=True)
 
 class TwitchSettingsView(discord.ui.View):
-    def __init__(self, bot, member, channel, trigger_role):
+    def __init__(self, bot, member=None):
         super().__init__(timeout=None)
         self.bot = bot
-        self.member = member
-        self.channel = channel
-        self.trigger_role = trigger_role
         
-        # Streamer aus der Config laden
-        guild_data = bot.data.get_guild_data(member.guild.id, "streamers")
-        streamers_dict = guild_data.get("streamers", {})
-        
-        # Dropdown hinzufügen
-        self.add_item(StreamerSelect(bot, member, streamers_dict))
+        # Falls wir die View neu erstellen (um sie zu senden), fügen wir das Menü hinzu
+        if member:
+            guild_data = bot.data.get_guild_data(member.guild.id, "streamers")
+            streamers_dict = guild_data.get("streamers", {})
+            self.add_item(StreamerSelect(bot, member, streamers_dict))
+        else:
+            # Für die persistente Registrierung brauchen wir nur das Grundgerüst
+            self.add_item(StreamerSelect(bot))
 
-    @discord.ui.button(label="Fertig & Schließen", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="Fertig & Schließen", style=discord.ButtonStyle.green, custom_id="twitch:settings:close")
     async def close_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user != self.member:
-            return await interaction.response.send_message("Nur der Besitzer dieses Kanals kann dies tun.", ephemeral=True)
-            
+        member = interaction.user
+        guild_id = interaction.guild.id
+        
+        guild_data = self.bot.data.get_guild_data(guild_id, "streamers")
+        trigger_role_id = guild_data.get("settings_trigger_role_id")
+        
         await interaction.response.send_message("Einstellungen gespeichert. Der Kanal wird nun gelöscht...")
         
-        # Rolle entfernen
-        try: await self.member.remove_roles(self.trigger_role, reason="Einstellungen abgeschlossen")
-        except: pass
+        # Trigger-Rolle entfernen
+        if trigger_role_id:
+            role = interaction.guild.get_role(trigger_role_id)
+            if role:
+                try: await member.remove_roles(role, reason="Einstellungen abgeschlossen")
+                except: pass
         
-        # Kurz warten und Kanal löschen
+        # Kanal löschen
         await asyncio.sleep(2)
-        await self.channel.delete(reason="Einstellungs-Kanal geschlossen")
+        try:
+            await interaction.channel.delete(reason="Einstellungs-Kanal geschlossen")
+        except: pass
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(TwitchCog(bot))
