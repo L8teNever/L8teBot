@@ -648,8 +648,8 @@ class StreamerSelect(discord.ui.Select):
             options.append(discord.SelectOption(
                 label=s_data.get("display_name", s_key),
                 value=s_key,
-                description=f"Benachrichtigung {'aktiviert' if is_selected else 'deaktiviert'}",
-                default=is_selected
+                description="Klicke zum Abwählen",
+                default=True
             ))
             
         # Max values ist die Anzahl der Streamer (min 1)
@@ -666,12 +666,16 @@ class StreamerSelect(discord.ui.Select):
         if interaction.user != self.member:
             return await interaction.response.send_message("Nur der Besitzer dieses Kanals kann dies tun.", ephemeral=True)
             
+        # Wir nutzen das aktuellste Member-Objekt aus der Interaction
+        member = interaction.user
         selected_keys = self.values
         if "none" in selected_keys:
             selected_keys = []
             
         guild = interaction.guild
-        changes = []
+        current_role_ids = [r.id for r in member.roles]
+        added = []
+        removed = []
         
         # Alle Rollen durchgehen und anpassen
         for s_key, s_data in self.streamers_dict.items():
@@ -682,19 +686,24 @@ class StreamerSelect(discord.ui.Select):
             if not role: continue
             
             is_now_selected = s_key in selected_keys
-            has_role = role in self.member.roles
+            has_role = role.id in current_role_ids
             
             if is_now_selected and not has_role:
-                await self.member.add_roles(role)
-                changes.append(f"✅ `@{role.name}` hinzugefügt")
+                await member.add_roles(role, reason="Twitch-Abo: Aktiviert")
+                added.append(f"@{role.name}")
             elif not is_now_selected and has_role:
-                await self.member.remove_roles(role)
-                changes.append(f"❌ `@{role.name}` entfernt")
+                await member.remove_roles(role, reason="Twitch-Abo: Deaktiviert")
+                removed.append(f"@{role.name}")
         
-        if not changes:
-            await interaction.response.send_message("Keine Änderungen vorgenommen.", ephemeral=True)
-        else:
-            await interaction.response.send_message("\n".join(changes), ephemeral=True)
+        # Feedback zusammenstellen
+        if not added and not removed:
+            return await interaction.response.send_message("Keine Änderungen vorgenommen.", ephemeral=True)
+            
+        msg_parts = []
+        if added: msg_parts.append(f"✅ **Aktiviert:** {', '.join(added)}")
+        if removed: msg_parts.append(f"❌ **Deaktiviert:** {', '.join(removed)}")
+        
+        await interaction.response.send_message("\n".join(msg_parts), ephemeral=True)
 
 class TwitchSettingsView(discord.ui.View):
     def __init__(self, bot, member, channel, trigger_role):
