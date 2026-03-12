@@ -601,6 +601,41 @@ class TwitchCog(commands.Cog, name="Twitch"):
         
         return True, f"Rollen wurden an {count} Mitglieder verteilt (Opt-Outs wurden beachtet)."
 
+    async def web_sync_streamer_roles(self, guild_id: int) -> Tuple[bool, str]:
+        guild = self.bot.get_guild(guild_id)
+        if not guild: return False, "Server nicht gefunden."
+        
+        guild_data = self.bot.data.get_guild_data(guild_id, "streamers")
+        streamers_dict = guild_data.get("streamers", {})
+        
+        if not streamers_dict:
+            return False, "Keine Streamer konfiguriert."
+
+        recreated_count = 0
+        for s_key, s_data in streamers_dict.items():
+            role_id = s_data.get("notification_role_id")
+            role = guild.get_role(role_id) if role_id else None
+            
+            # Falls die Rolle fehlt oder gelöscht wurde
+            if not role:
+                display_name = s_data.get("display_name", s_key)
+                try:
+                    role = await guild.create_role(
+                        name=f"{display_name}-Ping", 
+                        reason=f"Neu erstellte Ping-Rolle für {display_name} (Sync-Button)",
+                        color=discord.Color.purple()
+                    )
+                    s_data["notification_role_id"] = role.id
+                    recreated_count += 1
+                except (discord.Forbidden, discord.HTTPException) as e:
+                    print(f"Fehler beim Erstellen der Rolle für {display_name}: {e}")
+        
+        if recreated_count > 0:
+            self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
+            return True, f"{recreated_count} fehlende Rolle(n) wurden erfolgreich neu erstellt."
+        
+        return True, "Alle Streamer haben bereits ihre Rollen. Keine Aktion erforderlich."
+
     # --- Listener für Trigger-Rolle ---
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):

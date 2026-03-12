@@ -914,6 +914,8 @@ def manage_twitch(guild_id):
             future = asyncio.run_coroutine_threadsafe(cog.web_create_settings_trigger_role(guild_id), bot.loop)
         elif action == 'bulk_assign_roles':
             future = asyncio.run_coroutine_threadsafe(cog.web_bulk_assign_streamer_roles(guild_id), bot.loop)
+        elif action == 'sync_streamer_roles':
+            future = asyncio.run_coroutine_threadsafe(cog.web_sync_streamer_roles(guild_id), bot.loop)
         
         if future:
             success, message = future.result()
