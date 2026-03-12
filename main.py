@@ -158,6 +158,15 @@ from flask import send_from_directory
 def serve_twitch_offline():
     return send_from_directory(os.path.join(app.static_folder, 'images'), 'twitch_offline.png')
 
+@app.route('/guild/<int:guild_id>/twitch/offline_image/<streamer_key>.png')
+@requires_authorization
+def serve_guild_offline_image(guild_id, streamer_key):
+    if not check_guild_permissions(guild_id):
+        return "Forbidden", 403
+    guild_dir = bot.data._get_guild_dir(guild_id)
+    img_dir = os.path.join(guild_dir, "twitch_offline_images")
+    return send_from_directory(img_dir, f"{streamer_key}.png")
+
 @app.route('/admin/maintenance')
 @requires_authorization
 def admin_maintenance():
@@ -918,6 +927,13 @@ def manage_twitch(guild_id):
     clips_is_enabled = 'Twitch-Clips' in guild_config.get('enabled_cogs', [])
     clips_config = bot.data.get_guild_data(guild_id, "twitch_clips")
 
+    # 4. Offline Images discovery
+    offline_images = []
+    guild_dir = bot.data._get_guild_dir(guild_id)
+    img_dir = os.path.join(guild_dir, "twitch_offline_images")
+    if os.path.exists(img_dir):
+        offline_images = [f.replace('.png', '') for f in os.listdir(img_dir) if f.endswith('.png')]
+
     return render_template('twitch_tools.html',
                            guild=guild, 
                            admin_guilds=get_admin_guilds(),
@@ -926,7 +942,8 @@ def manage_twitch(guild_id):
                            single_stream_is_enabled=single_stream_is_enabled,
                            single_stream_config=single_stream_config,
                            clips_is_enabled=clips_is_enabled,
-                           clips_config=clips_config)
+                           clips_config=clips_config,
+                           offline_images=offline_images)
 
 
 # --- Temp-Channel Web-Route ---

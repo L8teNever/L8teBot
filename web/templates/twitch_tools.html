@@ -351,6 +351,35 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Liste der hochgeladenen Bilder -->
+            {% if offline_images %}
+            <div class="mt-10 pt-8 border-t border-[#2e3e5e]">
+                <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-6">Aktuelle Offline-Bilder</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {% for img_key in offline_images %}
+                    <div
+                        class="group relative rounded-lg overflow-hidden bg-background-dark/50 border border-white/5 hover:border-purple-500/50 transition-all">
+                        <div class="aspect-video bg-black/40 flex items-center justify-center overflow-hidden">
+                            <img src="{{ url_for('serve_guild_offline_image', guild_id=guild.id, streamer_key=img_key) }}"
+                                alt="{{ img_key }}" class="w-full h-full object-cover">
+                        </div>
+                        <div class="p-2 bg-background-dark/90 flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-white truncate pr-2">{{ img_key }}</span>
+                            <form action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}" method="POST"
+                                class="m-0">
+                                <input type="hidden" name="action" value="remove_offline_image">
+                                <input type="hidden" name="streamer_key" value="{{ img_key }}">
+                                <button type="submit" class="text-gray-400 hover:text-red-400 transition-colors">
+                                    <span class="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
     </section>

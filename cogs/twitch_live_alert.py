@@ -815,7 +815,30 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         try:
             with open(file_path, "wb") as f:
                 f.write(file_bytes)
-            return True, f"Offline-Bild für `{streamer_key}` wurde erfolgreich gespeichert."
+            
+            # TRIGGER UPDATE: Wenn der Streamer offline ist, Nachricht aktualisieren
+            guild = self.bot.get_guild(guild_id)
+            if guild:
+                status_config = self.bot.data.get_guild_data(guild_id, "twitch_alerts")
+                streamers = status_config.get("streamers", {})
+                
+                if streamer_key == "default":
+                    # Update alle, die gerade offline sind und das Default-Bild nutzen
+                    for s_k, s_d in streamers.items():
+                        if not s_d.get("is_live"):
+                            # Prüfe ob sie ein eigenes Bild haben, sonst update
+                            spec_img = os.path.join(img_dir, f"{s_k}.png")
+                            if not os.path.exists(spec_img):
+                                await self._update_streamer_status(guild, s_k, s_d, status_config)
+                elif streamer_key in streamers:
+                    s_data = streamers[streamer_key]
+                    if not s_data.get("is_live"):
+                        await self._update_streamer_status(guild, streamer_key, s_data, status_config)
+                
+                # Speichere Änderungen (falls message_id sich geändert hat etc)
+                self.bot.data.save_guild_data(guild_id, "twitch_alerts", status_config)
+
+            return True, f"Offline-Bild für `{streamer_key}` wurde erfolgreich gespeichert und die Anzeige aktualisiert."
         except Exception as e:
             return False, f"Fehler beim Speichern des Bildes: {e}"
 
@@ -829,7 +852,27 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         
         if os.path.exists(file_path):
             os.remove(file_path)
-            return True, f"Offline-Bild für `{streamer_key}` wurde entfernt."
+            
+            # TRIGGER UPDATE: Auf Fallback (Default oder Global) zurückfallen
+            guild = self.bot.get_guild(guild_id)
+            if guild:
+                status_config = self.bot.data.get_guild_data(guild_id, "twitch_alerts")
+                streamers = status_config.get("streamers", {})
+                
+                if streamer_key == "default":
+                    for s_k, s_d in streamers.items():
+                        if not s_d.get("is_live"):
+                            spec_img = os.path.join(img_dir, f"{s_k}.png")
+                            if not os.path.exists(spec_img):
+                                await self._update_streamer_status(guild, s_k, s_d, status_config)
+                elif streamer_key in streamers:
+                    s_data = streamers[streamer_key]
+                    if not s_data.get("is_live"):
+                        await self._update_streamer_status(guild, streamer_key, s_data, status_config)
+                
+                self.bot.data.save_guild_data(guild_id, "twitch_alerts", status_config)
+                
+            return True, f"Offline-Bild für `{streamer_key}` wurde entfernt und die Anzeige aktualisiert."
         return False, "Bild nicht gefunden."
 
     @discord.app_commands.command(name="twitch-absagen", description="Entfernt einen geplanten Stream und das zugehörige Event.")
