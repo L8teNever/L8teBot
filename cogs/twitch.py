@@ -638,28 +638,40 @@ class StreamerSelect(discord.ui.Select):
         self.member = member
         self.streamers_dict = streamers_dict # key: streamer_key, value: data
         
+        # Aktuelle Rollen-IDs des Users holen
+        current_role_ids = [r.id for r in member.roles]
+        
         # Optionen für das Dropdown erstellen
         options = []
-        for s_key, s_data in streamers_dict.items():
+        # Discord Select Menüs unterstützen maximal 25 Optionen
+        for s_key, s_data in list(streamers_dict.items())[:25]:
             role_id = s_data.get("notification_role_id")
-            role = member.guild.get_role(role_id) if role_id else None
-            is_selected = role in member.roles if role else False
+            if not role_id: continue
+            
+            role = member.guild.get_role(role_id)
+            if not role: continue
+            
+            # Prüfen ob der User die Rolle bereits hat (über ID Vergleich für Sicherheit)
+            has_role = role.id in current_role_ids
             
             options.append(discord.SelectOption(
                 label=s_data.get("display_name", s_key),
                 value=s_key,
-                description="Klicke zum Abwählen",
-                default=True
+                description="Status: Abonniert" if has_role else "Status: Nicht abonniert",
+                default=has_role
             ))
             
-        # Max values ist die Anzahl der Streamer (min 1)
-        max_vals = len(options) if options else 1
+        # Wenn keine Optionen da sind, Platzhalter einfügen
+        if not options:
+            options = [discord.SelectOption(label="Keine Streamer konfiguriert", value="none")]
+            
+        max_vals = len(options)
         
         super().__init__(
             placeholder="Wähle deine Streamer aus...",
             min_values=0,
             max_values=max_vals,
-            options=options if options else [discord.SelectOption(label="Keine Streamer verfügbar", value="none")]
+            options=options
         )
 
     async def callback(self, interaction: discord.Interaction):
