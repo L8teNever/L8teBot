@@ -21,7 +21,7 @@
 <!-- Module Toggle Section -->
 <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
     <div class="p-6">
-        <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
+        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post">
             <input type="hidden" name="cog_name" value="Backup">
             <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
             <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -50,7 +50,7 @@
         <p class="text-text-secondary text-sm mt-1">Automatische Backups deiner Server-Daten</p>
     </div>
     <div class="p-6">
-        <form data-ajax="true" action="{{ url_for('manage_backup', guild_id=guild.id) }}" method="post"
+        <form action="{{ url_for('manage_backup', guild_id=guild.id) }}" method="post"
             class="space-y-4">
 
             <!-- Channel Selection -->
@@ -125,7 +125,7 @@
             </h2>
             <p class="text-text-secondary text-sm mt-1">Erstelle jetzt sofort ein Backup und sende es in den Kanal.</p>
         </div>
-        <form data-ajax="true" action="{{ url_for('manage_backup', guild_id=guild.id) }}" method="post" class="m-0">
+        <form action="{{ url_for('manage_backup', guild_id=guild.id) }}" method="post" class="m-0">
             <input type="hidden" name="action" value="trigger_manual">
             <button type="submit"
                 class="px-6 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors whitespace-nowrap">

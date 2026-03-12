@@ -16,12 +16,12 @@ class LoggingCog(commands.Cog, name="Logging"):
     def should_log_event(self, guild_id: int, event_type: str,
                         channel_id: Optional[int] = None,
                         user_id: Optional[int] = None) -> bool:
-        """Check if an event should be logged based on configuration."""
-        config = self.bot.data.get_guild_data(guild_id, "logging")
-
-        # Check if logging is enabled
-        if not config.get("enabled"):
+        # Check if logging module is enabled in server config
+        guild_config = self.bot.data.get_server_config(guild_id)
+        if 'Logging' not in guild_config.get('enabled_cogs', []):
             return False
+
+        config = self.bot.data.get_guild_data(guild_id, "logging")
 
         # Check if event type is enabled
         if event_type not in config.get("enabled_events", []):
@@ -906,7 +906,6 @@ class LoggingCog(commands.Cog, name="Logging"):
 
             # Save configuration
             config = self.bot.data.get_guild_data(guild_id, "logging")
-            config['enabled'] = True
             config['log_channel_id'] = log_channel_id
             config['enabled_events'] = config_data.get('enabled_events', [])
             config['ignored_channels'] = config_data.get('ignored_channels', [])

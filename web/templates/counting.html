@@ -20,8 +20,8 @@
 
 <section class="rounded-lg bg-card-dark border border-[#2e3e5e] overflow-hidden">
     <div class="p-6">
-        <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post"
-            data-ajax="true">
+        <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post"
+           >
             <input type="hidden" name="cog_name" value="Zählen">
             <input type="hidden" name="is_enabled" value="{{ 'False' if is_enabled else 'True' }}">
             <input type="hidden" name="redirect_url" value="{{ request.url }}">
@@ -48,7 +48,7 @@
         </h2>
     </div>
     <div class="p-6">
-        <form data-ajax="true" action="{{ url_for('manage_counting', guild_id=guild.id) }}" method="post"
+        <form action="{{ url_for('manage_counting', guild_id=guild.id) }}" method="post"
             class="flex gap-2">
             <input type="hidden" name="action" value="set_channel">
             <select name="channel" required
@@ -100,7 +100,7 @@
                             </div>
                         </td>
                         <td class="py-3 px-4">
-                            <form data-ajax="true" action="{{ url_for('manage_counting', guild_id=guild.id) }}"
+                            <form action="{{ url_for('manage_counting', guild_id=guild.id) }}"
                                 method="post" class="flex gap-2">
                                 <input type="hidden" name="action" value="set_count">
                                 <input type="hidden" name="channel_to_set" value="{{ item.channel.id }}">
@@ -112,7 +112,7 @@
                             </form>
                         </td>
                         <td class="py-3 px-4">
-                            <form data-ajax="true" action="{{ url_for('manage_counting', guild_id=guild.id) }}"
+                            <form action="{{ url_for('manage_counting', guild_id=guild.id) }}"
                                 method="post" class="flex gap-2">
                                 <input type="hidden" name="action" value="set_slowmode">
                                 <input type="hidden" name="channel_to_set_slowmode" value="{{ item.channel.id }}">
@@ -124,7 +124,7 @@
                             </form>
                         </td>
                         <td class="py-3 px-4 text-right">
-                            <form data-ajax="true" action="{{ url_for('manage_counting', guild_id=guild.id) }}"
+                            <form action="{{ url_for('manage_counting', guild_id=guild.id) }}"
                                 method="post" class="inline">
                                 <input type="hidden" name="action" value="remove_channel">
                                 <input type="hidden" name="channel_to_remove" value="{{ item.channel.id }}">

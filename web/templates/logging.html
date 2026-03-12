@@ -18,15 +18,14 @@
                 <span class="material-symbols-outlined text-blue-400">description</span>
                 Audit-Logging
             </h2>
-            <form data-ajax="true" action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post"
-                class="m-0">
+            <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" class="m-0">
                 <input type="hidden" name="cog_name" value="Logging">
                 <input type="hidden" name="is_enabled" value="{{ 'False' if logging_is_enabled else 'True' }}">
                 <input type="hidden" name="redirect_url" value="{{ request.url }}">
                 <label class="flex items-center gap-3 cursor-pointer">
                     <div class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" {% if logging_is_enabled %}checked{% endif %} onchange="this.form.submit()"
-                            class="sr-only peer">
+                        <input type="checkbox" {% if logging_is_enabled %}checked{% endif %}
+                            onchange="this.form.submit()" class="sr-only peer">
                         <div
                             class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
                         </div>
@@ -42,7 +41,7 @@
                 sollen.
             </p>
 
-            <form data-ajax="true" action="{{ url_for('manage_logging', guild_id=guild.id) }}" method="post"
+            <form action="{{ url_for('manage_logging', guild_id=guild.id) }}" method="post"
                 class="space-y-8">
 
                 <!-- 1. LOG CHANNEL SELECTION -->
@@ -53,8 +52,8 @@
                         class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
                         <option value="">Kein Logging</option>
                         {% for channel in guild.text_channels|sort(attribute='position') %}
-                        <option value="{{ channel.id }}"
-                            {% if channel.id==logging_config.get('log_channel_id') %}selected{% endif %}>
+                        <option value="{{ channel.id }}" {% if channel.id==logging_config.get('log_channel_id')
+                            %}selected{% endif %}>
                             #{{ channel.name }}</option>
                         {% endfor %}
                     </select>
@@ -72,18 +71,20 @@
                         </h3>
                         <div class="space-y-2">
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="message_delete"
-                                    {% if 'message_delete' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="message_delete" {%
+                                    if 'message_delete' in logging_config.get('enabled_events', []) %}checked{% endif
+                                    %}>
                                 <span class="text-text-secondary">Nachrichten gelöscht</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="message_edit"
-                                    {% if 'message_edit' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="message_edit" {% if 'message_edit'
+                                    in logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Nachrichten bearbeitet</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="bulk_message_delete"
-                                    {% if 'bulk_message_delete' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="bulk_message_delete" {%
+                                    if 'bulk_message_delete' in logging_config.get('enabled_events', []) %}checked{%
+                                    endif %}>
                                 <span class="text-text-secondary">Mehrere Nachrichten gelöscht</span>
                             </label>
                         </div>
@@ -96,38 +97,41 @@
                         </h3>
                         <div class="space-y-2">
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="member_join"
-                                    {% if 'member_join' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="member_join" {% if 'member_join' in
+                                    logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Mitglied beigetreten</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="member_remove"
-                                    {% if 'member_remove' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="member_remove" {% if 'member_remove'
+                                    in logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Mitglied verlassen</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="member_ban"
-                                    {% if 'member_ban' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="member_ban" {% if 'member_ban' in
+                                    logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Mitglied gebannt</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="member_unban"
-                                    {% if 'member_unban' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="member_unban" {% if 'member_unban'
+                                    in logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Mitglied entbannt</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="member_update_nickname"
-                                    {% if 'member_update_nickname' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="member_update_nickname" {%
+                                    if 'member_update_nickname' in logging_config.get('enabled_events', []) %}checked{%
+                                    endif %}>
                                 <span class="text-text-secondary">Spitzname geändert</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="member_role_add"
-                                    {% if 'member_role_add' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="member_role_add" {%
+                                    if 'member_role_add' in logging_config.get('enabled_events', []) %}checked{% endif
+                                    %}>
                                 <span class="text-text-secondary">Rollen hinzugefügt</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="member_role_remove"
-                                    {% if 'member_role_remove' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="member_role_remove" {%
+                                    if 'member_role_remove' in logging_config.get('enabled_events', []) %}checked{%
+                                    endif %}>
                                 <span class="text-text-secondary">Rollen entfernt</span>
                             </label>
                         </div>
@@ -140,18 +144,18 @@
                         </h3>
                         <div class="space-y-2">
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="role_create"
-                                    {% if 'role_create' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="role_create" {% if 'role_create' in
+                                    logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Rolle erstellt</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="role_delete"
-                                    {% if 'role_delete' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="role_delete" {% if 'role_delete' in
+                                    logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Rolle gelöscht</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="role_update"
-                                    {% if 'role_update' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="role_update" {% if 'role_update' in
+                                    logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Rolle geändert</span>
                             </label>
                         </div>
@@ -164,18 +168,21 @@
                         </h3>
                         <div class="space-y-2">
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="channel_create"
-                                    {% if 'channel_create' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="channel_create" {%
+                                    if 'channel_create' in logging_config.get('enabled_events', []) %}checked{% endif
+                                    %}>
                                 <span class="text-text-secondary">Kanal erstellt</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="channel_delete"
-                                    {% if 'channel_delete' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="channel_delete" {%
+                                    if 'channel_delete' in logging_config.get('enabled_events', []) %}checked{% endif
+                                    %}>
                                 <span class="text-text-secondary">Kanal gelöscht</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="channel_update"
-                                    {% if 'channel_update' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="channel_update" {%
+                                    if 'channel_update' in logging_config.get('enabled_events', []) %}checked{% endif
+                                    %}>
                                 <span class="text-text-secondary">Kanal geändert</span>
                             </label>
                         </div>
@@ -188,8 +195,8 @@
                         </h3>
                         <div class="space-y-2">
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="guild_update"
-                                    {% if 'guild_update' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="guild_update" {% if 'guild_update'
+                                    in logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Server-Einstellungen geändert</span>
                             </label>
                         </div>
@@ -202,28 +209,28 @@
                         </h3>
                         <div class="space-y-2">
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="voice_join"
-                                    {% if 'voice_join' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="voice_join" {% if 'voice_join' in
+                                    logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Voice-Kanal betreten</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="voice_leave"
-                                    {% if 'voice_leave' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="voice_leave" {% if 'voice_leave' in
+                                    logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Voice-Kanal verlassen</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="voice_move"
-                                    {% if 'voice_move' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="voice_move" {% if 'voice_move' in
+                                    logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Voice-Kanal gewechselt</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="voice_mute"
-                                    {% if 'voice_mute' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="voice_mute" {% if 'voice_mute' in
+                                    logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Mitglied gemutet/entmutet</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="voice_deaf"
-                                    {% if 'voice_deaf' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="voice_deaf" {% if 'voice_deaf' in
+                                    logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Mitglied gehört deaktiviert</span>
                             </label>
                         </div>
@@ -236,13 +243,14 @@
                         </h3>
                         <div class="space-y-2">
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="emoji_update"
-                                    {% if 'emoji_update' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="emoji_update" {% if 'emoji_update'
+                                    in logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Emojis hinzugefügt/entfernt</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="sticker_update"
-                                    {% if 'sticker_update' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="sticker_update" {%
+                                    if 'sticker_update' in logging_config.get('enabled_events', []) %}checked{% endif
+                                    %}>
                                 <span class="text-text-secondary">Sticker hinzugefügt/entfernt</span>
                             </label>
                         </div>
@@ -255,18 +263,19 @@
                         </h3>
                         <div class="space-y-2">
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="webhook_update"
-                                    {% if 'webhook_update' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="webhook_update" {%
+                                    if 'webhook_update' in logging_config.get('enabled_events', []) %}checked{% endif
+                                    %}>
                                 <span class="text-text-secondary">Webhooks geändert</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="invite_create"
-                                    {% if 'invite_create' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="invite_create" {% if 'invite_create'
+                                    in logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Einladung erstellt</span>
                             </label>
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" name="enabled_events" value="invite_delete"
-                                    {% if 'invite_delete' in logging_config.get('enabled_events', []) %}checked{% endif %}>
+                                <input type="checkbox" name="enabled_events" value="invite_delete" {% if 'invite_delete'
+                                    in logging_config.get('enabled_events', []) %}checked{% endif %}>
                                 <span class="text-text-secondary">Einladung gelöscht</span>
                             </label>
                         </div>
@@ -281,8 +290,8 @@
                         class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white"
                         style="min-height: 120px;">
                         {% for channel in guild.text_channels|sort(attribute='position') %}
-                        <option value="{{ channel.id }}"
-                            {% if channel.id in logging_config.get('ignored_channels', []) %}selected{% endif %}>
+                        <option value="{{ channel.id }}" {% if channel.id in logging_config.get('ignored_channels', [])
+                            %}selected{% endif %}>
                             #{{ channel.name }}</option>
                         {% endfor %}
                     </select>
@@ -292,7 +301,8 @@
                 <!-- 4. IGNORED USERS -->
                 <div>
                     <label class="block text-text-secondary text-sm mb-2 font-semibold">🤐 Ignorierte User</label>
-                    <p class="text-text-secondary text-xs mb-3">Aktionen von diesen Usern werden nicht geloggt (IDs durch Komma getrennt)</p>
+                    <p class="text-text-secondary text-xs mb-3">Aktionen von diesen Usern werden nicht geloggt (IDs
+                        durch Komma getrennt)</p>
                     <textarea name="ignored_users" rows="3"
                         class="form-input w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white"
                         placeholder="123456789, 987654321">{% if logging_config.get('ignored_users') %}{{ logging_config.get('ignored_users')|join(', ') }}{% endif %}</textarea>
@@ -301,13 +311,18 @@
                 <!-- 5. LOG RETENTION -->
                 <div>
                     <label class="block text-text-secondary text-sm mb-2 font-semibold">📅 Log-Aufbewahrung</label>
-                    <p class="text-text-secondary text-xs mb-3">Wie lange sollen Logs in der Datenbank gespeichert werden?</p>
+                    <p class="text-text-secondary text-xs mb-3">Wie lange sollen Logs in der Datenbank gespeichert
+                        werden?</p>
                     <select name="retention_days"
                         class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
-                        <option value="7" {% if logging_config.get('retention_days', 30)==7 %}selected{% endif %}>7 Tage</option>
-                        <option value="30" {% if logging_config.get('retention_days', 30)==30 %}selected{% endif %}>30 Tage (Standard)</option>
-                        <option value="90" {% if logging_config.get('retention_days', 30)==90 %}selected{% endif %}>90 Tage</option>
-                        <option value="365" {% if logging_config.get('retention_days', 30)==365 %}selected{% endif %}>1 Jahr</option>
+                        <option value="7" {% if logging_config.get('retention_days', 30)==7 %}selected{% endif %}>7 Tage
+                        </option>
+                        <option value="30" {% if logging_config.get('retention_days', 30)==30 %}selected{% endif %}>30
+                            Tage (Standard)</option>
+                        <option value="90" {% if logging_config.get('retention_days', 30)==90 %}selected{% endif %}>90
+                            Tage</option>
+                        <option value="365" {% if logging_config.get('retention_days', 30)==365 %}selected{% endif %}>1
+                            Jahr</option>
                     </select>
                 </div>
 
@@ -345,15 +360,16 @@
             <p>
                 <span class="text-blue-400 font-semibold">📊 Wo sind die Logs:</span><br>
                 Logs werden in zwei Orten gespeichert:
-                <ul class="ml-4 mt-2 space-y-1">
-                    <li>• <strong>Discord</strong>: Sichtbar als Embeds im gewählten Log-Kanal</li>
-                    <li>• <strong>Datenbank</strong>: Für Archivierung und spätere Suche</li>
-                </ul>
+            <ul class="ml-4 mt-2 space-y-1">
+                <li>• <strong>Discord</strong>: Sichtbar als Embeds im gewählten Log-Kanal</li>
+                <li>• <strong>Datenbank</strong>: Für Archivierung und spätere Suche</li>
+            </ul>
             </p>
 
             <p>
                 <span class="text-orange-400 font-semibold">🎯 Filter & Ausnahmen:</span><br>
-                Du kannst spezifische Kanäle und User von der Protokollierung ausschließen. Nutze dies, um Bot-Aktivitäten
+                Du kannst spezifische Kanäle und User von der Protokollierung ausschließen. Nutze dies, um
+                Bot-Aktivitäten
                 oder automatische Prozesse aus den Logs herauszufiltern.
             </p>
 
