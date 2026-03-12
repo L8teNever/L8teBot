@@ -906,6 +906,10 @@ def manage_twitch(guild_id):
         elif action == 'remove_streamer':
             streamer_name = request.form.get('streamer_name')
             future = asyncio.run_coroutine_threadsafe(cog.web_remove_streamer(guild_id, streamer_name), bot.loop)
+        elif action == 'set_settings_trigger_role':
+            role_id_str = request.form.get('trigger_role_id')
+            role_id = int(role_id_str) if role_id_str else None
+            future = asyncio.run_coroutine_threadsafe(cog.web_set_settings_trigger_role(guild_id, role_id), bot.loop)
         
         if future:
             success, message = future.result()

@@ -409,7 +409,7 @@
         </div>
 
         {% if multi_stream_is_enabled %}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Config Form -->
             <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
                 <h3 class="text-lg font-bold text-white mb-4">Feed Einstellungen</h3>
@@ -461,8 +461,48 @@
                 </form>
             </div>
 
+            <!-- Einstellungs-Trigger (New) -->
+            <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
+                <h3 class="text-lg font-bold text-white mb-4">Abo-Einstellungen</h3>
+                <p class="text-text-secondary mb-6 text-sm">Wähle eine Rolle, die der User bekommen muss, um seine
+                    Twitch-Abos (Benachrichtigungen) zu verwalten.</p>
+                <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
+                    class="flex flex-col gap-4">
+                    <input type="hidden" name="action" value="set_settings_trigger_role">
+
+                    <div class="flex flex-col gap-2">
+                        <label class="text-sm font-medium text-text-secondary">Trigger Rolle</label>
+                        <select name="trigger_role_id" class="form-input">
+                            <option value="">-- Deaktiviert --</option>
+                            {% for role in guild.roles|sort(attribute='position', reverse=True) %}
+                            {% if not role.is_default() %}
+                            <option value="{{ role.id }}" {% if streamers_data.get('settings_trigger_role_id')==role.id
+                                %}selected{% endif %}>
+                                @{{ role.name }}
+                            </option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                        <p class="text-[11px] text-purple-300 leading-relaxed">
+                            <strong>Info:</strong> Wenn ein User diese Rolle erhält, erstellt der Bot einen privaten
+                            Kanal für ihn. Dort kann er per Menü auswählen, welche Streamer-Pings er haben möchte. Nach
+                            10 Minuten oder beim Klick auf "Fertig" wird der Kanal gelöscht und die Rolle automatisch
+                            wieder entfernt.
+                        </p>
+                    </div>
+
+                    <button type="submit"
+                        class="mt-2 w-full px-4 py-2 bg-purple-600 text-white text-sm font-bold rounded-lg hover:bg-purple-700 transition-colors">
+                        Trigger-Rolle speichern
+                    </button>
+                </form>
+            </div>
+
             <!-- Manage Streamers -->
-            <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e] flex flex-col h-full">
+            <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e] flex flex-col h-[400px]">
                 <h3 class="text-lg font-bold text-white mb-4">Streamer Liste</h3>
                 <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
                     class="flex gap-2 mb-4">
@@ -474,31 +514,34 @@
                         <span class="material-symbols-outlined">add</span>
                     </button>
                 </form>
-                <div class="flex-1 overflow-y-auto max-h-[250px] space-y-2 pr-2 custom-scrollbar">
+                <div class="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                     {% set streamers = streamers_data.get('streamers', {}) %}
                     {% if streamers %}
                     {% for s_key, s_data in streamers.items() %}
                     <div
-                        class="flex items-center justify-between p-3 bg-background-dark/50 rounded-lg border border-white/5 hover:border-purple-500/30 transition-colors">
+                        class="flex items-center justify-between p-3 bg-background-dark/50 rounded-lg border border-white/5 group">
                         <div class="flex items-center gap-3">
-                            <img src="{{ s_data.get('profile_image_url') or 'https://api.dicebear.com/7.x/identicon/svg?seed=' + s_key }}"
-                                class="size-8 rounded-full">
-                            <span class="text-white font-medium">{{ s_data.get('display_name') or s_key }}</span>
+                            <img src="{{ s_data.get('profile_image_url', url_for('static', filename='images/default_avatar.png')) }}"
+                                class="w-8 h-8 rounded-full border border-white/10" alt="">
+                            <div>
+                                <div class="text-sm font-bold text-white">{{ s_data.get('display_name', s_key) }}</div>
+                                <div class="text-[10px] text-text-secondary">ID: {{ s_data.get('twitch_id') }}</div>
+                            </div>
                         </div>
-                        <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}">
+                        <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
+                            class="m-0">
                             <input type="hidden" name="action" value="remove_streamer">
                             <input type="hidden" name="streamer_name" value="{{ s_key }}">
                             <button type="submit"
-                                class="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
-                                <span class="material-symbols-outlined text-lg">delete</span>
+                                class="p-1 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded transition-all">
+                                <span class="material-symbols-outlined text-sm">delete</span>
                             </button>
                         </form>
                     </div>
                     {% endfor %}
                     {% else %}
-                    <div
-                        class="flex flex-col items-center justify-center py-8 text-text-secondary border border-dashed border-[#2e3e5e] rounded-lg">
-                        <p class="text-sm">Keine Streamer im Feed</p>
+                    <div class="text-center py-8 text-text-secondary text-sm italic">
+                        Noch keine Streamer hinzugefügt.
                     </div>
                     {% endif %}
                 </div>
