@@ -1269,6 +1269,20 @@ def manage_twitch_status(guild_id):
     elif action == 'remove_streamer':
         streamer_key = request.form.get('streamer_key')
         future = asyncio.run_coroutine_threadsafe(cog.web_remove_streamer(guild_id, streamer_key), bot.loop)
+    elif action == 'upload_offline_image':
+        streamer_key = request.form.get('streamer_key')
+        file = request.files.get('offline_image')
+        if file and streamer_key:
+            file_bytes = file.read()
+            future = asyncio.run_coroutine_threadsafe(cog.web_upload_offline_image(guild_id, streamer_key, file_bytes), bot.loop)
+        else:
+            flash("Bitte Streamer-Namen und ein Bild angeben.", "danger")
+    elif action == 'remove_offline_image':
+        streamer_key = request.form.get('streamer_key')
+        if streamer_key:
+            future = asyncio.run_coroutine_threadsafe(cog.web_remove_offline_image(guild_id, streamer_key), bot.loop)
+        else:
+            flash("Bitte einen Streamer-Namen zum Löschen angeben.", "danger")
 
     if future:
         success, message = future.result()

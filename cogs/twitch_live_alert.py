@@ -801,88 +801,36 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         success, message = await self.web_add_planned_stream(interaction.guild_id, twitch_user, iso_str, titel)
         await interaction.followup.send(message, ephemeral=True)
 
-    @discord.app_commands.command(name="twitch-liste", description="Zeigt alle geplanten Twitch-Streams an.")
-    async def slash_twitch_list(self, interaction: discord.Interaction):
-        if not interaction.guild_id: return
-        
-        status_config = self.bot.data.get_guild_data(interaction.guild_id, "twitch_alerts")
-        planned = status_config.get("planned_streams", [])
-        
-        if not planned:
-            await interaction.response.send_message("ℹ️ Es sind aktuell keine Streams geplant.", ephemeral=True)
-            return
-            
-        embed = discord.Embed(title="📅 Geplante Streams", color=discord.Color.blue())
-        # Sortiere nach Zeit
-        try:
-            sorted_planned = sorted(planned, key=lambda x: x["scheduled_time"])
-        except:
-            sorted_planned = planned
-
-        for s_data in sorted_planned:
-            try:
-                dt = datetime.fromisoformat(s_data["scheduled_time"])
-                time_str = dt.strftime("%d.%m.%Y %H:%M")
-            except:
-                time_str = "Unbekannt"
-            
-            embed.add_field(
-                name=s_data.get("display_name"),
-                value=f"📅 {time_str}\n📌 {s_data.get('title')}",
-                inline=False
-            )
-        
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @discord.app_commands.command(name="twitch-offline-bild", description="Lädt ein eigenes Offline-Bild für einen Streamer hoch.")
-    @discord.app_commands.describe(streamer="Der Twitch-Name des Streamers oder 'default'", bild="Das Bild, das angezeigt werden soll (PNG empfohlen)")
-    async def slash_twitch_offline_bild(self, interaction: discord.Interaction, streamer: str, bild: Optional[discord.Attachment] = None):
-        """Erlaubt das Hochladen von Offline-Bildern, die nicht öffentlich im Internet liegen."""
-        if not interaction.guild_id: return
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ Nur Administratoren können Offline-Bilder ändern.", ephemeral=True)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-        
-        guild_id = interaction.guild_id
+    async def web_upload_offline_image(self, guild_id: int, streamer_key: str, file_bytes: bytes) -> Tuple[bool, str]:
+        """Lädt ein Offline-Bild für einen Streamer hoch (Web-API)."""
         guild_dir = self.bot.data._get_guild_dir(guild_id)
         img_dir = os.path.join(guild_dir, "twitch_offline_images")
         os.makedirs(img_dir, exist_ok=True)
         
-        streamer_key = streamer.lower().strip()
-        
-        # Löschen-Modus: Wenn kein Bild angehängt ist
-        if not bild:
-            file_path = os.path.join(img_dir, f"{streamer_key}.png")
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                await interaction.followup.send(f"✅ Das Offline-Bild für `{streamer}` wurde entfernt.", ephemeral=True)
-            else:
-                await interaction.followup.send(f"ℹ️ Es war kein Offline-Bild für `{streamer}` gesetzt.", ephemeral=True)
-            return
-
-        # Upload-Modus
-        if not bild.content_type or not bild.content_type.startswith("image/"):
-            await interaction.followup.send("❌ Bitte hänge ein gültiges Bild an.", ephemeral=True)
-            return
-
+        streamer_key = streamer_key.lower().strip()
         file_path = os.path.join(img_dir, f"{streamer_key}.png")
+        
         try:
-            await bild.save(file_path)
-            
-            # Wenn es nicht 'default' ist, prüfen wir ob der Streamer überhaupt existiert (zur Info)
-            status_config = self.bot.data.get_guild_data(guild_id, "twitch_alerts")
-            streamers = status_config.get("streamers", {})
-            exists = streamer_key in streamers or streamer_key == "default"
-            
-            msg = f"✅ Offline-Bild für `{streamer}` erfolgreich gespeichert."
-            if not exists:
-                msg += f"\n*(Hinweis: Der Streamer `{streamer}` ist aktuell nicht konfiguriert, das Bild wird aber gespeichert.)*"
-            
-            await interaction.followup.send(msg, ephemeral=True)
+            with open(file_path, "wb") as f:
+                f.write(file_bytes)
+            return True, f"Offline-Bild für `{streamer_key}` wurde erfolgreich gespeichert."
         except Exception as e:
-            await interaction.followup.send(f"❌ Fehler beim Speichern des Bildes: {e}", ephemeral=True)
+            return False, f"Fehler beim Speichern des Bildes: {e}"
+
+    async def web_remove_offline_image(self, guild_id: int, streamer_key: str) -> Tuple[bool, str]:
+        """Entfernt ein Offline-Bild (Web-API)."""
+        guild_dir = self.bot.data._get_guild_dir(guild_id)
+        img_dir = os.path.join(guild_dir, "twitch_offline_images")
+        
+        streamer_key = streamer_key.lower().strip()
+        file_path = os.path.join(img_dir, f"{streamer_key}.png")
+        
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return True, f"Offline-Bild für `{streamer_key}` wurde entfernt."
+        return False, "Bild nicht gefunden."
 
     @discord.app_commands.command(name="twitch-absagen", description="Entfernt einen geplanten Stream und das zugehörige Event.")
     @discord.app_commands.describe(twitch_user="Der Twitch-Name des geplanten Streams")

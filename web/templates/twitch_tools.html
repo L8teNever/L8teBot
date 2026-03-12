@@ -284,6 +284,77 @@
         {% endif %}
     </section>
 
+    <!-- Section 3: Offline-Bilder -->
+    <section class="space-y-4">
+        {% if single_stream_is_enabled %}
+        <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2 mb-4">
+                <span class="material-symbols-outlined text-purple-400">image</span>
+                Offline-Bilder verwalten
+            </h2>
+            <p class="text-text-secondary mb-6 text-sm">Hier kannst du eigene Bilder hochladen, die angezeigt werden,
+                wenn ein Streamer offline ist. Diese Bilder werden lokal gespeichert und sind nicht öffentlich im
+                Internet abrufbar.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Upload Form -->
+                <div class="space-y-4">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">Bild hochladen</h3>
+                    <form action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}" method="POST"
+                        enctype="multipart/form-data" class="space-y-4">
+                        <input type="hidden" name="action" value="upload_offline_image">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-sm font-medium text-text-secondary">Twitch Name (oder 'default')</label>
+                            <input type="text" name="streamer_key" class="form-input"
+                                placeholder="z.B. l8tenever oder default" required>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-sm font-medium text-text-secondary">Bild auswählen (PNG/JPG)</label>
+                            <input type="file" name="offline_image"
+                                class="form-input bg-background-dark/50 border-dashed border-2 hover:border-purple-500/50 transition-colors"
+                                accept="image/*" required>
+                        </div>
+                        <button type="submit"
+                            class="w-full px-4 py-2 bg-purple-600 text-white text-sm font-bold rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-sm">upload</span>
+                            Bild hochladen
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Info & Delete -->
+                <div class="space-y-6">
+                    <div class="p-4 bg-background-dark/50 rounded-lg border border-white/5 space-y-3">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <span class="material-symbols-outlined text-blue-400 text-sm">info</span>
+                            Anleitung
+                        </h3>
+                        <ul class="text-xs text-text-secondary space-y-2 list-disc pl-4">
+                            <li>Name <strong>default</strong>: Gilt für alle Streamer auf diesem Server.</li>
+                            <li>Spezifische Namen (z.B. <em>ronny</em>) überschreiben das Standardbild.</li>
+                            <li>Bilder werden als <strong>Discord-Attachments</strong> gesendet, nicht verlinkt.</li>
+                        </ul>
+                    </div>
+
+                    <div class="p-4 bg-background-dark/50 rounded-lg border border-white/5 space-y-3">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Bild entfernen</h3>
+                        <form action="{{ url_for('manage_twitch_status', guild_id=guild.id) }}" method="POST"
+                            class="flex gap-2">
+                            <input type="hidden" name="action" value="remove_offline_image">
+                            <input type="text" name="streamer_key" class="form-input text-sm flex-1"
+                                placeholder="Streamer Name" required>
+                            <button type="submit"
+                                class="px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 transition-colors">
+                                <span class="material-symbols-outlined text-lg">delete</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </section>
+
     <!-- Section 2: Multi-Streamer Alert Feed -->
     <section class="space-y-4">
         <div class="flex items-center justify-between">
