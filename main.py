@@ -912,6 +912,8 @@ def manage_twitch(guild_id):
             future = asyncio.run_coroutine_threadsafe(cog.web_set_settings_trigger_role(guild_id, role_id), bot.loop)
         elif action == 'create_settings_trigger_role':
             future = asyncio.run_coroutine_threadsafe(cog.web_create_settings_trigger_role(guild_id), bot.loop)
+        elif action == 'bulk_assign_roles':
+            future = asyncio.run_coroutine_threadsafe(cog.web_bulk_assign_streamer_roles(guild_id), bot.loop)
         
         if future:
             success, message = future.result()
@@ -1587,15 +1589,21 @@ def manage_onboarding(guild_id):
             return redirect(url_for('manage_guard', guild_id=guild_id))
 
         # Get form data
-        role_ids = request.form.getlist('role_ids')
-        role_ids = [int(rid) for rid in role_ids if rid]
+        join_role_ids = request.form.getlist('join_role_ids')
+        join_role_ids = [int(rid) for rid in join_role_ids if rid]
+
+        verified_role_ids = request.form.getlist('role_ids') # Still using 'role_ids' from form for compatibility or rename
+        verified_role_ids = [int(rid) for rid in verified_role_ids if rid]
+
+        auto_twitch_on_join = request.form.get('auto_twitch_on_join') == 'on'
+        auto_twitch_on_verify = request.form.get('auto_twitch_on_verify') == 'on'
 
         log_channel_id_str = request.form.get('log_channel_id')
         log_channel_id = int(log_channel_id_str) if log_channel_id_str else None
 
         # Call cog method
         future = asyncio.run_coroutine_threadsafe(
-            cog.web_set_config(guild_id, role_ids, log_channel_id),
+            cog.web_set_config(guild_id, join_role_ids, verified_role_ids, auto_twitch_on_join, auto_twitch_on_verify, log_channel_id),
             bot.loop
         )
         success, message = future.result()

@@ -560,6 +560,47 @@ class TwitchCog(commands.Cog, name="Twitch"):
         except Exception as e:
             return False, f"Fehler beim Erstellen der Rolle: {e}"
 
+    async def web_bulk_assign_streamer_roles(self, guild_id: int) -> Tuple[bool, str]:
+        guild = self.bot.get_guild(guild_id)
+        if not guild: return False, "Server nicht gefunden."
+        
+        guild_data = self.bot.data.get_guild_data(guild_id, "streamers")
+        streamers_dict = guild_data.get("streamers", {})
+        user_prefs = guild_data.get("user_preferences", {})
+        
+        if not streamers_dict:
+            return False, "Keine Streamer konfiguriert."
+
+        count = 0
+        # Wir gehen alle Member durch (die gecacht sind)
+        for member in guild.members:
+            if member.bot: continue
+            
+            u_id = str(member.id)
+            prefs = user_prefs.get(u_id, {})
+            
+            roles_to_add = []
+            for s_key, s_data in streamers_dict.items():
+                # Wenn der User explizit "False" (abgewählt) hat, überspringen wir ihn
+                if prefs.get(s_key) is False:
+                    continue
+                
+                role_id = s_data.get("notification_role_id")
+                if not role_id: continue
+                
+                role = guild.get_role(role_id)
+                if role and role not in member.roles:
+                    roles_to_add.append(role)
+            
+            if roles_to_add:
+                try:
+                    await member.add_roles(*roles_to_add, reason="Web-Dashboard: Bulk Join")
+                    count += 1
+                except:
+                    pass
+        
+        return True, f"Rollen wurden an {count} Mitglieder verteilt (Opt-Outs wurden beachtet)."
+
     # --- Listener für Trigger-Rolle ---
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
@@ -682,6 +723,12 @@ class StreamerSelect(discord.ui.Select):
         added = []
         removed = []
         
+        # Präferenzen speichern (Opt-Out Tracking)
+        user_prefs = guild_data.setdefault("user_preferences", {})
+        u_id = str(member.id)
+        if u_id not in user_prefs:
+            user_prefs[u_id] = {}
+            
         for s_key, s_data in streamers_dict.items():
             role_id = s_data.get("notification_role_id")
             if not role_id: continue
@@ -691,6 +738,9 @@ class StreamerSelect(discord.ui.Select):
             is_now_selected = s_key in selected_keys
             has_role = role.id in current_role_ids
             
+            # Status in Datei sichern
+            user_prefs[u_id][s_key] = is_now_selected
+
             if is_now_selected and not has_role:
                 await member.add_roles(role, reason="Twitch-Abo: Aktiviert")
                 added.append(f"@{role.name}")
@@ -698,6 +748,9 @@ class StreamerSelect(discord.ui.Select):
                 await member.remove_roles(role, reason="Twitch-Abo: Deaktiviert")
                 removed.append(f"@{role.name}")
         
+        # Speichern
+        self.view.bot.data.save_guild_data(interaction.guild.id, "streamers", guild_data)
+
         if not added and not removed:
             return await interaction.response.send_message("Keine Änderungen vorgenommen.", ephemeral=True)
             

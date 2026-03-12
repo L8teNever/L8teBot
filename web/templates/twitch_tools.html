@@ -458,6 +458,22 @@
                         class="mt-2 w-full px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
                         Feed-Kanal speichern
                     </button>
+
+                    <div class="mt-6 pt-6 border-t border-[#2e3e5e]">
+                        <h4 class="text-xs font-bold text-text-secondary uppercase mb-3">Admin Aktionen</h4>
+                        <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}">
+                            <input type="hidden" name="action" value="bulk_assign_roles">
+                            <button type="submit"
+                                class="w-full flex items-center justify-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 py-2 rounded-lg transition-all text-sm font-bold">
+                                <span class="material-symbols-outlined text-sm">groups</span>
+                                Rollen an ALLE verteilen
+                            </button>
+                            <p class="text-[10px] text-text-secondary mt-2 italic text-center">
+                                Gibt allen Usern die Rollen, außer sie haben diese in ihren Einstellungen explizit
+                                deaktiviert (Opt-Out).
+                            </p>
+                        </form>
+                    </div>
                 </form>
             </div>
 
