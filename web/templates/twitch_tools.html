@@ -20,9 +20,14 @@
                 <input type="hidden" name="is_enabled" value="{{ 'False' if single_stream_is_enabled else 'True' }}">
                 <input type="hidden" name="redirect_url" value="{{ request.url }}">
                 <label class="flex items-center gap-3 cursor-pointer m-0">
-                    <input type="checkbox" {% if single_stream_is_enabled %}checked{% endif %} onchange="this.form.submit()" class="sr-only peer">
-                    <div class="w-8 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 relative"></div>
-                    <span class="text-sm font-medium {% if single_stream_is_enabled %}text-green-400{% else %}text-red-400{% endif %}">{{ 'Aktiv' if single_stream_is_enabled else 'Inaktiv' }}</span>
+                    <input type="checkbox" {% if single_stream_is_enabled %}checked{% endif %}
+                        onchange="this.form.submit()" class="sr-only peer">
+                    <div
+                        class="w-8 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 relative">
+                    </div>
+                    <span
+                        class="text-sm font-medium {% if single_stream_is_enabled %}text-green-400{% else %}text-red-400{% endif %}">{{
+                        'Aktiv' if single_stream_is_enabled else 'Inaktiv' }}</span>
                 </label>
             </form>
         </div>
@@ -291,9 +296,14 @@
                 <input type="hidden" name="is_enabled" value="{{ 'False' if multi_stream_is_enabled else 'True' }}">
                 <input type="hidden" name="redirect_url" value="{{ request.url }}">
                 <label class="flex items-center gap-3 cursor-pointer m-0">
-                    <input type="checkbox" {% if multi_stream_is_enabled %}checked{% endif %} onchange="this.form.submit()" class="sr-only peer">
-                    <div class="w-8 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 relative"></div>
-                    <span class="text-sm font-medium {% if multi_stream_is_enabled %}text-green-400{% else %}text-red-400{% endif %}">{{ 'Aktiv' if multi_stream_is_enabled else 'Inaktiv' }}</span>
+                    <input type="checkbox" {% if multi_stream_is_enabled %}checked{% endif %}
+                        onchange="this.form.submit()" class="sr-only peer">
+                    <div
+                        class="w-8 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 relative">
+                    </div>
+                    <span
+                        class="text-sm font-medium {% if multi_stream_is_enabled %}text-green-400{% else %}text-red-400{% endif %}">{{
+                        'Aktiv' if multi_stream_is_enabled else 'Inaktiv' }}</span>
                 </label>
             </form>
         </div>
@@ -411,14 +421,20 @@
                     <span class="material-symbols-outlined text-purple-400">movie</span>
                     Twitch Clips
                 </h2>
-                <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" data-ajax="true" class="m-0">
+                <form action="{{ url_for('toggle_module', guild_id=guild.id) }}" method="post" data-ajax="true"
+                    class="m-0">
                     <input type="hidden" name="cog_name" value="Twitch-Clips">
                     <input type="hidden" name="is_enabled" value="{{ 'False' if clips_is_enabled else 'True' }}">
                     <input type="hidden" name="redirect_url" value="{{ request.url }}">
                     <label class="flex items-center gap-3 cursor-pointer m-0">
-                        <input type="checkbox" {% if clips_is_enabled %}checked{% endif %} onchange="this.form.submit()" class="sr-only peer">
-                        <div class="w-8 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 relative"></div>
-                        <span class="text-sm font-medium {% if clips_is_enabled %}text-green-400{% else %}text-red-400{% endif %}">{{ 'Aktiv' if clips_is_enabled else 'Inaktiv' }}</span>
+                        <input type="checkbox" {% if clips_is_enabled %}checked{% endif %} onchange="this.form.submit()"
+                            class="sr-only peer">
+                        <div
+                            class="w-8 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 relative">
+                        </div>
+                        <span
+                            class="text-sm font-medium {% if clips_is_enabled %}text-green-400{% else %}text-red-400{% endif %}">{{
+                            'Aktiv' if clips_is_enabled else 'Inaktiv' }}</span>
                     </label>
                 </form>
             </div>

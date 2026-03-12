@@ -2,9 +2,11 @@
 import discord
 from discord.ext import commands, tasks
 import aiohttp
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 import time
 import asyncio
+import os
+import shutil
 from datetime import datetime, timezone
 
 # --- Discord UI Views (Buttons) ---
@@ -218,7 +220,7 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         embed.set_footer(text=f"Live seit {stream_info.get('started_at', '')}")
         return embed
 
-    def _create_offline_embed(self, stream_info: Dict[str, Any]) -> discord.Embed:
+    def _create_offline_embed(self, guild_id: int, streamer_key: str, stream_info: Dict[str, Any]) -> Tuple[discord.Embed, Optional[discord.File]]:
         twitch_url = f"https://twitch.tv/{stream_info.get('login', '')}"
         embed = discord.Embed(description=f"Hallöchen! Mein Name ist {stream_info.get('display_name')} und ich versuche hier regelmäßig zu streamen.", color=discord.Color.dark_grey())
         embed.set_author(name=f"{stream_info.get('login', '')}", icon_url=stream_info.get('profile_image_url'), url=twitch_url)
@@ -229,11 +231,28 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         last_game = stream_info.get('last_game_name') or "Just Chatting"
         embed.add_field(name="Zuletzt gespielt", value=last_game, inline=True)
         
-        # Nutze das neue, vom Script gehostete Bild (Root-Pfad verwenden für bessere Erreichbarkeit)
-        offline_img_url = f"{self.bot.base_url}/twitch_offline.png?t={int(time.time())}"
-        print(f"[Twitch-Alert] DEBUG: Using offline image URL: {offline_img_url}")
-        embed.set_image(url=offline_img_url)
-        return embed
+        # Suche nach einem lokalen Offline-Bild
+        guild_dir = self.bot.data._get_guild_dir(guild_id)
+        img_dir = os.path.join(guild_dir, "twitch_offline_images")
+        local_file = None
+        
+        # 1. Streamer-spezifisches Bild
+        streamer_img = os.path.join(img_dir, f"{streamer_key}.png")
+        # 2. Default Bild für diesen Server
+        default_img = os.path.join(img_dir, "default.png")
+        
+        if os.path.exists(streamer_img):
+            local_file = discord.File(streamer_img, filename="offline_image.png")
+            embed.set_image(url="attachment://offline_image.png")
+        elif os.path.exists(default_img):
+            local_file = discord.File(default_img, filename="offline_image.png")
+            embed.set_image(url="attachment://offline_image.png")
+        else:
+            # Fallback: Nutze das Standard-Bild vom Webserver (wenn vorhanden)
+            offline_img_url = f"{self.bot.base_url}/twitch_offline.png?t={int(time.time())}"
+            embed.set_image(url=offline_img_url)
+        
+        return embed, local_file
 
     async def _create_discord_event(self, guild: discord.Guild, stream_info: Dict[str, Any], twitch_url: str, scheduled_start: Optional[datetime] = None, custom_title: Optional[str] = None) -> Optional[discord.ScheduledEvent]:
         """Erstellt ein Discord Scheduled Event für einen Live-Stream oder einen geplanten Stream."""
@@ -451,16 +470,27 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
                     
                     # Wenn er offline gegangen ist oder wir die Nachricht noch nicht geschickt haben
                     if was_live or not s_data.get("message_id"):
-                        embed = self._create_offline_embed(stream_info)
+                        embed, file = self._create_offline_embed(guild.id, streamer_key, stream_info)
                         if msg_id := s_data.get("message_id"):
                             try:
                                 msg = await channel.fetch_message(msg_id)
-                                await msg.edit(content="", embed=embed, view=view)
+                                if file:
+                                    # Bei Anhängen müssen wir oft die Anhänge in der Nachricht aktualisieren
+                                    await msg.edit(content="", embed=embed, view=view, attachments=[file])
+                                else:
+                                    # Fallback (Url-Embed), wir entfernen alte Anhänge falls vorhanden
+                                    await msg.edit(content="", embed=embed, view=view, attachments=[])
                             except:
-                                msg = await channel.send(content="", embed=embed, view=view)
+                                if file:
+                                    msg = await channel.send(content="", embed=embed, view=view, file=file)
+                                else:
+                                    msg = await channel.send(content="", embed=embed, view=view)
                                 s_data["message_id"] = msg.id
                         else:
-                            msg = await channel.send(content="", embed=embed, view=view)
+                            if file:
+                                msg = await channel.send(content="", embed=embed, view=view, file=file)
+                            else:
+                                msg = await channel.send(content="", embed=embed, view=view)
                             s_data["message_id"] = msg.id
                 
                 # Event löschen
@@ -798,11 +828,61 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
             
             embed.add_field(
                 name=s_data.get("display_name"),
-                value=f"**Zeit:** {time_str}\n**Titel:** {s_data.get('title', 'Kein Titel')}",
+                value=f"📅 {time_str}\n📌 {s_data.get('title')}",
                 inline=False
             )
-            
+        
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @discord.app_commands.command(name="twitch-offline-bild", description="Lädt ein eigenes Offline-Bild für einen Streamer hoch.")
+    @discord.app_commands.describe(streamer="Der Twitch-Name des Streamers oder 'default'", bild="Das Bild, das angezeigt werden soll (PNG empfohlen)")
+    async def slash_twitch_offline_bild(self, interaction: discord.Interaction, streamer: str, bild: Optional[discord.Attachment] = None):
+        """Erlaubt das Hochladen von Offline-Bildern, die nicht öffentlich im Internet liegen."""
+        if not interaction.guild_id: return
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Nur Administratoren können Offline-Bilder ändern.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        
+        guild_id = interaction.guild_id
+        guild_dir = self.bot.data._get_guild_dir(guild_id)
+        img_dir = os.path.join(guild_dir, "twitch_offline_images")
+        os.makedirs(img_dir, exist_ok=True)
+        
+        streamer_key = streamer.lower().strip()
+        
+        # Löschen-Modus: Wenn kein Bild angehängt ist
+        if not bild:
+            file_path = os.path.join(img_dir, f"{streamer_key}.png")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                await interaction.followup.send(f"✅ Das Offline-Bild für `{streamer}` wurde entfernt.", ephemeral=True)
+            else:
+                await interaction.followup.send(f"ℹ️ Es war kein Offline-Bild für `{streamer}` gesetzt.", ephemeral=True)
+            return
+
+        # Upload-Modus
+        if not bild.content_type or not bild.content_type.startswith("image/"):
+            await interaction.followup.send("❌ Bitte hänge ein gültiges Bild an.", ephemeral=True)
+            return
+
+        file_path = os.path.join(img_dir, f"{streamer_key}.png")
+        try:
+            await bild.save(file_path)
+            
+            # Wenn es nicht 'default' ist, prüfen wir ob der Streamer überhaupt existiert (zur Info)
+            status_config = self.bot.data.get_guild_data(guild_id, "twitch_alerts")
+            streamers = status_config.get("streamers", {})
+            exists = streamer_key in streamers or streamer_key == "default"
+            
+            msg = f"✅ Offline-Bild für `{streamer}` erfolgreich gespeichert."
+            if not exists:
+                msg += f"\n*(Hinweis: Der Streamer `{streamer}` ist aktuell nicht konfiguriert, das Bild wird aber gespeichert.)*"
+            
+            await interaction.followup.send(msg, ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Fehler beim Speichern des Bildes: {e}", ephemeral=True)
 
     @discord.app_commands.command(name="twitch-absagen", description="Entfernt einen geplanten Stream und das zugehörige Event.")
     @discord.app_commands.describe(twitch_user="Der Twitch-Name des geplanten Streams")
