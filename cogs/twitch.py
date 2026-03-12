@@ -538,6 +538,24 @@ class TwitchCog(commands.Cog, name="Twitch"):
         self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
         return True, "Trigger-Rolle für Einstellungen erfolgreich aktualisiert."
 
+    async def web_create_settings_trigger_role(self, guild_id: int) -> Tuple[bool, str]:
+        guild = self.bot.get_guild(guild_id)
+        if not guild: return False, "Server nicht gefunden."
+        
+        try:
+            role = await guild.create_role(
+                name="Twitch-Abos verwalten",
+                reason="Automatisch erstellte Trigger-Rolle für Twitch-Einstellungen",
+                color=discord.Color.purple(),
+                mentionable=True
+            )
+            
+            # Direkt als Trigger-Rolle setzen
+            await self.web_set_settings_trigger_role(guild_id, role.id)
+            return True, f"Rolle `@{role.name}` wurde erstellt und als Trigger gesetzt."
+        except Exception as e:
+            return False, f"Fehler beim Erstellen der Rolle: {e}"
+
     # --- Listener für Trigger-Rolle ---
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
@@ -573,12 +591,22 @@ class TwitchCog(commands.Cog, name="Twitch"):
             channel = await guild.create_text_channel(name=channel_name, overwrites=overwrites, category=category, reason=f"Einstellungs-Kanal für {member.name}")
             
             # Nachricht mit Dropdown senden
-            view = TwitchSettingsView(self.bot, member, channel, trigger_role)
-            await channel.send(
-                content=f"Hallo {member.mention}! Hier kannst du deine Twitch-Benachrichtigungen einstellen.\n"
-                        f"Wähle im Menü unten die Streamer aus, für die du eine Benachrichtigung erhalten möchtest.",
-                view=view
+            embed = discord.Embed(
+                title="✨ Twitch Benachrichtigungen",
+                description=(
+                    f"Hallo {member.mention}!\n\n"
+                    "Hier kannst du ganz einfach festlegen, bei welchen Streamern du gepingt werden möchtest.\n\n"
+                    "**Anleitung:**\n"
+                    "1. Wähle im Menü unten alle Streamer aus (Multiselect).\n"
+                    "2. Der Bot gibt dir automatisch die entsprechenden Rollen.\n"
+                    "3. Klicke auf den grünen Button, wenn du fertig bist."
+                ),
+                color=discord.Color.purple()
             )
+            embed.set_footer(text="Dieses Fenster schließt sich automatisch nach 10 Minuten.")
+            
+            view = TwitchSettingsView(self.bot, member, channel, trigger_role)
+            await channel.send(embed=embed, view=view)
             
             # Timeout Task starten (10 Minuten)
             self.bot.loop.create_task(self._cleanup_settings_channel_after_delay(channel, member, trigger_role))

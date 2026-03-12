@@ -463,7 +463,18 @@
 
             <!-- Einstellungs-Trigger (New) -->
             <div class="rounded-lg bg-card-dark p-6 border border-[#2e3e5e]">
-                <h3 class="text-lg font-bold text-white mb-4">Abo-Einstellungen</h3>
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-white">Abo-Einstellungen</h3>
+                    <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
+                        class="m-0">
+                        <input type="hidden" name="action" value="create_settings_trigger_role">
+                        <button type="submit"
+                            class="text-[10px] bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 px-2 py-1 rounded border border-purple-500/30 transition-all flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[12px]">add_moderator</span>
+                            Rolle erstellen
+                        </button>
+                    </form>
+                </div>
                 <p class="text-text-secondary mb-6 text-sm">Wähle eine Rolle, die der User bekommen muss, um seine
                     Twitch-Abos (Benachrichtigungen) zu verwalten.</p>
                 <form data-ajax="true" method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}"
@@ -486,12 +497,14 @@
                     </div>
 
                     <div class="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-                        <p class="text-[11px] text-purple-300 leading-relaxed">
-                            <strong>Info:</strong> Wenn ein User diese Rolle erhält, erstellt der Bot einen privaten
-                            Kanal für ihn. Dort kann er per Menü auswählen, welche Streamer-Pings er haben möchte. Nach
-                            10 Minuten oder beim Klick auf "Fertig" wird der Kanal gelöscht und die Rolle automatisch
-                            wieder entfernt.
-                        </p>
+                        <div class="flex items-start gap-2">
+                            <span class="material-symbols-outlined text-purple-400 text-sm mt-0.5">help</span>
+                            <p class="text-[11px] text-purple-300 leading-relaxed">
+                                <strong>Funktionsweise:</strong> Wenn ein User diese Rolle erhält, öffnet der Bot einen
+                                privaten Kanal für ihn. Dort kann er per Dropdown wählen, welche Streamer-Pings er haben
+                                will. Der Kanal schließt sich nach 10 Min. oder manuell von selbst.
+                            </p>
+                        </div>
                     </div>
 
                     <button type="submit"

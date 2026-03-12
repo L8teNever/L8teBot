@@ -910,6 +910,8 @@ def manage_twitch(guild_id):
             role_id_str = request.form.get('trigger_role_id')
             role_id = int(role_id_str) if role_id_str else None
             future = asyncio.run_coroutine_threadsafe(cog.web_set_settings_trigger_role(guild_id, role_id), bot.loop)
+        elif action == 'create_settings_trigger_role':
+            future = asyncio.run_coroutine_threadsafe(cog.web_create_settings_trigger_role(guild_id), bot.loop)
         
         if future:
             success, message = future.result()
