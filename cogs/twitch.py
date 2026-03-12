@@ -609,16 +609,17 @@ class TwitchCog(commands.Cog, name="Twitch"):
             )
             embed.set_footer(text="Dieses Fenster schließt sich automatisch nach 10 Minuten.")
             
-            view = TwitchSettingsView(self.bot, member, channel, trigger_role)
+            view = TwitchSettingsView(self.bot, member)
             await channel.send(embed=embed, view=view)
             
             # Timeout Task starten (10 Minuten)
             self.bot.loop.create_task(self._cleanup_settings_channel_after_delay(channel, member, trigger_role))
             
-        except discord.Forbidden:
+        except Exception as e:
+            print(f"DEBUG: Fehler beim Senden der Einstellungs-Nachricht: {e}")
             try:
-                await member.send("Ich konnte keinen Einstellungs-Kanal für dich erstellen. Mir fehlen die Rechte dazu.")
-                await member.remove_roles(trigger_role, reason="Fehlende Rechte für Kanalerstellung")
+                await member.send(f"Ich konnte keine Einstellungs-Nachricht in deinem Kanal erstellen: {e}")
+                await member.remove_roles(trigger_role, reason="Fehler bei Nachrichtenerstellung")
             except: pass
 
     async def _cleanup_settings_channel_after_delay(self, channel: discord.TextChannel, member: discord.Member, role: discord.Role):
