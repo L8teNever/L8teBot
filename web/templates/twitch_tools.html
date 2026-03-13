@@ -479,11 +479,24 @@
                         <input type="hidden" name="action" value="bulk_assign_roles">
                         <button type="submit"
                             class="w-full flex items-center justify-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 py-2 rounded-lg transition-all text-sm font-bold">
-                            <span class="material-symbols-outlined text-sm">groups</span>
-                            Rollen an ALLE verteilen
+                            <span class="material-symbols-outlined text-sm">person_add</span>
+                            Abonnierten Nutzern Rollen geben
                         </button>
                         <p class="text-[10px] text-text-secondary mt-1 italic text-center">
-                            Beachtet Opt-Out Einstellungen der User.
+                            Gibt nur denen Rollen, die sie aktiv gewählt haben.
+                        </p>
+                    </form>
+
+                    <!-- Bulk Removal -->
+                    <form method="POST" action="{{ url_for('manage_twitch', guild_id=guild.id) }}" class="mt-4">
+                        <input type="hidden" name="action" value="bulk_remove_roles">
+                        <button type="submit"
+                            class="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 py-2 rounded-lg transition-all text-sm font-bold">
+                            <span class="material-symbols-outlined text-sm">person_remove</span>
+                            Rollen von ALLEN entfernen
+                        </button>
+                        <p class="text-[10px] text-text-secondary mt-1 italic text-center">
+                            Entfernt restlos alle Twitch-Ping-Rollen.
                         </p>
                     </form>
 

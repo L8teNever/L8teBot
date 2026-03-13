@@ -599,14 +599,14 @@ class TwitchCog(commands.Cog, name="Twitch"):
                 # Spezialfall: Nur eine bestimmte Rolle verteilen (z.B. neuer Streamer)
                 for s_key, s_data in streamers_dict.items():
                     if s_data.get("notification_role_id") == target_role_id:
-                        if prefs.get(s_key) is not False:
+                        if prefs.get(s_key) is True: # Opt-In: Nur wenn explizit True
                             role = guild.get_role(target_role_id)
                             if role and role not in member.roles:
                                 roles_to_add.append(role)
             else:
                 # Normalfall: Alle Streamer-Rollen prüfen
                 for s_key, s_data in streamers_dict.items():
-                    if prefs.get(s_key) is False:
+                    if prefs.get(s_key) is not True: # Opt-In: Nur wenn explizit True
                         continue
                     
                     role_id = s_data.get("notification_role_id")
@@ -628,6 +628,48 @@ class TwitchCog(commands.Cog, name="Twitch"):
                     await asyncio.sleep(2) # Längere Pause bei Fehlern
         
         print(f"DEBUG: Bulk-Rollenverteilung abgeschlossen. {count} Mitglieder aktualisiert.")
+
+    async def web_bulk_remove_streamer_roles(self, guild_id: int) -> Tuple[bool, str]:
+        """Entfernt alle Twitch-Ping-Rollen von allen Mitgliedern."""
+        self.bot.loop.create_task(self._bg_bulk_remove_streamer_roles(guild_id))
+        return True, "Die Rollen-Entfernung wurde im Hintergrund gestartet. Dies kann einige Minuten dauern."
+
+    async def _bg_bulk_remove_streamer_roles(self, guild_id: int):
+        """Hintergrund-Task für die schrittweise Entfernung von Twitch-Rollen."""
+        guild = self.bot.get_guild(guild_id)
+        if not guild: return
+        
+        guild_data = self.bot.data.get_guild_data(guild_id, "streamers")
+        streamers_dict = guild_data.get("streamers", {})
+        if not streamers_dict: return
+
+        # Alle Rollen-IDs sammeln
+        role_ids = []
+        for s_data in streamers_dict.values():
+            if r_id := s_data.get("notification_role_id"):
+                role_ids.append(r_id)
+        
+        if not role_ids: return
+
+        print(f"DEBUG: Starte Bulk-Rollen-Entfernung für Server {guild.name}")
+        
+        count = 0
+        for member in guild.members:
+            if member.bot: continue
+            
+            roles_to_remove = [r for r in member.roles if r.id in role_ids]
+            
+            if roles_to_remove:
+                try:
+                    await member.remove_roles(*roles_to_remove, reason="Twitch-System: Bulk Cleanup")
+                    count += 1
+                    if count % 5 == 0:
+                        await asyncio.sleep(1)
+                except Exception as e:
+                    print(f"DEBUG: Fehler beim Entfernen von Rollen bei {member.name}: {e}")
+                    await asyncio.sleep(2)
+        
+        print(f"DEBUG: Bulk-Rollen-Entfernung abgeschlossen. {count} Mitglieder bereinigt.")
 
     async def web_sync_streamer_roles(self, guild_id: int) -> Tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
