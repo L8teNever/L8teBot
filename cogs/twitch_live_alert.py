@@ -359,10 +359,6 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
 
         try:
             if is_live:
-                # Prüfe ob es einen geplanten Stream für diesen User gibt
-                planned_streams = status_config.get("planned_streams", {})
-                planned_data = planned_streams.get(streamer_key)
-                
                 # === KANAL MANAGEMENT ===
                 if event_mode in ["channel_only", "both"] and channel:
                     # Kanal-Name ändern
