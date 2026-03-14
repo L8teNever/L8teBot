@@ -307,7 +307,9 @@ class TwitchCog(commands.Cog, name="Twitch"):
                         thumb_url = stream_data.get('thumbnail_url', '').replace('{width}', '1280').replace('{height}', '720')
                         if thumb_url: embed.set_image(url=f"{thumb_url}?t={int(asyncio.get_event_loop().time())}")
 
-                        await msg.edit(embed=embed)
+                        view = discord.ui.View().add_item(discord.ui.Button(label="Zum Stream!", style=discord.ButtonStyle.link, url=twitch_url))
+
+                        await msg.edit(embed=embed, view=view)
                         data["last_update"] = now
                         save_needed = True
                     except (discord.NotFound, discord.Forbidden, discord.HTTPException):

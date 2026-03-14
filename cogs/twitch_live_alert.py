@@ -367,10 +367,10 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
                 if event_mode in ["channel_only", "both"] and channel:
                     # Kanal-Name ändern
                     if channel.name != "🔴｜live":
-                        try: 
+                        try:
                             await channel.edit(name="🔴｜live")
-                        except: 
-                            pass
+                        except Exception as e:
+                            print(f"[Twitch-Alert] Fehler beim Umbenennen des Kanals zu LIVE: {e}")
                     
                     embed = self._create_live_embed(stream_info)
                     
@@ -463,10 +463,10 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
                 if event_mode in ["channel_only", "both"] and channel:
                     # Kanal-Name ändern
                     if channel.name != "⚫｜offline":
-                        try: 
+                        try:
                             await channel.edit(name="⚫｜offline")
-                        except: 
-                            pass
+                        except Exception as e:
+                            print(f"[Twitch-Alert] Fehler beim Umbenennen des Kanals zu OFFLINE: {e}")
                     
                     # Wenn er offline gegangen ist oder wir die Nachricht noch nicht geschickt haben
                     if was_live or not s_data.get("message_id"):
@@ -800,8 +800,6 @@ class TwitchLiveAlertCog(commands.Cog, name="Twitch-Live-Alert"):
         
         success, message = await self.web_add_planned_stream(interaction.guild_id, twitch_user, iso_str, titel)
         await interaction.followup.send(message, ephemeral=True)
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     async def web_upload_offline_image(self, guild_id: int, streamer_key: str, file_bytes: bytes) -> Tuple[bool, str]:
         """Lädt ein Offline-Bild für einen Streamer hoch (Web-API)."""
