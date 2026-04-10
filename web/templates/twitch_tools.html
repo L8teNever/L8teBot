@@ -465,6 +465,21 @@
                         </label>
                     </div>
 
+                    <div class="flex items-center gap-3 bg-white/5 p-3 rounded-lg border border-white/10">
+                        <div class="flex-1">
+                            <label class="text-sm font-bold text-white block">Offline-Nachricht senden</label>
+                            <p class="text-[10px] text-text-secondary">Sendet eine Nachricht in den Feed-Kanal, wenn
+                                aktuell niemand streamt. Diese verschwindet, wenn wieder jemand live ist.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="send_offline_message" class="sr-only peer" {% if
+                                streamers_data.get('send_offline_message') %}checked{% endif %}>
+                            <div
+                                class="w-9 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary">
+                            </div>
+                        </label>
+                    </div>
+
                     <button type="submit"
                         class="mt-2 w-full px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors">
                         Feed-Kanal speichern

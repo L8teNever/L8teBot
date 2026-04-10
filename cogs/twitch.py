@@ -29,6 +29,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
         
         # Persistente Views registrieren (für Buttons/Menus nach Neustart)
         self.bot.add_view(TwitchSettingsView(self.bot))
+        self.bot.add_view(TwitchOfflineView(self.bot))
         
         if self.TWITCH_OAUTH_TOKEN:
             self.check_streams.start()
@@ -124,6 +125,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
                 for streamer_key, streamer_data in list(guild_data["streamers"].items()):
                     await self.process_streamer_status(guild.id, streamer_key, streamer_data)
                     await asyncio.sleep(1) # Kleiner Delay zwischen den API-Aufrufen
+                await self._process_offline_message(guild.id, guild_data)
 
     async def process_streamer_status(self, guild_id: int, streamer_key: str, data: dict):
         guild = self.bot.get_guild(guild_id)
@@ -156,6 +158,54 @@ class TwitchCog(commands.Cog, name="Twitch"):
 
         except (discord.Forbidden, discord.HTTPException) as e:
             print(f"Fehler beim Senden/Bearbeiten der Twitch-Benachrichtigung: {e}")
+
+    async def _process_offline_message(self, guild_id: int, guild_data: dict):
+        if not guild_data.get("send_offline_message"):
+            return
+            
+        any_live = any(s.get("is_live", False) for s in guild_data.get("streamers", {}).values())
+        channel_id = guild_data.get("channel_id")
+        if not channel_id:
+            return
+            
+        guild = self.bot.get_guild(guild_id)
+        if not guild: return
+        channel = guild.get_channel(channel_id)
+        if not channel: return
+        
+        offline_msg_id = guild_data.get("offline_message_id")
+        
+        if any_live:
+            # Es streamen Leute - lösche die Offline-Nachricht
+            if offline_msg_id:
+                try:
+                    msg = await channel.fetch_message(offline_msg_id)
+                    await msg.delete()
+                except Exception:
+                    pass
+                guild_data["offline_message_id"] = None
+                self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
+        else:
+            # Niemand streamt - sende die Offline-Nachricht
+            if not offline_msg_id:
+                embed = discord.Embed(
+                    title="Aktuell streamt niemand",
+                    description="Im Moment ist leider keiner unserer Streamer live. Schau später nochmal vorbei!",
+                    color=discord.Color.dark_grey()
+                )
+                embed.set_footer(text="Sobald wieder Content kommt, wirst du hier benachrichtigt.")
+                
+                view = None
+                role_id = guild_data.get("settings_trigger_role_id")
+                if role_id:
+                    view = TwitchOfflineView(self.bot)
+                    
+                try:
+                    msg = await channel.send(embed=embed, view=view)
+                    guild_data["offline_message_id"] = msg.id
+                    self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
+                except Exception as e:
+                    print(f"Fehler beim Senden der Offline-Nachricht: {e}")
 
     async def _process_forum_mode(self, guild, forum_channel, streamer_key, data, stream_data, is_live_now, is_live_cached, guild_data):
         """Verarbeitet Streamer-Status im Forum-Modus (eigener Thread pro Streamer)."""
@@ -396,7 +446,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
             await interaction.response.send_message(f"❌ Ein Fehler ist aufgetreten: {e}", ephemeral=True)
 
     # --- Web API Methoden ---
-    async def web_set_feed_config(self, guild_id: int, feed_channel_id: Optional[int], display_mode: str = "channel", auto_assign: bool = False) -> Tuple[bool, str]:
+    async def web_set_feed_config(self, guild_id: int, feed_channel_id: Optional[int], display_mode: str = "channel", auto_assign: bool = False, send_offline_message: bool = False) -> Tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
         if not guild: return False, "Server nicht gefunden."
         
@@ -409,6 +459,7 @@ class TwitchCog(commands.Cog, name="Twitch"):
         guild_data["channel_id"] = feed_channel_id
         guild_data["display_mode"] = display_mode
         guild_data["auto_assign_new_streamers"] = auto_assign
+        guild_data["send_offline_message"] = send_offline_message
         
         self.bot.data.save_guild_data(guild_id, "streamers", guild_data)
         
@@ -902,6 +953,37 @@ class TwitchSettingsView(discord.ui.View):
         try:
             await interaction.channel.delete(reason="Einstellungs-Kanal geschlossen")
         except: pass
+
+class TwitchOfflineView(discord.ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=None)
+        self.bot = bot
+
+    @discord.ui.button(label="Ping Rollen anpassen", style=discord.ButtonStyle.primary, custom_id="twitch_offline_roles_btn")
+    async def get_role_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        guild_id = interaction.guild_id
+        if not guild_id: return
+        
+        guild_data = self.bot.data.get_guild_data(guild_id, "streamers")
+        trigger_role_id = guild_data.get("settings_trigger_role_id")
+        
+        if not trigger_role_id:
+            await interaction.response.send_message("Die Einstellungs-Rolle ist nicht mehr konfiguriert.", ephemeral=True)
+            return
+            
+        role = interaction.guild.get_role(trigger_role_id)
+        if not role:
+            await interaction.response.send_message("Die Rolle wurde nicht gefunden.", ephemeral=True)
+            return
+
+        if role in interaction.user.roles:
+            await interaction.response.send_message(f"Du hast die Rolle {role.mention} bereits. Es öffnet sich gleich ein Kanal.", ephemeral=True)
+        else:
+            try:
+                await interaction.user.add_roles(role, reason="Button: Twitch Ping Rollen anpassen")
+                await interaction.response.send_message(f"✅ Du hast die Rolle erhalten. Es öffnet sich gleich ein Kanal für dich.", ephemeral=True)
+            except discord.Forbidden:
+                await interaction.response.send_message(f"Ich habe keine Rechte, dir diese Rolle zu geben.", ephemeral=True)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(TwitchCog(bot))
