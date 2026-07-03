@@ -1,0 +1,544 @@
+{% extends "layout.html" %}
+{% block title %}Rollen-Verwaltung - {{ guild.name }}{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">Rollen-Verwaltung</h1>
+        <p class="text-text-secondary text-base font-normal">Erstelle, bearbeite und organisiere die Rollen für deinen Discord-Server.</p>
+    </div>
+</header>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Left Column: Creation & Mass Actions -->
+    <div class="flex flex-col gap-8 lg:col-span-1">
+        
+        <!-- Create Role Card -->
+        <section class="flex flex-col gap-6">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">add_circle</span>
+                Rolle erstellen
+            </h2>
+            
+            <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="flex flex-col gap-4">
+                <input type="hidden" name="action" value="create">
+                
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm font-bold text-white">Rollenname</label>
+                    <input type="text" name="name" required placeholder="z. B. Moderator, Twitch..." class="form-input">
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm font-bold text-white">Rollenfarbe</label>
+                    <div class="flex gap-2 items-center">
+                        <input type="color" name="color" value="#a8c7fa" class="w-12 h-10 p-0 rounded-md border-0 cursor-pointer bg-transparent">
+                        <input type="text" id="color-hex-display" placeholder="#a8c7fa" class="form-input text-center font-mono w-28" oninput="updateColorPicker(this.value)">
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-4 bg-background-dark p-4 rounded-xl border border-white/5 mt-2">
+                    <label class="flex items-center justify-between cursor-pointer">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-white">Als Trenner verwenden</span>
+                            <span class="text-xs text-text-secondary">Fügt Linien & unsichtbare Zeichen hinzu</span>
+                        </div>
+                        <input type="checkbox" name="is_separator" class="sr-only" onchange="toggleSeparatorHint(this.checked)">
+                        <div class="w-11 h-6 bg-white/10 rounded-full transition-all relative"></div>
+                    </label>
+
+                    <label class="flex items-center justify-between cursor-pointer">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-white">Mitglieder getrennt anzeigen</span>
+                            <span class="text-xs text-text-secondary">Rolle in der Sidebar "hoisten"</span>
+                        </div>
+                        <input type="checkbox" name="hoist" class="sr-only">
+                        <div class="w-11 h-6 bg-white/10 rounded-full transition-all relative"></div>
+                    </label>
+
+                    <label class="flex items-center justify-between cursor-pointer">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-white">Erwähnbar machen</span>
+                            <span class="text-xs text-text-secondary">Erlaubt Erwähnungen für jeden</span>
+                        </div>
+                        <input type="checkbox" name="mentionable" class="sr-only">
+                        <div class="w-11 h-6 bg-white/10 rounded-full transition-all relative"></div>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn w-full mt-2">
+                    <span class="material-symbols-outlined">save</span>
+                    Rolle erstellen
+                </button>
+            </form>
+        </section>
+
+        <!-- Mass Assign Card -->
+        <section class="flex flex-col gap-6">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">group_add</span>
+                Massen-Zuweisung
+            </h2>
+            <p class="text-text-secondary text-sm">Weise eine Rolle allen Mitgliedern auf einmal zu oder filtere nach einer existierenden Rolle.</p>
+            
+            <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="flex flex-col gap-4">
+                <input type="hidden" name="action" value="mass_assign">
+                
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm font-bold text-white">Zuweisende Rolle (Ziel)</label>
+                    <select name="target_role_id" required class="form-select">
+                        <option value="" disabled selected>Rolle auswählen...</option>
+                        {% for role in roles %}
+                            {% if role < guild.me.top_role and not role.is_default() %}
+                                <option value="{{ role.id }}">{{ role.name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm font-bold text-white">Filter-Rolle (Quelle, optional)</label>
+                    <select name="source_role_id" class="form-select">
+                        <option value="">Alle Mitglieder (Kein Filter)</option>
+                        {% for role in roles %}
+                            {% if not role.is_default() %}
+                                <option value="{{ role.id }}">{{ role.name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="btn w-full mt-2 bg-primary text-on-primary">
+                    <span class="material-symbols-outlined">bolt</span>
+                    Zuweisung starten
+                </button>
+            </form>
+        </section>
+
+        <!-- Discord Profile Preview Card -->
+        <section class="flex flex-col gap-6">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">person</span>
+                Discord Profil-Vorschau
+            </h2>
+            <p class="text-text-secondary text-sm">Wähle Rollen aus, um zu sehen, wie sie auf einem Discord-Nutzerprofil angezeigt werden.</p>
+
+            <!-- Discord Card Mockup -->
+            <div class="bg-[#1e1f22] rounded-2xl overflow-hidden border border-white/5 shadow-xl w-full font-sans text-white">
+                <!-- Banner -->
+                <div class="h-20 bg-primary/70 relative">
+                    <!-- Avatar -->
+                    <div class="absolute -bottom-8 left-4 w-16 h-16 rounded-full border-[5px] border-[#1e1f22] bg-[#313338] overflow-hidden">
+                        <img src="{{ user.avatar_url or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" alt="Avatar" class="w-full h-full object-cover">
+                    </div>
+                </div>
+                <!-- Card Body -->
+                <div class="pt-10 p-4 flex flex-col gap-3.5 bg-[#111214]">
+                    <!-- User Info -->
+                    <div class="flex flex-col gap-0.5">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="font-bold text-base">{{ user.username or 'Test_User' }}</span>
+                            <span class="text-[9px] bg-primary text-on-primary px-1 py-0.5 rounded font-bold uppercase tracking-wider scale-90">Bot-Tester</span>
+                        </div>
+                        <span class="text-text-secondary text-xs font-mono">@{{ user.username|lower or 'test_user' }}</span>
+                    </div>
+                    
+                    <hr class="border-white/5">
+
+                    <!-- Roles Section -->
+                    <div class="flex flex-col gap-1.5">
+                        <span class="text-[10px] font-bold uppercase text-text-secondary tracking-wider">Rollen</span>
+                        <div id="preview-roles-container" class="flex flex-wrap gap-1.5 min-h-[40px] p-2 bg-[#1e1f22]/50 rounded-lg border border-white/5">
+                            <!-- Dynamic role pills will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Role Selector Checkboxes -->
+            <div class="flex flex-col gap-2 max-h-48 overflow-y-auto bg-background-dark p-3 rounded-xl border border-white/5">
+                <span class="text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">Rollen zum Testen wählen:</span>
+                {% for role in roles %}
+                    {% if not role.is_default() %}
+                        {% if role.color.value %}{% set hex = '#%06x'|format(role.color.value) %}{% else %}{% set hex = '#b9bbbe' %}{% endif %}
+                        <label class="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-white/5 rounded-lg transition-colors">
+                            <input type="checkbox" class="preview-role-checkbox sr-only" 
+                                   data-id="{{ role.id }}" 
+                                   data-name="{{ role.name }}" 
+                                   data-color="{{ hex }}"
+                                   {% if role.id == 11 or role.id == 22 %}checked{% endif %}>
+                            <!-- Custom Checkbox Indicator -->
+                            <div class="w-5 h-5 rounded border border-white/20 flex items-center justify-center bg-white/5 shrink-0 select-indicator transition-all">
+                                <span class="material-symbols-outlined text-[10px] hidden font-black text-on-primary">check</span>
+                            </div>
+                            <!-- Role Pill Info -->
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-3 h-3 rounded-full shrink-0" style="background-color: {{ hex }};"></span>
+                                <span class="text-sm text-white/90 truncate max-w-[200px]">{{ role.name }}</span>
+                            </div>
+                        </label>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <!-- Right Column: Roles Hierarchy Table -->
+    <div class="flex flex-col gap-8 lg:col-span-2">
+        <section class="flex flex-col gap-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">toc</span>
+                    Server-Rollen (Hierarchie)
+                </h2>
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-text-secondary">
+                    Bot-Rolle: {{ guild.me.top_role.name }}
+                </span>
+            </div>
+
+            <div class="table-responsive w-full overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr>
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider">Farbe / Name</th>
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-center">Mitglieder</th>
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-center">Status</th>
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-right">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for role in roles %}
+                            {% set is_default = role.is_default() %}
+                            {% set is_manageable = (role < guild.me.top_role and not is_default) %}
+                            {% set is_sep = '───' in role.name or '\u2800' in role.name %}
+                            {% if role.color.value %}
+                                {% set hex = '#%06x'|format(role.color.value) %}
+                            {% else %}
+                                {% set hex = '#99aab5' %}
+                            {% endif %}
+                            <tr class="border-b border-white/5 {% if not is_manageable %}opacity-65{% endif %}">
+                                <!-- Name and Badge -->
+                                <td class="p-4">
+                                    <div class="flex items-center gap-3">
+                                        <span class="w-4 h-4 rounded-full border border-white/20 shrink-0" style="background-color: {{ hex }};"></span>
+                                        <div class="flex flex-col min-w-0">
+                                            <span class="text-white font-bold text-sm truncate max-w-[200px] md:max-w-[300px]">
+                                                {{ role.name }}
+                                            </span>
+                                            {% if is_default %}
+                                                <span class="text-[10px] text-text-secondary font-medium">Standard-Rolle (@everyone)</span>
+                                            {% elif not is_manageable %}
+                                                <span class="text-[10px] text-red-400 font-medium">Über Bot-Hierarchie (Gesperrt)</span>
+                                            {% elif is_sep %}
+                                                <span class="text-[10px] text-primary font-medium">Trenner-Rolle</span>
+                                            {% else %}
+                                                <span class="text-[10px] text-text-secondary font-medium">Eigene Rolle</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                
+                                <!-- Members -->
+                                <td class="p-4 text-center">
+                                    <span class="text-sm font-semibold text-white/90 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full">
+                                        {{ role.members|length }}
+                                    </span>
+                                </td>
+
+                                <!-- Status Indicators -->
+                                <td class="p-4">
+                                    <div class="flex justify-center gap-3">
+                                        <!-- Hoist Status -->
+                                        <span class="material-symbols-outlined text-sm {% if role.hoist %}text-primary{% else %}text-white/20{% endif %}" 
+                                              title="{% if role.hoist %}Getrennt online angezeigt{% else %}Nicht getrennt online angezeigt{% endif %}">
+                                            visibility
+                                        </span>
+                                        <!-- Mentionable Status -->
+                                        <span class="material-symbols-outlined text-sm {% if role.mentionable %}text-primary{% else %}text-white/20{% endif %}"
+                                              title="{% if role.mentionable %}Erwähnbar{% else %}Nicht erwähnbar{% endif %}">
+                                            alternate_email
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <!-- Actions -->
+                                <td class="p-4 text-right">
+                                    <div class="flex justify-end gap-1.5 items-center">
+                                        {% if is_manageable %}
+                                            <!-- Move Up -->
+                                            <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="inline">
+                                                <input type="hidden" name="action" value="move">
+                                                <input type="hidden" name="role_id" value="{{ role.id }}">
+                                                <input type="hidden" name="direction" value="up">
+                                                <button type="submit" class="w-8 h-8 rounded-full border border-white/10 hover:border-primary/50 text-white/70 hover:text-primary transition-colors flex items-center justify-center bg-white/5">
+                                                    <span class="material-symbols-outlined text-base">arrow_upward</span>
+                                                </button>
+                                            </form>
+                                            
+                                            <!-- Move Down -->
+                                            <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="inline">
+                                                <input type="hidden" name="action" value="move">
+                                                <input type="hidden" name="role_id" value="{{ role.id }}">
+                                                <input type="hidden" name="direction" value="down">
+                                                <button type="submit" class="w-8 h-8 rounded-full border border-white/10 hover:border-primary/50 text-white/70 hover:text-primary transition-colors flex items-center justify-center bg-white/5">
+                                                    <span class="material-symbols-outlined text-base">arrow_downward</span>
+                                                </button>
+                                            </form>
+
+                                            <!-- Edit (Opens Modal) -->
+                                            <button onclick="openEditModal({{ role.id }}, '{{ role.name }}', '{{ hex }}', {{ 'true' if role.hoist else 'false' }}, {{ 'true' if role.mentionable else 'false' }}, {{ 'true' if is_sep else 'false' }})" 
+                                                    class="w-8 h-8 rounded-full border border-white/10 hover:border-primary/50 text-white/70 hover:text-primary transition-colors flex items-center justify-center bg-white/5">
+                                                <span class="material-symbols-outlined text-base">edit</span>
+                                            </button>
+
+                                            <!-- Delete -->
+                                            <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="inline" onsubmit="return confirm('Möchtest du diese Rolle wirklich unwiderruflich löschen?');">
+                                                <input type="hidden" name="action" value="delete">
+                                                <input type="hidden" name="role_id" value="{{ role.id }}">
+                                                <button type="submit" class="w-8 h-8 rounded-full border border-red-500/20 hover:border-red-500 text-red-400 hover:text-red-100 transition-colors flex items-center justify-center bg-red-500/10">
+                                                    <span class="material-symbols-outlined text-base">delete</span>
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <span class="material-symbols-outlined text-white/10 text-sm select-none" title="Keine Berechtigung zum Bearbeiten">lock</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+<!-- Edit Role Modal -->
+<div id="edit-role-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+    <div class="w-full max-w-md bg-card-dark rounded-3xl border border-white/10 p-6 flex flex-col gap-6 shadow-2xl transform scale-95 transition-transform duration-300">
+        <div class="flex justify-between items-center">
+            <h3 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">edit</span>
+                Rolle bearbeiten
+            </h3>
+            <button onclick="closeEditModal()" class="text-text-secondary hover:text-white transition-colors p-1 rounded-full hover:bg-white/5">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="flex flex-col gap-4">
+            <input type="hidden" name="action" value="edit">
+            <input type="hidden" name="role_id" id="edit-role-id">
+
+            <div class="flex flex-col gap-2">
+                <label class="text-sm font-bold text-white">Rollenname</label>
+                <input type="text" name="name" id="edit-role-name" required class="form-input">
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="text-sm font-bold text-white">Rollenfarbe</label>
+                <div class="flex gap-2 items-center">
+                    <input type="color" name="color" id="edit-role-color" class="w-12 h-10 p-0 rounded-md border-0 cursor-pointer bg-transparent">
+                    <input type="text" id="edit-color-hex-display" class="form-input text-center font-mono w-28" oninput="updateEditColorPicker(this.value)">
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4 bg-background-dark p-4 rounded-xl border border-white/5 mt-2">
+                <label class="flex items-center justify-between cursor-pointer">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-bold text-white">Als Trenner verwenden</span>
+                        <span class="text-xs text-text-secondary">Fügt Linien & unsichtbare Zeichen hinzu</span>
+                    </div>
+                    <input type="checkbox" name="is_separator" id="edit-role-separator" class="sr-only">
+                    <div class="w-11 h-6 bg-white/10 rounded-full transition-all relative"></div>
+                </label>
+
+                <label class="flex items-center justify-between cursor-pointer">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-bold text-white">Mitglieder getrennt anzeigen</span>
+                        <span class="text-xs text-text-secondary">Rolle in der Sidebar "hoisten"</span>
+                    </div>
+                    <input type="checkbox" name="hoist" id="edit-role-hoist" class="sr-only">
+                    <div class="w-11 h-6 bg-white/10 rounded-full transition-all relative"></div>
+                </label>
+
+                <label class="flex items-center justify-between cursor-pointer">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-bold text-white">Erwähnbar machen</span>
+                        <span class="text-xs text-text-secondary">Erlaubt Erwähnungen für jeden</span>
+                    </div>
+                    <input type="checkbox" name="mentionable" id="edit-role-mentionable" class="sr-only">
+                    <div class="w-11 h-6 bg-white/10 rounded-full transition-all relative"></div>
+                </label>
+            </div>
+
+            <button type="submit" class="btn w-full mt-2">
+                <span class="material-symbols-outlined">save</span>
+                Änderungen speichern
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Color Hex displays binding
+    const colorInput = document.querySelector('input[name="color"]');
+    const colorDisplay = document.getElementById('color-hex-display');
+    if (colorInput && colorDisplay) {
+        colorDisplay.value = colorInput.value;
+        colorInput.addEventListener('input', (e) => {
+            colorDisplay.value = e.target.value;
+        });
+    }
+
+    function updateColorPicker(val) {
+        if (val.startsWith('#') && val.length === 7) {
+            colorInput.value = val;
+        }
+    }
+
+    const editColorInput = document.getElementById('edit-role-color');
+    const editColorDisplay = document.getElementById('edit-color-hex-display');
+    if (editColorInput && editColorDisplay) {
+        editColorInput.addEventListener('input', (e) => {
+            editColorDisplay.value = e.target.value;
+        });
+    }
+
+    function updateEditColorPicker(val) {
+        if (val.startsWith('#') && val.length === 7) {
+            editColorInput.value = val;
+        }
+    }
+
+    // Modal Control
+    function openEditModal(id, name, color, hoist, mentionable, isSep) {
+        const modal = document.getElementById('edit-role-modal');
+        const modalContent = modal.querySelector('.transform');
+        
+        document.getElementById('edit-role-id').value = id;
+        
+        // Remove helper lines from editing name if it was a separator
+        let displayName = name;
+        if (isSep) {
+            displayName = name.replace(/───/g, '').replace(/\u2800/g, '').trim();
+        }
+        
+        document.getElementById('edit-role-name').value = displayName;
+        
+        editColorInput.value = color;
+        editColorDisplay.value = color;
+        
+        document.getElementById('edit-role-hoist').checked = hoist;
+        document.getElementById('edit-role-mentionable').checked = mentionable;
+        document.getElementById('edit-role-separator').checked = isSep;
+        
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modalContent.classList.remove('scale-95');
+        }, 10);
+    }
+
+    function closeEditModal() {
+        const modal = document.getElementById('edit-role-modal');
+        const modalContent = modal.querySelector('.transform');
+        
+        modal.classList.add('opacity-0');
+        modalContent.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+
+    function toggleSeparatorHint(checked) {
+        // Automatically set the default hoist to false or true if needed
+    }
+
+    // Support toggle switch styling classes automatically
+    document.querySelectorAll('input[type="checkbox"].sr-only:not(.preview-role-checkbox)').forEach(cb => {
+        const div = cb.nextElementSibling;
+        if (div) {
+            const toggleClasses = () => {
+                if (cb.checked) {
+                    div.classList.add('bg-primary');
+                    div.classList.remove('bg-white/10');
+                } else {
+                    div.classList.remove('bg-primary');
+                    div.classList.add('bg-white/10');
+                }
+            };
+            cb.addEventListener('change', toggleClasses);
+            toggleClasses(); // init
+        }
+    });
+
+    // Discord Profile Preview Binding
+    function updateProfilePreview() {
+        const container = document.getElementById('preview-roles-container');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        const checkboxes = document.querySelectorAll('.preview-role-checkbox');
+        let selectedAny = false;
+        
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                selectedAny = true;
+                const roleName = cb.getAttribute('data-name');
+                const roleColor = cb.getAttribute('data-color');
+                
+                // Create Discord style role pill
+                const pill = document.createElement('div');
+                pill.className = 'flex items-center gap-1.5 bg-[#2b2d31] border border-white/5 rounded px-2 py-0.5 max-w-full text-xs';
+                
+                const dot = document.createElement('span');
+                dot.className = 'w-3.5 h-3.5 rounded-full shrink-0';
+                dot.style.backgroundColor = roleColor;
+                
+                const text = document.createElement('span');
+                text.className = 'text-[#dbdee1] font-medium truncate';
+                text.innerText = roleName;
+                
+                pill.appendChild(dot);
+                pill.appendChild(text);
+                container.appendChild(pill);
+            }
+        });
+        
+        if (!selectedAny) {
+            const placeholder = document.createElement('span');
+            placeholder.className = 'text-xs text-text-secondary italic p-1';
+            placeholder.innerText = 'Keine Rollen ausgewählt';
+            container.appendChild(placeholder);
+        }
+    }
+
+    document.querySelectorAll('.preview-role-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const indicator = cb.parentElement.querySelector('.select-indicator');
+            const checkIcon = indicator.querySelector('.material-symbols-outlined');
+            if (cb.checked) {
+                indicator.classList.add('border-primary', 'bg-primary-container');
+                checkIcon.classList.remove('hidden');
+            } else {
+                indicator.classList.remove('border-primary', 'bg-primary-container');
+                checkIcon.classList.add('hidden');
+            }
+            updateProfilePreview();
+        });
+        
+        // Initial setup
+        const indicator = cb.parentElement.querySelector('.select-indicator');
+        const checkIcon = indicator.querySelector('.material-symbols-outlined');
+        if (cb.checked) {
+            indicator.classList.add('border-primary', 'bg-primary-container');
+            checkIcon.classList.remove('hidden');
+        }
+    });
+
+    updateProfilePreview();
+</script>
+
+{% endblock %}

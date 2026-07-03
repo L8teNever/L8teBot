@@ -94,6 +94,12 @@
                         <p class="text-sm font-medium leading-normal">Übersicht</p>
                     </a>
 
+                    <a href="{{ url_for('manage_roles', guild_id=guild.id) }}"
+                        class="flex items-center gap-3 px-4 py-3 rounded-full {% if request.endpoint == 'manage_roles' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:bg-white/5 hover:text-white{% endif %} transition-all ripple-target">
+                        <span class="material-symbols-outlined" style="font-size: 22px;">shield_person</span>
+                        <p class="text-sm font-medium leading-normal">Rollen-Verwaltung</p>
+                    </a>
+
                     <!-- Modules Dropdown -->
                     <details class="group" open>
                         <summary

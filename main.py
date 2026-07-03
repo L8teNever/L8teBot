@@ -515,6 +515,166 @@ def manage_modules(guild_id):
     return render_template('modules.html', guild=guild, settings=guild_data, manageable_cogs=MANAGEABLE_COGS, admin_guilds=get_admin_guilds())
 
 
+@app.route('/guild/<int:guild_id>/roles', methods=['GET', 'POST'])
+@requires_authorization
+def manage_roles(guild_id):
+    if not check_guild_permissions(guild_id): return redirect(url_for('dashboard'))
+    
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        flash("Server nicht gefunden.", "danger")
+        return redirect(url_for('dashboard'))
+        
+    if request.method == 'POST':
+        action = request.form.get('action')
+        future = None
+        
+        if action == 'create':
+            name = request.form.get('name')
+            color_hex = request.form.get('color', '#000000')
+            hoist = 'hoist' in request.form
+            mentionable = 'mentionable' in request.form
+            is_separator = 'is_separator' in request.form
+            
+            async def create_task():
+                name_val = name
+                if is_separator:
+                    name_val = f"─── {name.strip('─').strip()} ───" + " \u2800" * 15
+                color = discord.Color(int(color_hex.lstrip('#'), 16)) if color_hex else discord.Color.default()
+                try:
+                    await guild.create_role(name=name_val, color=color, hoist=hoist, mentionable=mentionable, reason="Erstellt über Web-Dashboard")
+                    return True, f"Rolle '{name}' erfolgreich erstellt."
+                except Exception as e:
+                    return False, f"Fehler beim Erstellen der Rolle: {str(e)}"
+                    
+            future = asyncio.run_coroutine_threadsafe(create_task(), bot.loop)
+            
+        elif action == 'edit':
+            role_id = int(request.form.get('role_id'))
+            name = request.form.get('name')
+            color_hex = request.form.get('color', '#000000')
+            hoist = 'hoist' in request.form
+            mentionable = 'mentionable' in request.form
+            is_separator = 'is_separator' in request.form
+            
+            async def edit_task():
+                role = guild.get_role(role_id)
+                if not role:
+                    return False, "Rolle nicht gefunden."
+                if role >= guild.me.top_role:
+                    return False, "Du kannst diese Rolle nicht bearbeiten (Hierarchie-Konflikt)."
+                
+                name_val = name
+                if is_separator:
+                    name_val = f"─── {name.strip('─').strip()} ───" + " \u2800" * 15
+                color = discord.Color(int(color_hex.lstrip('#'), 16)) if color_hex else discord.Color.default()
+                try:
+                    await role.edit(name=name_val, color=color, hoist=hoist, mentionable=mentionable, reason="Bearbeitet über Web-Dashboard")
+                    return True, f"Rolle '{role.name}' erfolgreich aktualisiert."
+                except Exception as e:
+                    return False, f"Fehler beim Aktualisieren: {str(e)}"
+                    
+            future = asyncio.run_coroutine_threadsafe(edit_task(), bot.loop)
+            
+        elif action == 'delete':
+            role_id = int(request.form.get('role_id'))
+            
+            async def delete_task():
+                role = guild.get_role(role_id)
+                if not role:
+                    return False, "Rolle nicht gefunden."
+                if role >= guild.me.top_role:
+                    return False, "Du kannst diese Rolle nicht löschen (Hierarchie-Konflikt)."
+                try:
+                    await role.delete(reason="Gelöscht über Web-Dashboard")
+                    return True, f"Rolle '{role.name}' erfolgreich gelöscht."
+                except Exception as e:
+                    return False, f"Fehler beim Löschen: {str(e)}"
+                    
+            future = asyncio.run_coroutine_threadsafe(delete_task(), bot.loop)
+            
+        elif action == 'move':
+            role_id = int(request.form.get('role_id'))
+            direction = request.form.get('direction')
+            
+            async def move_task():
+                role = guild.get_role(role_id)
+                if not role:
+                    return False, "Rolle nicht gefunden."
+                if role >= guild.me.top_role:
+                    return False, "Hierarchie-Konflikt beim Verschieben."
+                    
+                manageable_roles = [r for r in guild.roles if r < guild.me.top_role and not r.is_default()]
+                manageable_roles.sort(key=lambda r: r.position)
+                
+                if role not in manageable_roles:
+                    return False, "Rolle kann nicht verschoben werden."
+                    
+                idx = manageable_roles.index(role)
+                if direction == 'up':
+                    if idx >= len(manageable_roles) - 1:
+                        return False, "Bereits an der Spitze der verschiebbaren Hierarchie."
+                    other = manageable_roles[idx + 1]
+                elif direction == 'down':
+                    if idx <= 0:
+                        return False, "Bereits ganz unten."
+                    other = manageable_roles[idx - 1]
+                else:
+                    return False, "Ungültige Richtung."
+                    
+                try:
+                    positions = {
+                        role: other.position,
+                        other: role.position
+                    }
+                    await guild.edit_role_positions(positions, reason="Rolle verschoben über Web-Dashboard")
+                    return True, "Reihenfolge erfolgreich aktualisiert."
+                except Exception as e:
+                    return False, f"Fehler beim Verschieben: {str(e)}"
+                    
+            future = asyncio.run_coroutine_threadsafe(move_task(), bot.loop)
+            
+        elif action == 'mass_assign':
+            target_role_id = int(request.form.get('target_role_id'))
+            source_role_id = int(request.form.get('source_role_id')) if request.form.get('source_role_id') else None
+            
+            async def mass_assign_task():
+                target_role = guild.get_role(target_role_id)
+                if not target_role:
+                    return False, "Zielrolle nicht gefunden."
+                if target_role >= guild.me.top_role:
+                    return False, "Hierarchie-Konflikt: Zielrolle liegt über der Rolle des Bots."
+                    
+                source_role = guild.get_role(source_role_id) if source_role_id else None
+                
+                count = 0
+                try:
+                    for member in guild.members:
+                        if member.bot:
+                            continue
+                        if source_role and source_role not in member.roles:
+                            continue
+                        if target_role not in member.roles:
+                            await member.add_roles(target_role, reason="Massen-Zuweisung über Web-Dashboard")
+                            count += 1
+                    return True, f"Rolle '{target_role.name}' wurde erfolgreich an {count} Mitglieder zugewiesen."
+                except Exception as e:
+                    return False, f"Fehler bei Massen-Zuweisung: {str(e)}"
+                    
+            future = asyncio.run_coroutine_threadsafe(mass_assign_task(), bot.loop)
+            
+        if future:
+            success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
+            flash(message, 'success' if success else 'danger')
+        return redirect(url_for('manage_roles', guild_id=guild_id))
+        
+    roles = sorted(guild.roles, key=lambda r: r.position, reverse=True)
+    return render_template('roles.html', guild=guild, roles=roles, admin_guilds=get_admin_guilds())
+
+
+
 @app.route('/guild/<int:guild_id>/toggle_module', methods=['POST'])
 @requires_authorization
 def toggle_module(guild_id):
