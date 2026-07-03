@@ -7,7 +7,7 @@
     <title>{% block title %}Dashboard{% endblock %} - L8teBot</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300..900&family=Manrope:wght@200..800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -17,20 +17,27 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#135bec",
+                        "primary": "var(--md-sys-color-primary)",
+                        "on-primary": "var(--md-sys-color-on-primary)",
+                        "primary-container": "var(--md-sys-color-primary-container)",
+                        "on-primary-container": "var(--md-sys-color-on-primary-container)",
                         "background-light": "#f6f6f8",
-                        "background-dark": "#101622",
-                        "card-dark": "#232f48",
-                        "text-secondary": "#92a4c9",
+                        "background-dark": "var(--md-sys-color-background)",
+                        "card-dark": "var(--md-sys-color-surface-container)",
+                        "card-dark-high": "var(--md-sys-color-surface-container-high)",
+                        "text-secondary": "var(--md-sys-color-outline-variant)",
                     },
                     fontFamily: {
-                        "display": ["Manrope", "sans-serif"]
+                        "display": ["Outfit", "sans-serif"],
+                        "sans": ["Manrope", "sans-serif"]
                     },
                     borderRadius: {
-                        "DEFAULT": "0.25rem",
-                        "lg": "0.5rem",
-                        "xl": "0.75rem",
-                        "full": "9999px"
+                        "DEFAULT": "12px",
+                        "sm": "var(--md-shape-corner-small)",
+                        "md": "var(--md-shape-corner-medium)",
+                        "lg": "var(--md-shape-corner-large)",
+                        "xl": "var(--md-shape-corner-extra-large)",
+                        "full": "var(--md-shape-corner-full)"
                     },
                     transitionProperty: {
                         'width': 'width',
@@ -42,123 +49,126 @@
     </script>
 </head>
 
-<body class="bg-background-dark font-display text-white min-h-screen">
+<body class="bg-background-dark font-sans text-white min-h-screen antialiased selection:bg-primary/30 selection:text-white">
     <div class="flex min-h-screen w-full relative">
         <!-- Toast Container -->
-        <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+        <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
         <!-- Mobile Sidebar Overlay -->
         <div id="mobile-sidebar-backdrop" onclick="toggleSidebar()"
-            class="fixed inset-0 bg-black/80 z-40 hidden md:hidden transition-opacity opacity-0"></div>
+            class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden md:hidden transition-opacity opacity-0 duration-300"></div>
 
         <!-- Sidebar (Desktop & Mobile) -->
         {% if guild %}
         <aside id="sidebar"
-            class="fixed md:static inset-y-0 left-0 z-50 w-72 md:w-64 bg-[#111722] border-r border-[#232f48] p-4 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out md:flex-shrink-0 h-screen md:h-auto">
+            class="fixed md:sticky top-0 inset-y-0 left-0 z-50 w-72 md:w-68 bg-[#10131a] md:bg-[#141720]/80 md:backdrop-blur-xl border border-white/5 p-4 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-all duration-300 ease-out md:flex-shrink-0 h-screen md:h-[calc(100vh-2rem)] md:my-4 md:ml-4 md:mr-2 rounded-r-[28px] md:rounded-[28px] shadow-2xl md:shadow-none">
 
-            <div class="flex flex-col gap-6 h-full overflow-y-auto custom-scrollbar">
+            <div class="flex flex-col gap-6 h-full overflow-y-auto custom-scrollbar pr-1">
                 <!-- Mobile Close Button -->
                 <button onclick="toggleSidebar()"
-                    class="absolute top-4 right-4 md:hidden text-gray-400 hover:text-white">
+                    class="absolute top-4 right-4 md:hidden text-gray-400 hover:text-white transition-colors p-1 rounded-full hover:bg-white/5">
                     <span class="material-symbols-outlined">close</span>
                 </button>
 
                 <!-- Server Info -->
-                <div class="flex flex-col px-2 mt-8 md:mt-0">
-                    <h1 class="text-white text-xl font-bold leading-normal tracking-tight">L8teBot</h1>
-                    <p class="text-text-secondary text-sm font-normal truncate">{{ guild.name }}</p>
+                <div class="flex flex-col px-3 mt-8 md:mt-2">
+                    <h1 class="text-white text-2xl font-display font-black leading-normal tracking-tight flex items-center gap-2">
+                        <span class="h-3 w-3 rounded-full bg-primary animate-pulse"></span>
+                        L8teBot
+                    </h1>
+                    <p class="text-text-secondary text-sm font-normal truncate mt-0.5">{{ guild.name }}</p>
                 </div>
 
                 <!-- Navigation -->
-                <nav class="flex flex-col gap-2">
+                <nav class="flex flex-col gap-1.5">
                     <!-- Back to Servers -->
                     <a href="{{ url_for('dashboard') }}"
-                        class="flex items-center gap-3 px-3 py-2 rounded-lg text-text-secondary hover:bg-card-dark hover:text-white transition-colors border border-dashed border-[#2e3e5e] mb-2">
-                        <span class="material-symbols-outlined" style="font-size: 24px;">arrow_back</span>
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-secondary hover:bg-white/5 hover:text-white transition-all border border-dashed border-white/10 mb-3 ripple-target">
+                        <span class="material-symbols-outlined" style="font-size: 22px;">arrow_back</span>
                         <p class="text-sm font-medium leading-normal">Server Auswahl</p>
                     </a>
 
                     <a href="{{ url_for('guild_settings', guild_id=guild.id) }}"
-                        class="flex items-center gap-3 px-3 py-2 rounded-lg {% if request.endpoint == 'guild_settings' %}bg-card-dark text-white{% else %}text-text-secondary hover:bg-card-dark hover:text-white{% endif %} transition-colors">
-                        <span class="material-symbols-outlined" style="font-size: 24px;">dashboard</span>
+                        class="flex items-center gap-3 px-4 py-3 rounded-full {% if request.endpoint == 'guild_settings' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:bg-white/5 hover:text-white{% endif %} transition-all ripple-target">
+                        <span class="material-symbols-outlined" style="font-size: 22px;">dashboard</span>
                         <p class="text-sm font-medium leading-normal">Übersicht</p>
                     </a>
 
                     <!-- Modules Dropdown -->
                     <details class="group" open>
                         <summary
-                            class="flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-text-secondary hover:bg-card-dark hover:text-white transition-colors cursor-pointer list-none">
+                            class="flex items-center justify-between gap-3 px-4 py-3 rounded-full text-text-secondary hover:bg-white/5 hover:text-white transition-all cursor-pointer list-none select-none ripple-target">
                             <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined" style="font-size: 24px;">extension</span>
+                                <span class="material-symbols-outlined" style="font-size: 22px;">extension</span>
                                 <p class="text-sm font-medium leading-normal">Module</p>
                             </div>
                             <span
-                                class="material-symbols-outlined transition-transform duration-200 group-open:rotate-180"
-                                style="font-size: 20px;">expand_more</span>
+                                class="material-symbols-outlined transition-transform duration-300 group-open:rotate-180 text-gray-500"
+                                style="font-size: 18px;">expand_more</span>
                         </summary>
-                        <div class="flex flex-col gap-1 pl-10 pt-1 border-l ml-6 border-gray-700/50">
+                        <div class="flex flex-col gap-1.5 pl-6 mt-1 border-l-2 ml-6 border-white/5">
                             <a href="{{ url_for('manage_moderation', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_moderation' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_moderation' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Moderation
                             </a>
                             <a href="{{ url_for('manage_leveling', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_leveling' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_leveling' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Leveling
                             </a>
                             <a href="{{ url_for('manage_birthdays', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_birthdays' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_birthdays' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Geburtstag
                             </a>
                             <a href="{{ url_for('manage_counting', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_counting' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_counting' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Counting
                             </a>
                             <a href="{{ url_for('manage_twitch', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_twitch' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_twitch' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Twitch
                             </a>
                             <a href="{{ url_for('manage_tickets', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_tickets' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_tickets' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Tickets
                             </a>
                             <a href="{{ url_for('manage_temp_channel', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_temp_channel' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_temp_channel' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Temp-Channel
                             </a>
                             <a href="{{ url_for('manage_streak', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_streak' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_streak' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Streak
                             </a>
                             <a href="{{ url_for('manage_wordle', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_wordle' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_wordle' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Wordle
                             </a>
                             <a href="{{ url_for('manage_contexto', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_contexto' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_contexto' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Contexto
                             </a>
                             <a href="{{ url_for('manage_guard', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_guard' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_guard' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Guard
                             </a>
                             <a href="{{ url_for('manage_wrapped', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_wrapped' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_wrapped' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Wrapped
                             </a>
                             <a href="{{ url_for('manage_lfg', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_lfg' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_lfg' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Mitspieler-Suche
                             </a>
                             <a href="{{ url_for('manage_backup', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_backup' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_backup' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Backup
                             </a>
                             <a href="{{ url_for('manage_logging', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'manage_logging' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'manage_logging' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Logging
                             </a>
                             <a href="{{ url_for('view_logs', guild_id=guild.id) }}"
-                                class="block py-1.5 px-2 text-sm {% if request.endpoint == 'view_logs' %}text-white bg-white/10{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded transition-colors">
+                                class="block py-2 px-4 text-sm {% if request.endpoint == 'view_logs' %}bg-primary-container text-primary font-bold{% else %}text-text-secondary hover:text-white hover:bg-white/5{% endif %} rounded-full transition-all ripple-target">
                                 Log-Viewer
                             </a>
                         </div>
@@ -167,28 +177,28 @@
             </div>
 
             <!-- Version Info -->
-            <div class="px-3 py-2 text-center">
-                <p class="text-xs text-text-secondary">Version {{ bot_version }}</p>
+            <div class="px-3 py-2 text-center border-t border-white/5 mt-4 pt-4">
+                <p class="text-xs text-text-secondary font-medium">Version {{ bot_version }}</p>
             </div>
 
             <!-- Bottom Actions -->
-            <div class="flex flex-col gap-2 pt-4 border-t border-[#2e3e5e]">
+            <div class="flex flex-col gap-2 pt-4 mt-2 border-t border-white/5">
                 {% if user %}
-                <div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-card-dark">
-                    <img src="{{ user.avatar_url }}" alt="Avatar" class="w-8 h-8 rounded-full">
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5">
+                    <img src="{{ user.avatar_url }}" alt="Avatar" class="w-9 h-9 rounded-full ring-2 ring-primary/20">
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-white truncate">{{ user.username }}</p>
-                        <p class="text-xs text-text-secondary">Eingeloggt</p>
+                        <p class="text-sm font-bold text-white truncate leading-normal">{{ user.username }}</p>
+                        <p class="text-xs text-text-secondary font-medium leading-none mt-0.5">Eingeloggt</p>
                     </div>
                 </div>
                 <a href="{{ url_for('logout') }}"
-                    class="flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-text-secondary hover:bg-card-dark hover:text-white transition-colors">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">logout</span>
+                    class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold text-text-secondary hover:bg-white/5 hover:text-white transition-all ripple-target">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">logout</span>
                     Ausloggen
                 </a>
                 {% else %}
                 <a href="{{ url_for('login') }}"
-                    class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold hover:bg-blue-600 transition-colors">
+                    class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-11 px-4 bg-primary text-on-primary text-sm font-bold hover:opacity-90 transition-all shadow-lg shadow-primary/20 ripple-target">
                     <span class="truncate">Login</span>
                 </a>
                 {% endif %}
@@ -201,29 +211,36 @@
             <!-- Mobile Header -->
             {% if guild %}
             <header
-                class="md:hidden flex items-center justify-between p-4 bg-[#111722] border-b border-[#232f48] sticky top-0 z-30">
+                class="md:hidden flex items-center justify-between p-4 bg-[#10131a]/90 backdrop-blur-md border-b border-white/5 sticky top-0 z-30">
                 <div class="flex items-center gap-3">
-                    <button onclick="toggleSidebar()" class="text-white hover:text-primary transition-colors">
-                        <span class="material-symbols-outlined" style="font-size: 28px;">menu</span>
+                    <button onclick="toggleSidebar()" class="text-white hover:text-primary transition-colors p-2 rounded-full hover:bg-white/5">
+                        <span class="material-symbols-outlined" style="font-size: 26px;">menu</span>
                     </button>
-                    <span class="font-bold text-lg truncate max-w-[200px]">{{ guild.name }}</span>
+                    <span class="font-display font-black text-lg truncate max-w-[200px]">{{ guild.name }}</span>
                 </div>
                 {% if user %}
-                <img src="{{ user.avatar_url }}" alt="Avatar" class="w-8 h-8 rounded-full">
+                <img src="{{ user.avatar_url }}" alt="Avatar" class="w-8 h-8 rounded-full ring-2 ring-primary/25">
                 {% endif %}
             </header>
             {% endif %}
 
-            <main class="flex-1 bg-background-dark w-full">
-                <div id="page-content" class="w-full max-w-[1200px] mx-auto p-4 md:p-8 flex flex-col gap-6 pb-20">
+            <main class="flex-1 bg-background-dark w-full relative">
+                <!-- Decorative Dynamic Ambient Light Rings (Material You Accent Lights) -->
+                <div class="pointer-events-none absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-primary/5 to-transparent rounded-full filter blur-[100px] opacity-70"></div>
+                <div class="pointer-events-none absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-primary/3 to-transparent rounded-full filter blur-[120px] opacity-50"></div>
+
+                <div id="page-content" class="w-full max-w-[1280px] mx-auto p-4 md:p-8 flex flex-col gap-8 pb-24 relative z-10">
                     <!-- Flash Messages -->
                     {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
-                    <div class="flex flex-col gap-2">
+                    <div class="flex flex-col gap-3">
                         {% for category, message in messages %}
                         <div
-                            class="rounded-lg p-4 {% if category == 'success' %}bg-green-500/20 border border-green-500/30 text-green-200{% elif category == 'danger' or category == 'error' %}bg-red-500/20 border border-red-500/30 text-red-200{% elif category == 'warning' %}bg-yellow-500/20 border border-yellow-500/30 text-yellow-200{% else %}bg-blue-500/20 border border-blue-500/30 text-blue-200{% endif %}">
-                            {{ message | safe }}
+                            class="rounded-2xl p-4 flex items-start gap-3 {% if category == 'success' %}bg-green-500/10 border border-green-500/20 text-green-200{% elif category == 'danger' or category == 'error' %}bg-red-500/10 border border-red-500/20 text-red-200{% elif category == 'warning' %}bg-yellow-500/10 border border-yellow-500/20 text-yellow-200{% else %}bg-blue-500/10 border border-blue-500/20 text-blue-200{% endif %}">
+                            <span class="material-symbols-outlined mt-0.5 select-none">
+                                {% if category == 'success' %}check_circle{% elif category == 'danger' or category == 'error' %}error{% elif category == 'warning' %}warning{% else %}info{% endif %}
+                            </span>
+                            <div class="flex-1 text-sm font-medium">{{ message | safe }}</div>
                         </div>
                         {% endfor %}
                     </div>
@@ -238,106 +255,495 @@
     </div>
 
     <style>
-        details>summary {
+        /* --- Android 16 / Material You Design Tokens --- */
+        :root {
+            /* Palette colors */
+            --md-sys-color-primary: #a8c7fa;
+            --md-sys-color-on-primary: #062e6f;
+            --md-sys-color-primary-container: rgba(168, 199, 250, 0.12);
+            --md-sys-color-on-primary-container: #d3e3fd;
+            
+            --md-sys-color-background: #0d0f14;
+            --md-sys-color-surface: #12151c;
+            --md-sys-color-on-surface: #e2e2e9;
+            
+            /* Surface Containers (different elevation levels) */
+            --md-sys-color-surface-container-lowest: #090b0e;
+            --md-sys-color-surface-container-low: #151821;
+            --md-sys-color-surface-container: #1b1e26;
+            --md-sys-color-surface-container-high: #242732;
+            --md-sys-color-surface-container-highest: #2e313e;
+            
+            --md-sys-color-outline: rgba(255, 255, 255, 0.12);
+            --md-sys-color-outline-variant: #8e94a5;
+            
+            /* Border radius settings */
+            --md-shape-corner-small: 8px;
+            --md-shape-corner-medium: 16px;
+            --md-shape-corner-large: 24px;
+            --md-shape-corner-extra-large: 28px;
+            --md-shape-corner-full: 9999px;
+        }
+
+        details > summary {
             list-style: none;
         }
 
-        details>summary::-webkit-details-marker {
+        details > summary::-webkit-details-marker {
             display: none;
         }
 
+        /* --- Global Card & Container Styling (Material Design 3 Overrides) --- */
+        section, 
+        .bg-card-dark,
+        .settings-card {
+            background-color: var(--md-sys-color-surface-container) !important;
+            border-radius: var(--md-shape-corner-extra-large) !important;
+            border: 1px solid var(--md-sys-color-outline) !important;
+            padding: 1.5rem !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+        }
+        
+        /* Grid Layout sections spacing fix */
+        .grid > section {
+            margin-bottom: 0 !important;
+        }
+        
+        section:hover,
+        .bg-card-dark:hover {
+            border-color: rgba(168, 199, 250, 0.25) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25) !important;
+        }
+        
+        /* Inner Container (e.g. background sections in cards) */
+        .bg-background-dark,
+        .bg-background-dark\/50 {
+            background-color: var(--md-sys-color-surface-container-lowest) !important;
+            border-radius: var(--md-shape-corner-large) !important;
+            border: 1px solid var(--md-sys-color-outline) !important;
+        }
+
+        /* --- Form Elements Overhaul (Material You Dynamic Outlined Fields) --- */
         .form-input,
-        .form-select {
-            background-color: #0d111a;
-            border: 1px solid #2e3e5e;
-            color: white;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.5rem;
+        .form-select,
+        .input-field,
+        input[type="text"],
+        input[type="number"],
+        input[type="password"],
+        input[type="email"],
+        select,
+        textarea {
+            background-color: var(--md-sys-color-surface-container-lowest) !important;
+            border: 1.5px solid var(--md-sys-color-outline-variant) !important;
+            color: var(--md-sys-color-on-surface) !important;
+            padding: 0.75rem 1.25rem !important;
+            border-radius: var(--md-shape-corner-medium) !important;
             width: 100%;
-            outline: none;
-            transition: all 0.2s;
+            outline: none !important;
+            transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+            font-family: inherit;
         }
 
         .form-input:focus,
-        .form-select:focus {
-            border-color: #135bec;
-            box-shadow: 0 0 0 1px #135bec;
+        .form-select:focus,
+        .input-field:focus,
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--md-sys-color-primary) !important;
+            background-color: var(--md-sys-color-surface-container-low) !important;
+            box-shadow: 0 0 0 3px rgba(168, 199, 250, 0.2) !important;
+        }
+        
+        /* --- Material You Pill Buttons --- */
+        .bg-primary,
+        .btn,
+        button[type="submit"]:not(.bg-red-500\/20):not(.bg-green-500\/20):not(.bg-gray-500\/10):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-gray"]):not(.btn-danger):not(.btn-success),
+        a.btn {
+            border-radius: var(--md-shape-corner-full) !important;
+            background-color: var(--md-sys-color-primary) !important;
+            color: var(--md-sys-color-on-primary) !important;
+            font-weight: 700 !important;
+            padding: 0.75rem 1.75rem !important;
+            border: none !important;
+            box-shadow: 0 2px 8px rgba(168, 199, 250, 0.15) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.5rem !important;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+            cursor: pointer;
+            text-transform: none;
         }
 
-        /* Custom Scrollbar */
+        .bg-primary:hover,
+        .btn:hover,
+        button[type="submit"]:not(.bg-red-500\/20):not(.bg-green-500\/20):not(.bg-gray-500\/10):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-gray"]):not(.btn-danger):not(.btn-success):hover,
+        a.btn:hover {
+            opacity: 0.95 !important;
+            box-shadow: 0 6px 20px rgba(168, 199, 250, 0.35) !important;
+            transform: translateY(-1px);
+        }
+
+        .bg-primary:active,
+        .btn:active,
+        button[type="submit"]:not(.bg-red-500\/20):not(.bg-green-500\/20):not(.bg-gray-500\/10):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-gray"]):not(.btn-danger):not(.btn-success):active,
+        a.btn:active {
+            transform: translateY(0px);
+            box-shadow: 0 2px 4px rgba(168, 199, 250, 0.15) !important;
+        }
+        
+        /* Danger/Warning/Success Buttons */
+        .bg-red-500\/20,
+        [class*="bg-red-500\/20"],
+        .btn-danger {
+            background-color: rgba(255, 180, 171, 0.12) !important;
+            color: #ffb4ab !important;
+            border: 1px solid rgba(255, 180, 171, 0.25) !important;
+            border-radius: var(--md-shape-corner-full) !important;
+            font-weight: 700 !important;
+            padding: 0.5rem 1.25rem !important;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+        }
+        .bg-red-500\/20:hover,
+        [class*="bg-red-500\/20"]:hover,
+        .btn-danger:hover {
+            background-color: rgba(255, 180, 171, 0.22) !important;
+            border-color: rgba(255, 180, 171, 0.4) !important;
+        }
+        
+        .bg-green-500\/20,
+        [class*="bg-green-500\/20"],
+        .btn-success {
+            background-color: rgba(180, 227, 180, 0.12) !important;
+            color: #b4e3b4 !important;
+            border: 1px solid rgba(180, 227, 180, 0.25) !important;
+            border-radius: var(--md-shape-corner-full) !important;
+            font-weight: 700 !important;
+            padding: 0.5rem 1.25rem !important;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+        }
+        .bg-green-500\/20:hover,
+        [class*="bg-green-500\/20"]:hover,
+        .btn-success:hover {
+            background-color: rgba(180, 227, 180, 0.22) !important;
+            border-color: rgba(180, 227, 180, 0.4) !important;
+        }
+
+        /* --- Material You Switches --- */
+        input[type="checkbox"].sr-only + div {
+            width: 52px !important;
+            height: 32px !important;
+            background-color: var(--md-sys-color-surface-container-highest) !important;
+            border: 2px solid var(--md-sys-color-outline-variant) !important;
+            border-radius: var(--md-shape-corner-full) !important;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+            position: relative;
+        }
+        
+        input[type="checkbox"].sr-only:checked + div {
+            background-color: var(--md-sys-color-primary) !important;
+            border-color: var(--md-sys-color-primary) !important;
+        }
+        
+        input[type="checkbox"].sr-only + div::after {
+            content: "" !important;
+            position: absolute !important;
+            top: 4px !important;
+            left: 4px !important;
+            width: 20px !important;
+            height: 20px !important;
+            background-color: var(--md-sys-color-outline-variant) !important;
+            border-radius: var(--md-shape-corner-full) !important;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+        }
+        
+        input[type="checkbox"].sr-only:checked + div::after {
+            transform: translateX(20px) scale(1.1) !important;
+            background-color: var(--md-sys-color-on-primary) !important;
+        }
+        
+        /* --- Material You Checkboxes --- */
+        input[type="checkbox"]:not(.sr-only) {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border: 2px solid var(--md-sys-color-outline-variant);
+            border-radius: 6px;
+            background-color: transparent;
+            display: inline-grid;
+            place-content: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+            margin-right: 4px;
+        }
+
+        input[type="checkbox"]:not(.sr-only):checked {
+            border-color: var(--md-sys-color-primary) !important;
+            background-color: var(--md-sys-color-primary) !important;
+        }
+
+        input[type="checkbox"]:not(.sr-only)::before {
+            content: "check";
+            font-family: 'Material Symbols Outlined';
+            font-size: 15px;
+            font-weight: 900;
+            color: var(--md-sys-color-on-primary);
+            transform: scale(0);
+            transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+        }
+
+        input[type="checkbox"]:not(.sr-only):checked::before {
+            transform: scale(1);
+        }
+
+        /* --- Scrollbar --- */
         .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+            width: 8px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: #111722;
+            background: transparent;
         }
 
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #2e3e5e;
-            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid transparent;
+            background-clip: padding-box;
         }
 
+        /* --- Page Slide-up Animation --- */
         #page-content {
-            animation: slideUp 0.4s ease-out;
+            animation: slideUp 0.6s cubic-bezier(0.1, 0.8, 0.2, 1);
         }
 
         @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(16px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
 
+        /* --- Material snackbar (Toast) --- */
         .toast {
-            animation: slideInRight 0.3s ease-out forwards;
+            animation: snackbarIn 0.35s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
             pointer-events: auto;
+            border-radius: var(--md-shape-corner-large);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+            font-family: inherit;
         }
 
-        @keyframes slideInRight {
+        @keyframes snackbarIn {
             from {
-                transform: translateX(100%);
+                transform: translateY(24px) scale(0.95);
                 opacity: 0;
             }
-
             to {
-                transform: translateX(0);
+                transform: translateY(0) scale(1);
                 opacity: 1;
             }
         }
 
         .toast.fade-out {
-            animation: fadeOutRight 0.3s ease-in forwards;
+            animation: snackbarOut 0.25s cubic-bezier(0.4, 0, 1, 1) forwards;
         }
 
-        @keyframes fadeOutRight {
+        @keyframes snackbarOut {
             from {
-                transform: translateX(0);
+                transform: scale(1);
                 opacity: 1;
             }
-
             to {
-                transform: translateX(100%);
+                transform: scale(0.9);
                 opacity: 0;
             }
+        }
+        
+        /* --- Ripple Effect Styling --- */
+        .ripple-target {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .material-ripple {
+            position: absolute;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.15);
+            transform: scale(0);
+            animation: ripple-effect 0.55s cubic-bezier(0.1, 0.8, 0.3, 1);
+            pointer-events: none;
+        }
+
+        @keyframes ripple-effect {
+            to {
+                transform: scale(3.5);
+                opacity: 0;
+            }
+        }
+        
+        /* Layout overrides for headings inside headers */
+        h1, h2, h3, h4, h5, h6 {
+            font-family: "Outfit", sans-serif;
+            font-weight: 800;
+        }
+        
+        /* Table Styles override */
+        .birthday-list,
+        .table-responsive,
+        table {
+            border-radius: var(--md-shape-corner-large) !important;
+            overflow: hidden !important;
+            border: 1px solid var(--md-sys-color-outline) !important;
+            background-color: var(--md-sys-color-surface-container-low) !important;
+        }
+        
+        th {
+            background-color: var(--md-sys-color-surface-container-high) !important;
+            color: var(--md-sys-color-primary) !important;
+            font-weight: 700 !important;
+        }
+        
+        tr {
+            border-bottom: 1px solid var(--md-sys-color-outline) !important;
+            transition: background-color 0.2s ease;
+        }
+        
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.03) !important;
+        }
+
+        /* Multiple Select Field Styles override */
+        select[multiple] {
+            padding: 0.5rem !important;
+            border-radius: var(--md-shape-corner-medium) !important;
+            background-color: var(--md-sys-color-surface-container-lowest) !important;
+            min-height: 120px !important;
+            height: auto !important;
+            overflow-y: auto !important;
+        }
+        select[multiple] option {
+            padding: 0.6rem 1rem !important;
+            border-radius: var(--md-shape-corner-small) !important;
+            margin-bottom: 3px !important;
+            color: var(--md-sys-color-on-surface) !important;
+            cursor: pointer !important;
+            transition: all 0.15s ease !important;
+            background-color: transparent !important;
+        }
+        select[multiple] option:hover {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+        }
+        select[multiple] option:checked {
+            background-color: var(--md-sys-color-primary) !important;
+            color: var(--md-sys-color-on-primary) !important;
+            font-weight: 700 !important;
+        }
+
+        /* Small round delete/action buttons in lists and tables */
+        form button.bg-red-500,
+        form button.bg-red-600,
+        form button[class*="bg-red-500"],
+        form button[class*="bg-red-600"] {
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: var(--md-shape-corner-full) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
+            font-size: 1.2rem !important;
+            line-height: 1 !important;
+            background-color: rgba(255, 180, 171, 0.15) !important;
+            color: #ffb4ab !important;
+            border: 1px solid rgba(255, 180, 171, 0.25) !important;
+            transition: all 0.2s ease !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        form button.bg-red-500:hover,
+        form button.bg-red-600:hover,
+        form button[class*="bg-red-500"]:hover,
+        form button[class*="bg-red-600"]:hover {
+            background-color: #ffb4ab !important;
+            color: #601410 !important;
+            border-color: #ffb4ab !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 2px 8px rgba(255, 180, 171, 0.3) !important;
+        }
+
+        /* Helper Description texts under form labels */
+        label + p.text-text-secondary,
+        label + p.text-gray-400 {
+            margin-top: -0.25rem !important;
+            margin-bottom: 0.75rem !important;
+            font-size: 0.85rem !important;
+            color: var(--md-sys-color-outline-variant) !important;
+            font-weight: 500 !important;
         }
     </style>
 
     <script>
+        // Material You Ripple Effect
+        document.addEventListener('click', function (e) {
+            const target = e.target.closest('.ripple-target, .btn, button, nav a, details summary');
+            if (!target) return;
+            
+            const ripple = document.createElement('span');
+            ripple.className = 'material-ripple';
+            
+            const rect = target.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.width = ripple.style.height = `${size}px`;
+            ripple.style.left = `${x}px`;
+            ripple.style.top = `${y}px`;
+            
+            const computedStyle = window.getComputedStyle(target);
+            if (computedStyle.position === 'static') {
+                target.style.position = 'relative';
+            }
+            if (computedStyle.overflow !== 'hidden') {
+                target.style.overflow = 'hidden';
+            }
+            
+            target.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            const bgColor = type === 'success' ? 'bg-green-500' : (type === 'danger' ? 'bg-red-500' : 'bg-primary');
+            const bgColor = type === 'success' ? 'bg-[#1e2b20]' : (type === 'danger' ? 'bg-[#2b1e1e]' : 'bg-[#1b222d]');
+            const textColor = type === 'success' ? 'text-green-300' : (type === 'danger' ? 'text-red-300' : 'text-blue-300');
+            const borderColor = type === 'success' ? 'border-green-500/20' : (type === 'danger' ? 'border-red-500/20' : 'border-blue-500/20');
+            const icon = type === 'success' ? 'check_circle' : 'info';
 
-            toast.className = `toast px-6 py-3 rounded-lg shadow-xl text-white font-bold flex items-center gap-3 ${bgColor}`;
+            toast.className = `toast px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border ${bgColor} ${textColor} ${borderColor}`;
             toast.innerHTML = `
-                <span class="material-symbols-outlined">${type === 'success' ? 'check_circle' : 'info'}</span>
-                <span>${message}</span>
+                <span class="material-symbols-outlined select-none">${icon}</span>
+                <span class="font-bold text-sm leading-tight">${message}</span>
             `;
 
             container.appendChild(toast);
@@ -389,12 +795,10 @@
             const sidebar = document.getElementById('sidebar');
             const backdrop = document.getElementById('mobile-sidebar-backdrop');
 
-            // Toggle sidebar translation
             if (sidebar.classList.contains('-translate-x-full')) {
                 // Open sidebar
                 sidebar.classList.remove('-translate-x-full');
                 backdrop.classList.remove('hidden');
-                // Small delay to allow display:block to apply before opacity transition
                 setTimeout(() => {
                     backdrop.classList.remove('opacity-0');
                 }, 10);
