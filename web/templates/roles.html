@@ -2,20 +2,579 @@
 {% block title %}Rollen-Verwaltung - {{ guild.name }}{% endblock %}
 {% block content %}
 
+<!-- Include SortableJS for desktop and mobile touch drag & drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
 <!-- Header -->
 <header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
     <div class="flex flex-col gap-2">
         <h1 class="text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">Rollen-Verwaltung</h1>
-        <p class="text-text-secondary text-base font-normal">Erstelle, bearbeite und organisiere die Rollen für deinen Discord-Server.</p>
+        <p class="text-text-secondary text-base font-normal">Organisiere, gruppiere und strukturiere die Rollen für deinen Discord-Server.</p>
     </div>
 </header>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Left Column: Creation & Mass Actions -->
-    <div class="flex flex-col gap-8 lg:col-span-1">
-        
+<!-- Tab Navigation -->
+<div class="flex flex-wrap gap-2 border-b border-white/5 pb-3 mb-6">
+    <button onclick="switchTab('builder')" id="tab-btn-builder" class="tab-btn active px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">grid_view</span>
+        Interaktiver Builder
+    </button>
+    <button onclick="switchTab('hierarchy')" id="tab-btn-hierarchy" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">swap_vert</span>
+        Rollen-Reihenfolge
+    </button>
+    <button onclick="switchTab('table')" id="tab-btn-table" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">list</span>
+        Klassische Tabelle
+    </button>
+    <button onclick="switchTab('groups')" id="tab-btn-groups" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">folder_open</span>
+        Gruppen-Manager
+    </button>
+    <button onclick="switchTab('create')" id="tab-btn-create" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">settings_suggest</span>
+        Erstellen & Massenaktionen
+    </button>
+</div>
+
+<!-- ============================================== -->
+<!-- TAB: INTERACTIVE BUILDER                       -->
+<!-- ============================================== -->
+<div id="tab-content-builder" class="tab-content flex flex-col gap-6">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <!-- Left: Workspace (2 Columns) -->
+        <div class="xl:col-span-2 flex flex-col gap-6">
+            <!-- Workspace Info Card -->
+            <div class="flex flex-wrap justify-between items-center bg-white/5 border border-white/10 p-4 rounded-3xl gap-4">
+                <div class="flex flex-col gap-1 max-w-md">
+                    <h3 class="text-white font-bold text-base flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">drag_indicator</span>
+                        Gruppen-Einsortierung per Drag & Drop
+                    </h3>
+                    <p class="text-xs text-text-secondary">Verschiebe Rollen aus der ungruppierten Liste links in die Gruppenkarten rechts, um sie zuzuweisen. Touch- und handyfreundlich!</p>
+                </div>
+                <button onclick="saveLayout()" class="btn bg-primary text-on-primary font-bold shadow-lg flex items-center gap-2">
+                    <span class="material-symbols-outlined">save</span>
+                    Layout speichern
+                </button>
+            </div>
+
+            <!-- Workspace Columns -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Ungrouped list container -->
+                <div class="flex flex-col gap-4 bg-background-dark p-4 rounded-3xl border border-white/5 h-[650px]">
+                    <div class="flex items-center justify-between shrink-0">
+                        <span class="text-sm font-bold text-white flex items-center gap-2">
+                            <span class="material-symbols-outlined text-text-secondary">category</span>
+                            Ungruppierte Rollen
+                        </span>
+                        <input type="text" id="builder-search" placeholder="Suchen..." class="form-input text-xs py-1.5 px-3 w-40" oninput="filterBuilderRoles(this.value)">
+                    </div>
+                    <div id="builder-ungrouped-list" class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 p-2 bg-black/20 rounded-2xl border border-dashed border-white/10" data-group-id="ungrouped">
+                        <!-- Dynamic ungrouped roles go here -->
+                    </div>
+                </div>
+
+                <!-- Group dropzones column -->
+                <div id="builder-groups-container" class="flex flex-col gap-4 overflow-y-auto custom-scrollbar h-[650px] pr-1">
+                    <!-- Dynamic group dropzones will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Real-time Discord Previews (1 Column) -->
+        <div class="xl:col-span-1 flex flex-col gap-6">
+            <div class="bg-card-dark border border-white/10 p-4 rounded-3xl flex flex-col gap-4 sticky top-6">
+                <div class="flex justify-between items-center border-b border-white/5 pb-2 shrink-0">
+                    <span class="text-white font-bold text-sm flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">visibility</span>
+                        Discord Live-Vorschau
+                    </span>
+                    <div class="flex bg-white/5 rounded-full p-0.5 border border-white/10">
+                        <button id="preview-btn-sidebar" onclick="setPreviewType('sidebar')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-primary text-on-primary">
+                            Sidebar
+                        </button>
+                        <button id="preview-btn-profile" onclick="setPreviewType('profile')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all text-text-secondary hover:text-white">
+                            Profil
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Discord Member Sidebar Mockup -->
+                <div id="preview-container-sidebar" class="bg-[#1e1f22] rounded-2xl border border-white/5 overflow-hidden font-sans text-white h-[400px] flex flex-col shadow-xl">
+                    <div class="h-12 border-b border-[#111214] px-4 flex items-center justify-between shrink-0 bg-[#2b2d31]">
+                        <span class="font-bold text-sm truncate">{{ guild.name }}</span>
+                        <span class="material-symbols-outlined text-gray-400 text-lg">expand_more</span>
+                    </div>
+                    <div class="flex-1 flex min-h-0 bg-[#2b2d31]">
+                        <!-- Mock Channels -->
+                        <div class="w-2/5 border-r border-[#111214]/40 p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar text-[#949ba4] text-[11px]">
+                            <div class="flex items-center gap-1 py-1 font-bold uppercase text-[9px] tracking-wider shrink-0">
+                                <span class="material-symbols-outlined text-[10px]">expand_more</span> Textkanäle
+                            </div>
+                            <div class="flex items-center gap-1.5 px-2 py-1 rounded bg-[#35373c] text-white font-medium">
+                                <span class="text-sm font-normal text-gray-400">#</span> allgemein
+                            </div>
+                            <div class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5 hover:text-gray-200">
+                                <span class="text-sm font-normal text-gray-400">#</span> rollen-übersicht
+                            </div>
+                        </div>
+                        <!-- Mock Members List -->
+                        <div id="discord-members-list-preview" class="w-3/5 p-2 flex flex-col gap-2.5 overflow-y-auto custom-scrollbar bg-[#2b2d31]">
+                            <!-- Dynamic category headers and mock members -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Discord Profile Card Mockup -->
+                <div id="preview-container-profile" class="hidden bg-[#1e1f22] rounded-2xl overflow-hidden border border-white/5 shadow-xl w-full font-sans text-white h-[400px] flex flex-col">
+                    <div class="h-20 bg-primary/70 relative shrink-0">
+                        <div class="absolute -bottom-8 left-4 w-16 h-16 rounded-full border-[5px] border-[#1e1f22] bg-[#313338] overflow-hidden">
+                            <img src="{{ user.avatar_url or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" alt="Avatar" class="w-full h-full object-cover">
+                        </div>
+                    </div>
+                    <div class="pt-10 p-4 flex flex-col gap-3 bg-[#111214] flex-1 overflow-y-auto custom-scrollbar">
+                        <div class="flex flex-col gap-0.5">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="font-bold text-base">{{ user.username or 'Test_User' }}</span>
+                                <span class="text-[9px] bg-primary text-on-primary px-1 py-0.5 rounded font-bold uppercase tracking-wider scale-90">Mitglied</span>
+                            </div>
+                            <span class="text-text-secondary text-xs font-mono">@{{ user.username|lower or 'test_user' }}</span>
+                        </div>
+                        <hr class="border-white/5">
+                        <div class="flex flex-col gap-1.5">
+                            <span class="text-[9px] font-bold uppercase text-[#949ba4] tracking-wider">Rollen</span>
+                            <div id="discord-profile-roles-preview" class="flex flex-wrap gap-1.5 min-h-[50px] p-2 bg-[#1e1f22]/50 rounded-lg border border-white/5">
+                                <!-- Dynamic profile role pills -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Role Toggles for Profile Preview -->
+                <div class="flex flex-col gap-2 max-h-40 overflow-y-auto bg-background-dark p-3 rounded-2xl border border-white/5 shrink-0">
+                    <span class="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1">Rollen zum Testen wählen:</span>
+                    <div id="profile-select-checkboxes" class="flex flex-col gap-1">
+                        <!-- Dynamic checkboxes will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- TAB: ROLE HIERARCHY DRAGGER                    -->
+<!-- ============================================== -->
+<div id="tab-content-hierarchy" class="tab-content hidden flex flex-col gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Reorder list (2 Columns) -->
+        <div class="lg:col-span-2 flex flex-col gap-6">
+            <div class="flex flex-wrap justify-between items-center bg-white/5 border border-white/10 p-4 rounded-3xl gap-4">
+                <div class="flex flex-col gap-1 max-w-md">
+                    <h3 class="text-white font-bold text-base flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">swap_vert</span>
+                        Rollen-Reihenfolge ändern (Hierarchie)
+                    </h3>
+                    <p class="text-xs text-text-secondary">Verschiebe verschiebbare Rollen nach oben oder unten, um die Discord-Hierarchie zu verändern. Oben ist die höchste Rolle.</p>
+                </div>
+                <button onclick="saveLayout()" class="btn bg-primary text-on-primary font-bold shadow-lg flex items-center gap-2">
+                    <span class="material-symbols-outlined">save</span>
+                    Reihenfolge speichern
+                </button>
+            </div>
+
+            <div class="flex flex-col gap-3 bg-background-dark p-4 rounded-3xl border border-white/5 min-h-[500px]">
+                <span class="text-xs font-bold text-red-400/90 mb-1 flex items-center gap-1.5 px-1 shrink-0">
+                    <span class="material-symbols-outlined text-sm">lock</span>
+                    Obere Rollen (Gesperrt, liegen über dem Bot)
+                </span>
+                <!-- Non-manageable roles (top) -->
+                <div class="flex flex-col gap-2 opacity-50 select-none pointer-events-none mb-3 shrink-0">
+                    {% for role in roles %}
+                        {% if not (role < guild.me.top_role and not role.is_default()) and not role.is_default() %}
+                            <div class="flex items-center gap-3 p-3 bg-white/2 border border-white/5 rounded-2xl">
+                                <span class="w-3.5 h-3.5 rounded-full shrink-0" style="background-color: {{ '#%06x'|format(role.color.value) if role.color.value else '#99aab5' }};"></span>
+                                <span class="text-white/85 text-sm font-bold truncate">{{ role.name }}</span>
+                                <span class="text-[9px] font-bold text-red-400 border border-red-400/20 px-2 py-0.5 rounded-full bg-red-400/5 ml-auto">Gesperrt</span>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <hr class="border-white/5 my-1 shrink-0">
+
+                <span class="text-xs font-bold text-primary mb-1 flex items-center gap-1.5 px-1 shrink-0">
+                    <span class="material-symbols-outlined text-sm">drag_indicator</span>
+                    Verschiebbare Rollen (Bewege per Drag & Drop oder Klick):
+                </span>
+
+                <!-- Draggable manageable list -->
+                <div id="hierarchy-draggable-list" class="flex flex-col gap-2 p-1 min-h-[250px] flex-1 overflow-y-auto">
+                    <!-- Dynamic manageable roles will be injected here -->
+                </div>
+
+                <hr class="border-white/5 my-1 shrink-0">
+
+                <!-- Standard default role (bottom) -->
+                <div class="opacity-50 select-none pointer-events-none mt-2 shrink-0">
+                    {% for role in roles %}
+                        {% if role.is_default() %}
+                            <div class="flex items-center gap-3 p-3 bg-white/2 border border-white/5 rounded-2xl">
+                                <span class="w-3.5 h-3.5 rounded-full shrink-0 bg-[#99aab5]"></span>
+                                <span class="text-white/85 text-sm font-bold truncate">{{ role.name }}</span>
+                                <span class="text-[9px] text-text-secondary ml-auto border border-white/10 px-2.5 py-0.5 rounded-full">Standard-Rolle (@everyone)</span>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Card (1 Column) -->
+        <div class="lg:col-span-1 flex flex-col gap-6">
+            <div class="bg-card-dark border border-white/10 p-6 rounded-3xl flex flex-col gap-4">
+                <h3 class="text-white font-bold text-base flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">info</span>
+                    Discord Hierarchie
+                </h3>
+                <p class="text-xs text-text-secondary leading-relaxed">
+                    Die Reihenfolge deiner Server-Rollen bestimmt wichtige Eigenschaften in Discord:
+                </p>
+                <div class="flex flex-col gap-3 text-xs text-text-secondary mt-2">
+                    <div class="flex gap-2">
+                        <span class="material-symbols-outlined text-primary text-sm shrink-0 mt-0.5">palette</span>
+                        <div>
+                            <strong class="text-white block">Namensfarbe</strong>
+                            Die am höchsten platzierte Rolle eines Mitglieds bestimmt dessen Farbe.
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="material-symbols-outlined text-primary text-sm shrink-0 mt-0.5">group</span>
+                        <div>
+                            <strong class="text-white block">Mitgliederliste</strong>
+                            Gruppen/Separationsrollen ("hoist") sortieren die Liste nach ihrer hierarchischen Höhe.
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="material-symbols-outlined text-primary text-sm shrink-0 mt-0.5">gavel</span>
+                        <div>
+                            <strong class="text-white block">Moderationsrechte</strong>
+                            Mitglieder mit höheren Rollen können Aktionen auf Mitglieder mit niedrigeren Rollen anwenden.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- TAB: CLASSIC TABLE                             -->
+<!-- ============================================== -->
+<div id="tab-content-table" class="tab-content hidden flex flex-col gap-6">
+    <section class="flex flex-col gap-6">
+        <div class="flex flex-wrap justify-between items-center gap-4">
+            <h2 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">toc</span>
+                Server-Rollen (Tabelle)
+            </h2>
+            <div class="flex items-center gap-3">
+                <input type="text" id="table-search" placeholder="Rollen durchsuchen..." class="form-input text-xs py-1.5 px-3 w-48" oninput="filterTableRoles(this.value)">
+                <span class="text-xs font-semibold px-3 py-1 rounded-full bg-white/5 border border-white/10 text-text-secondary">
+                    Bot-Rolle: {{ guild.me.top_role.name }}
+                </span>
+            </div>
+        </div>
+
+        <div class="table-responsive w-full overflow-x-auto">
+            <table class="w-full text-left border-collapse" id="classic-roles-table">
+                <thead>
+                    <tr class="border-b border-white/10">
+                        <th class="p-4 text-xs font-bold uppercase tracking-wider">Farbe / Name</th>
+                        <th class="p-4 text-xs font-bold uppercase tracking-wider text-center">Mitglieder</th>
+                        <th class="p-4 text-xs font-bold uppercase tracking-wider text-center">Status</th>
+                        <th class="p-4 text-xs font-bold uppercase tracking-wider text-right">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in grouped_roles %}
+                        {% set role = item.role %}
+                        {% set is_grouped = item.is_grouped %}
+                        {% set group_id = item.group_id %}
+                        {% set is_default = role.is_default() %}
+                        {% set is_manageable = (role < guild.me.top_role and not is_default) %}
+                        {% set is_sep = '───' in role.name or '\u2800' in role.name %}
+                        {% if role.color.value %}
+                            {% set hex = '#%06x'|format(role.color.value) %}
+                        {% else %}
+                            {% set hex = '#99aab5' %}
+                        {% endif %}
+                        
+                        {% set has_group = false %}
+                        {% set associated_group_id = None %}
+                        {% for gkey, gval in role_groups.items() %}
+                            {% if gval.separator_role_id == role.id %}
+                                {% set has_group = true %}
+                                {% set associated_group_id = gkey %}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        <tr class="table-row-item border-b border-white/5 {% if not is_manageable %}opacity-65{% endif %} {% if is_grouped %}group-row-{{ group_id }} bg-primary/2{% endif %} transition-all duration-200" data-role-name="{{ role.name | lower }}">
+                            <!-- Name and Badge -->
+                            <td class="p-4 {% if is_grouped %}pl-10{% endif %}">
+                                <div class="flex items-center gap-3">
+                                    {% if is_grouped %}
+                                        <span class="text-text-secondary/40 font-mono text-xs select-none shrink-0">├─</span>
+                                    {% endif %}
+                                    <span class="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0" style="background-color: {{ hex }};"></span>
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="text-white font-bold text-sm truncate max-w-[150px] md:max-w-[250px]">
+                                            {{ role.name }}
+                                        </span>
+                                        {% if has_group %}
+                                            <button onclick="toggleGroup('{{ associated_group_id }}')" class="p-0.5 hover:bg-white/10 rounded text-text-secondary hover:text-white transition-colors flex items-center justify-center select-none shrink-0" title="Gruppe ein-/ausklappen">
+                                                <span id="group-icon-{{ associated_group_id }}" class="material-symbols-outlined text-base font-bold">expand_more</span>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex flex-col min-w-0 ml-auto md:ml-0">
+                                        {% if is_default %}
+                                            <span class="text-[10px] text-text-secondary font-medium">Standard-Rolle (@everyone)</span>
+                                        {% elif not is_manageable %}
+                                            <span class="text-[10px] text-red-400 font-medium">Über Bot-Hierarchie (Gesperrt)</span>
+                                        {% elif is_sep %}
+                                            <span class="text-[10px] text-primary font-medium">Trenner-Rolle {% if has_group %}(Gruppe: {{ role_groups[associated_group_id].name }}){% endif %}</span>
+                                        {% elif is_grouped %}
+                                            <span class="text-[10px] text-text-secondary/80 font-medium">Gruppe: {{ item.group_name }}</span>
+                                        {% else %}
+                                            <span class="text-[10px] text-text-secondary font-medium">Eigene Rolle</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            
+                            <!-- Members -->
+                            <td class="p-4 text-center">
+                                <span class="text-sm font-semibold text-white/90 bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-full">
+                                    {{ role.members|length }}
+                                </span>
+                            </td>
+
+                            <!-- Status Indicators -->
+                            <td class="p-4">
+                                <div class="flex justify-center gap-3">
+                                    <!-- Hoist Status -->
+                                    <span class="material-symbols-outlined text-sm {% if role.hoist %}text-primary{% else %}text-white/20{% endif %}" 
+                                          title="{% if role.hoist %}Getrennt online angezeigt{% else %}Nicht getrennt online angezeigt{% endif %}">
+                                        visibility
+                                    </span>
+                                    <!-- Mentionable Status -->
+                                    <span class="material-symbols-outlined text-sm {% if role.mentionable %}text-primary{% else %}text-white/20{% endif %}"
+                                          title="{% if role.mentionable %}Erwähnbar{% else %}Nicht erwähnbar{% endif %}">
+                                        alternate_email
+                                    </span>
+                                </div>
+                            </td>
+
+                            <!-- Actions -->
+                            <td class="p-4 text-right">
+                                <div class="flex justify-end gap-1.5 items-center">
+                                    {% if is_manageable %}
+                                        <!-- Move Up -->
+                                        <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="inline">
+                                            <input type="hidden" name="action" value="move">
+                                            <input type="hidden" name="role_id" value="{{ role.id }}">
+                                            <input type="hidden" name="direction" value="up">
+                                            <button type="submit" class="w-8 h-8 rounded-full border border-white/10 hover:border-primary/50 text-white/70 hover:text-primary transition-colors flex items-center justify-center bg-white/5">
+                                                <span class="material-symbols-outlined text-base">arrow_upward</span>
+                                            </button>
+                                        </form>
+                                        
+                                        <!-- Move Down -->
+                                        <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="inline">
+                                            <input type="hidden" name="action" value="move">
+                                            <input type="hidden" name="role_id" value="{{ role.id }}">
+                                            <input type="hidden" name="direction" value="down">
+                                            <button type="submit" class="w-8 h-8 rounded-full border border-white/10 hover:border-primary/50 text-white/70 hover:text-primary transition-colors flex items-center justify-center bg-white/5">
+                                                <span class="material-symbols-outlined text-base">arrow_downward</span>
+                                            </button>
+                                        </form>
+
+                                        <!-- Edit -->
+                                        <button onclick="openEditModal({{ role.id }}, '{{ role.name }}', '{{ hex }}', {{ 'true' if role.hoist else 'false' }}, {{ 'true' if role.mentionable else 'false' }}, {{ 'true' if is_sep else 'false' }})" 
+                                                class="w-8 h-8 rounded-full border border-white/10 hover:border-primary/50 text-white/70 hover:text-primary transition-colors flex items-center justify-center bg-white/5">
+                                            <span class="material-symbols-outlined text-base">edit</span>
+                                        </button>
+
+                                        <!-- Delete -->
+                                        <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="inline" onsubmit="return confirm('Möchtest du diese Rolle wirklich unwiderruflich löschen?');">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="role_id" value="{{ role.id }}">
+                                            <button type="submit" class="w-8 h-8 rounded-full border border-red-500/20 hover:border-red-500 text-red-400 hover:text-red-100 transition-colors flex items-center justify-center bg-red-500/10">
+                                                <span class="material-symbols-outlined text-base">delete</span>
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="material-symbols-outlined text-white/10 text-sm select-none mr-2" title="Keine Berechtigung zum Bearbeiten">lock</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<!-- ============================================== -->
+<!-- TAB: GROUPS MANAGER                            -->
+<!-- ============================================== -->
+<div id="tab-content-groups" class="tab-content hidden flex flex-col gap-6">
+    <!-- Groups Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Active Group Cards -->
+        {% for gid, ginfo in role_groups.items() %}
+            <div class="bg-card-dark border border-white/10 p-5 rounded-3xl flex flex-col justify-between gap-5 transition-all hover:-translate-y-1 hover:border-primary/20">
+                <div class="flex flex-col gap-3">
+                    <div class="flex justify-between items-start">
+                        <div class="flex flex-col min-w-0">
+                            <span class="text-white font-bold text-lg truncate">{{ ginfo.name }}</span>
+                            <span class="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">ID: {{ gid }}</span>
+                        </div>
+                        <div class="flex gap-1.5 shrink-0">
+                            <!-- Edit Group Button -->
+                            <button onclick="openEditGroupModal('{{ gid }}')" class="w-8 h-8 rounded-full hover:bg-white/10 text-text-secondary hover:text-white transition-colors flex items-center justify-center">
+                                <span class="material-symbols-outlined text-base">edit</span>
+                            </button>
+                            <!-- Delete Group Button -->
+                            <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" onsubmit="return confirm('Möchtest du diese Rollen-Gruppe wirklich löschen? Die Rollen selbst bleiben erhalten.');">
+                                <input type="hidden" name="action" value="delete_group">
+                                <input type="hidden" name="group_id" value="{{ gid }}">
+                                <button type="submit" class="w-8 h-8 rounded-full hover:bg-red-500/10 hover:text-red-400 text-text-secondary transition-colors flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-base">delete</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <hr class="border-white/5 my-1">
+                    
+                    <!-- Group details -->
+                    <div class="flex flex-col gap-2 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-text-secondary">Überschrift (Trenner):</span>
+                            <span class="text-white font-semibold truncate max-w-[150px]">
+                                {% if ginfo.separator_role_id %}
+                                    {{ roles | selectattr('id', 'equalto', ginfo.separator_role_id) | map(attribute='name') | first or 'Gelöschte Rolle' }}
+                                {% else %}
+                                    <span class="italic text-text-secondary">Keine</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <div class="flex flex-col gap-1 mt-1">
+                            <span class="text-text-secondary">Automatisches Muster (Regel):</span>
+                            {% if ginfo.auto_match_pattern %}
+                                <div class="flex flex-wrap gap-1 mt-0.5">
+                                    {% for pattern in ginfo.auto_match_pattern.split(',') %}
+                                        {% if pattern.strip() %}
+                                            <span class="bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] font-mono">"{{ pattern.strip() }}"</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span class="italic text-text-secondary text-[11px]">Keine automatischen Regeln</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Match Tester -->
+                        <div class="flex flex-col gap-1.5 mt-2 bg-black/25 p-3 rounded-2xl border border-white/5">
+                            <span class="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Ergebnis (Regeln & Manuell):</span>
+                            <div class="flex flex-wrap gap-1.5 mt-0.5 max-h-24 overflow-y-auto custom-scrollbar" id="live-matches-{{ gid }}">
+                                <!-- JavaScript will test and show the active matched roles here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+
+        <!-- Create Group Card -->
+        <div onclick="switchTab('groups-create')" class="bg-card-dark border-2 border-dashed border-white/10 hover:border-primary/30 p-5 rounded-3xl flex flex-col items-center justify-center text-center gap-3 cursor-pointer group hover:-translate-y-1 transition-all h-full min-h-[220px]">
+            <div class="w-12 h-12 rounded-full bg-white/5 group-hover:bg-primary-container group-hover:text-primary transition-colors flex items-center justify-center">
+                <span class="material-symbols-outlined text-2xl text-text-secondary group-hover:text-primary">create_new_folder</span>
+            </div>
+            <div>
+                <p class="font-bold text-sm text-white">Neue Rollen-Gruppe</p>
+                <p class="text-xs text-text-secondary mt-1">Erstelle eine neue Gruppe mit Überschrift und automatischen Sortierregeln.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Subtab: Create Group Form (Opens when clicking create card) -->
+    <div id="subtab-groups-create" class="hidden max-w-xl mx-auto bg-card-dark border border-white/10 p-6 rounded-3xl flex flex-col gap-5 mt-4">
+        <div class="flex justify-between items-center">
+            <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">folder_open</span>
+                Rollen-Gruppe erstellen
+            </h3>
+            <button onclick="switchTab('groups')" class="text-text-secondary hover:text-white transition-colors">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="flex flex-col gap-4">
+            <input type="hidden" name="action" value="create_group">
+            
+            <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-white uppercase tracking-wider">Gruppenname</label>
+                <input type="text" name="group_name" required placeholder="z. B. Twitch Pings" class="form-input">
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-white uppercase tracking-wider">Überschrift-Rolle (Trenner)</label>
+                <select name="separator_role_id" required class="form-select">
+                    <option value="" disabled selected>Trenner-Rolle wählen...</option>
+                    {% for role in roles %}
+                        {% if '───' in role.name or '\u2800' in role.name %}
+                            <option value="{{ role.id }}">{{ role.name }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <span class="text-[10px] text-text-secondary">Wähle eine Rolle, die als Überschrift fungiert. Du kannst im Tab "Erstellen" eine Trenner-Rolle erstellen.</span>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-white uppercase tracking-wider">Automatisches Muster (Regeln)</label>
+                <input type="text" id="create-auto-match" name="auto_match_pattern" placeholder="z. B. ping, streak" class="form-input" oninput="testAutoMatchRules(this.value, 'create-match-preview')">
+                <span class="text-[10px] text-text-secondary">Mehrere Muster mit Komma trennen. Rollen, die diese Wörter enthalten, werden automatisch einsortiert.</span>
+            </div>
+
+            <!-- Match Preview -->
+            <div class="bg-black/25 p-3 rounded-2xl border border-white/5 flex flex-col gap-2">
+                <span class="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Vorschau Treffer:</span>
+                <div id="create-match-preview" class="flex flex-wrap gap-1.5 min-h-[30px]">
+                    <span class="text-xs text-text-secondary italic">Keine Muster eingegeben</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-2">
+                <button type="button" onclick="switchTab('groups')" class="btn bg-white/5 text-white border border-white/10 hover:bg-white/10">Abbrechen</button>
+                <button type="submit" class="btn bg-primary text-on-primary font-bold">Gruppe erstellen</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- TAB: CREATE & MASS ACTIONS                     -->
+<!-- ============================================== -->
+<div id="tab-content-create" class="tab-content hidden flex flex-col gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Create Role Card -->
-        <section class="flex flex-col gap-6">
+        <section class="flex flex-col gap-6 bg-card-dark border border-white/10 p-6 rounded-3xl">
             <h2 class="text-white text-xl font-bold flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary">add_circle</span>
                 Rolle erstellen
@@ -43,7 +602,7 @@
                             <span class="text-sm font-bold text-white">Als Trenner verwenden</span>
                             <span class="text-xs text-text-secondary">Fügt Linien & unsichtbare Zeichen hinzu</span>
                         </div>
-                        <input type="checkbox" name="is_separator" class="sr-only" onchange="toggleSeparatorHint(this.checked)">
+                        <input type="checkbox" name="is_separator" class="sr-only">
                         <div class="w-11 h-6 bg-white/10 rounded-full transition-all relative"></div>
                     </label>
 
@@ -74,7 +633,7 @@
         </section>
 
         <!-- Mass Assign Card -->
-        <section class="flex flex-col gap-6">
+        <section class="flex flex-col gap-6 bg-card-dark border border-white/10 p-6 rounded-3xl">
             <h2 class="text-white text-xl font-bold flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary">group_add</span>
                 Massen-Zuweisung
@@ -114,206 +673,12 @@
                 </button>
             </form>
         </section>
-
-        <!-- Discord Profile Preview Card -->
-        <section class="flex flex-col gap-6">
-            <h2 class="text-white text-xl font-bold flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary">person</span>
-                Discord Profil-Vorschau
-            </h2>
-            <p class="text-text-secondary text-sm">Wähle Rollen aus, um zu sehen, wie sie auf einem Discord-Nutzerprofil angezeigt werden.</p>
-
-            <!-- Discord Card Mockup -->
-            <div class="bg-[#1e1f22] rounded-2xl overflow-hidden border border-white/5 shadow-xl w-full font-sans text-white">
-                <!-- Banner -->
-                <div class="h-20 bg-primary/70 relative">
-                    <!-- Avatar -->
-                    <div class="absolute -bottom-8 left-4 w-16 h-16 rounded-full border-[5px] border-[#1e1f22] bg-[#313338] overflow-hidden">
-                        <img src="{{ user.avatar_url or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" alt="Avatar" class="w-full h-full object-cover">
-                    </div>
-                </div>
-                <!-- Card Body -->
-                <div class="pt-10 p-4 flex flex-col gap-3.5 bg-[#111214]">
-                    <!-- User Info -->
-                    <div class="flex flex-col gap-0.5">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="font-bold text-base">{{ user.username or 'Test_User' }}</span>
-                            <span class="text-[9px] bg-primary text-on-primary px-1 py-0.5 rounded font-bold uppercase tracking-wider scale-90">Bot-Tester</span>
-                        </div>
-                        <span class="text-text-secondary text-xs font-mono">@{{ user.username|lower or 'test_user' }}</span>
-                    </div>
-                    
-                    <hr class="border-white/5">
-
-                    <!-- Roles Section -->
-                    <div class="flex flex-col gap-1.5">
-                        <span class="text-[10px] font-bold uppercase text-text-secondary tracking-wider">Rollen</span>
-                        <div id="preview-roles-container" class="flex flex-wrap gap-1.5 min-h-[40px] p-2 bg-[#1e1f22]/50 rounded-lg border border-white/5">
-                            <!-- Dynamic role pills will be inserted here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Role Selector Checkboxes -->
-            <div class="flex flex-col gap-2 max-h-48 overflow-y-auto bg-background-dark p-3 rounded-xl border border-white/5">
-                <span class="text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">Rollen zum Testen wählen:</span>
-                {% for role in roles %}
-                    {% if not role.is_default() %}
-                        {% if role.color.value %}{% set hex = '#%06x'|format(role.color.value) %}{% else %}{% set hex = '#b9bbbe' %}{% endif %}
-                        <label class="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-white/5 rounded-lg transition-colors">
-                            <input type="checkbox" class="preview-role-checkbox sr-only" 
-                                   data-id="{{ role.id }}" 
-                                   data-name="{{ role.name }}" 
-                                   data-color="{{ hex }}"
-                                   {% if role.id == 11 or role.id == 22 %}checked{% endif %}>
-                            <!-- Custom Checkbox Indicator -->
-                            <div class="w-5 h-5 rounded border border-white/20 flex items-center justify-center bg-white/5 shrink-0 select-indicator transition-all">
-                                <span class="material-symbols-outlined text-[10px] hidden font-black text-on-primary">check</span>
-                            </div>
-                            <!-- Role Pill Info -->
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="w-3 h-3 rounded-full shrink-0" style="background-color: {{ hex }};"></span>
-                                <span class="text-sm text-white/90 truncate max-w-[200px]">{{ role.name }}</span>
-                            </div>
-                        </label>
-                    {% endif %}
-                {% endfor %}
-            </div>
-        </section>
-    </div>
-
-    <!-- Right Column: Roles Hierarchy Table -->
-    <div class="flex flex-col gap-8 lg:col-span-2">
-        <section class="flex flex-col gap-6">
-            <div class="flex items-center justify-between">
-                <h2 class="text-white text-xl font-bold flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">toc</span>
-                    Server-Rollen (Hierarchie)
-                </h2>
-                <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-text-secondary">
-                    Bot-Rolle: {{ guild.me.top_role.name }}
-                </span>
-            </div>
-
-            <div class="table-responsive w-full overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr>
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider">Farbe / Name</th>
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-center">Mitglieder</th>
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-center">Status</th>
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-right">Aktionen</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for role in roles %}
-                            {% set is_default = role.is_default() %}
-                            {% set is_manageable = (role < guild.me.top_role and not is_default) %}
-                            {% set is_sep = '───' in role.name or '\u2800' in role.name %}
-                            {% if role.color.value %}
-                                {% set hex = '#%06x'|format(role.color.value) %}
-                            {% else %}
-                                {% set hex = '#99aab5' %}
-                            {% endif %}
-                            <tr class="border-b border-white/5 {% if not is_manageable %}opacity-65{% endif %}">
-                                <!-- Name and Badge -->
-                                <td class="p-4">
-                                    <div class="flex items-center gap-3">
-                                        <span class="w-4 h-4 rounded-full border border-white/20 shrink-0" style="background-color: {{ hex }};"></span>
-                                        <div class="flex flex-col min-w-0">
-                                            <span class="text-white font-bold text-sm truncate max-w-[200px] md:max-w-[300px]">
-                                                {{ role.name }}
-                                            </span>
-                                            {% if is_default %}
-                                                <span class="text-[10px] text-text-secondary font-medium">Standard-Rolle (@everyone)</span>
-                                            {% elif not is_manageable %}
-                                                <span class="text-[10px] text-red-400 font-medium">Über Bot-Hierarchie (Gesperrt)</span>
-                                            {% elif is_sep %}
-                                                <span class="text-[10px] text-primary font-medium">Trenner-Rolle</span>
-                                            {% else %}
-                                                <span class="text-[10px] text-text-secondary font-medium">Eigene Rolle</span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </td>
-                                
-                                <!-- Members -->
-                                <td class="p-4 text-center">
-                                    <span class="text-sm font-semibold text-white/90 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full">
-                                        {{ role.members|length }}
-                                    </span>
-                                </td>
-
-                                <!-- Status Indicators -->
-                                <td class="p-4">
-                                    <div class="flex justify-center gap-3">
-                                        <!-- Hoist Status -->
-                                        <span class="material-symbols-outlined text-sm {% if role.hoist %}text-primary{% else %}text-white/20{% endif %}" 
-                                              title="{% if role.hoist %}Getrennt online angezeigt{% else %}Nicht getrennt online angezeigt{% endif %}">
-                                            visibility
-                                        </span>
-                                        <!-- Mentionable Status -->
-                                        <span class="material-symbols-outlined text-sm {% if role.mentionable %}text-primary{% else %}text-white/20{% endif %}"
-                                              title="{% if role.mentionable %}Erwähnbar{% else %}Nicht erwähnbar{% endif %}">
-                                            alternate_email
-                                        </span>
-                                    </div>
-                                </td>
-
-                                <!-- Actions -->
-                                <td class="p-4 text-right">
-                                    <div class="flex justify-end gap-1.5 items-center">
-                                        {% if is_manageable %}
-                                            <!-- Move Up -->
-                                            <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="inline">
-                                                <input type="hidden" name="action" value="move">
-                                                <input type="hidden" name="role_id" value="{{ role.id }}">
-                                                <input type="hidden" name="direction" value="up">
-                                                <button type="submit" class="w-8 h-8 rounded-full border border-white/10 hover:border-primary/50 text-white/70 hover:text-primary transition-colors flex items-center justify-center bg-white/5">
-                                                    <span class="material-symbols-outlined text-base">arrow_upward</span>
-                                                </button>
-                                            </form>
-                                            
-                                            <!-- Move Down -->
-                                            <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="inline">
-                                                <input type="hidden" name="action" value="move">
-                                                <input type="hidden" name="role_id" value="{{ role.id }}">
-                                                <input type="hidden" name="direction" value="down">
-                                                <button type="submit" class="w-8 h-8 rounded-full border border-white/10 hover:border-primary/50 text-white/70 hover:text-primary transition-colors flex items-center justify-center bg-white/5">
-                                                    <span class="material-symbols-outlined text-base">arrow_downward</span>
-                                                </button>
-                                            </form>
-
-                                            <!-- Edit (Opens Modal) -->
-                                            <button onclick="openEditModal({{ role.id }}, '{{ role.name }}', '{{ hex }}', {{ 'true' if role.hoist else 'false' }}, {{ 'true' if role.mentionable else 'false' }}, {{ 'true' if is_sep else 'false' }})" 
-                                                    class="w-8 h-8 rounded-full border border-white/10 hover:border-primary/50 text-white/70 hover:text-primary transition-colors flex items-center justify-center bg-white/5">
-                                                <span class="material-symbols-outlined text-base">edit</span>
-                                            </button>
-
-                                            <!-- Delete -->
-                                            <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="inline" onsubmit="return confirm('Möchtest du diese Rolle wirklich unwiderruflich löschen?');">
-                                                <input type="hidden" name="action" value="delete">
-                                                <input type="hidden" name="role_id" value="{{ role.id }}">
-                                                <button type="submit" class="w-8 h-8 rounded-full border border-red-500/20 hover:border-red-500 text-red-400 hover:text-red-100 transition-colors flex items-center justify-center bg-red-500/10">
-                                                    <span class="material-symbols-outlined text-base">delete</span>
-                                                </button>
-                                            </form>
-                                        {% else %}
-                                            <span class="material-symbols-outlined text-white/10 text-sm select-none" title="Keine Berechtigung zum Bearbeiten">lock</span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
     </div>
 </div>
 
-<!-- Edit Role Modal -->
+<!-- ============================================== -->
+<!-- MODAL: EDIT ROLE                               -->
+<!-- ============================================== -->
 <div id="edit-role-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
     <div class="w-full max-w-md bg-card-dark rounded-3xl border border-white/10 p-6 flex flex-col gap-6 shadow-2xl transform scale-95 transition-transform duration-300">
         <div class="flex justify-between items-center">
@@ -380,45 +745,844 @@
     </div>
 </div>
 
+<!-- ============================================== -->
+<!-- MODAL: EDIT ROLLEN-GRUPPE                      -->
+<!-- ============================================== -->
+<div id="edit-group-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+    <div class="w-full max-w-lg bg-card-dark rounded-3xl border border-white/10 p-6 flex flex-col gap-6 shadow-2xl transform scale-95 transition-transform duration-300">
+        <div class="flex justify-between items-center">
+            <h3 class="text-white text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">folder_open</span>
+                Gruppe anpassen
+            </h3>
+            <button onclick="closeEditGroupModal()" class="text-text-secondary hover:text-white transition-colors p-1 rounded-full hover:bg-white/5">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <form action="{{ url_for('manage_roles', guild_id=guild.id) }}" method="POST" class="flex flex-col gap-4">
+            <input type="hidden" name="action" value="edit_group">
+            <input type="hidden" name="group_id" id="edit-group-id">
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-white uppercase tracking-wider">Gruppenname</label>
+                <input type="text" name="group_name" id="edit-group-name" required class="form-input">
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-white uppercase tracking-wider">Überschrift-Rolle (Trenner)</label>
+                <select name="separator_role_id" id="edit-group-separator" required class="form-select">
+                    <option value="" disabled>Trenner-Rolle wählen...</option>
+                    {% for role in roles %}
+                        {% if '───' in role.name or '\u2800' in role.name %}
+                            <option value="{{ role.id }}">{{ role.name }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-white uppercase tracking-wider">Automatisches Muster (Kommagetrennt)</label>
+                <input type="text" name="auto_match_pattern" id="edit-group-pattern" placeholder="z. B. ping, streak" class="form-input" oninput="testAutoMatchRules(this.value, 'edit-group-match-preview')">
+            </div>
+
+            <!-- Live test rules preview in Edit Modal -->
+            <div class="bg-black/25 p-3 rounded-2xl border border-white/5 flex flex-col gap-2">
+                <span class="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Treffer der Regeln:</span>
+                <div id="edit-group-match-preview" class="flex flex-wrap gap-1.5 min-h-[30px]">
+                    <span class="text-xs text-text-secondary italic">Keine Muster eingegeben</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-white uppercase tracking-wider">Manuell zugewiesene Rollen:</label>
+                <div class="flex flex-col gap-2 max-h-40 overflow-y-auto bg-background-dark p-3 rounded-xl border border-white/5" id="edit-group-roles-checkboxes">
+                    <!-- Dynamic role checkboxes will be inserted here -->
+                </div>
+            </div>
+
+            <button type="submit" class="btn w-full mt-2">
+                <span class="material-symbols-outlined">save</span>
+                Gruppe aktualisieren
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- JAVASCRIPT & LOGIC                              -->
+<!-- ============================================== -->
 <script>
-    // Color Hex displays binding
-    const colorInput = document.querySelector('input[name="color"]');
-    const colorDisplay = document.getElementById('color-hex-display');
-    if (colorInput && colorDisplay) {
-        colorDisplay.value = colorInput.value;
-        colorInput.addEventListener('input', (e) => {
-            colorDisplay.value = e.target.value;
-        });
+    // ----------------------------------------------------
+    // ROLE DATABASE INJECTED FROM JINJA
+    // ----------------------------------------------------
+    const allRoles = [
+        {% for role in roles %}
+        {
+            id: "{{ role.id }}",
+            name: {{ role.name | tojson }},
+            color: "{{ '#%06x'|format(role.color.value) if role.color.value else '#b9bbbe' }}",
+            is_default: {{ 'true' if role.is_default() else 'false' }},
+            is_manageable: {{ 'true' if (role < guild.me.top_role and not role.is_default()) else 'false' }},
+            is_separator: {{ 'true' if ('───' in role.name or '\u2800' in role.name) else 'false' }},
+            members_count: {{ role.members|length }},
+            hoist: {{ 'true' if role.hoist else 'false' }},
+            mentionable: {{ 'true' if role.mentionable else 'false' }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Current groups configuration
+    let roleGroups = {
+        {% for gid, ginfo in role_groups.items() %}
+        "{{ gid }}": {
+            name: {{ ginfo.name | tojson }},
+            separator_role_id: "{{ ginfo.separator_role_id or '' }}",
+            role_ids: {{ ginfo.role_ids | map('string') | list | tojson }},
+            auto_match_pattern: {{ ginfo.auto_match_pattern | tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    // Client-side user preview state (which roles are ticked for profile view)
+    let selectedPreviewRoleIds = new Set(["11", "22"]); // Default test values
+
+    // Active Preview Type ('sidebar' | 'profile')
+    let activePreviewType = 'sidebar';
+
+    // ----------------------------------------------------
+    // INITIALIZATION & TAB SWITCHER
+    // ----------------------------------------------------
+    document.addEventListener("DOMContentLoaded", () => {
+        // Initialize color bindings
+        setupColorPickers();
+        
+        // Initialize dynamic widgets
+        initBuilderWorkspace();
+        initHierarchyWorkspace();
+        
+        // Render checkboxes for profile preview
+        renderProfilePreviewCheckboxes();
+        
+        // Test auto match rules for each active group card
+        testAllActiveGroupsRules();
+
+        // Sync preview mockup
+        updateLivePreview();
+    });
+
+    function switchTab(tabId) {
+        // Handle subtabs redirect
+        if (tabId === 'groups-create') {
+            document.getElementById('subtab-groups-create').classList.remove('hidden');
+            tabId = 'groups';
+        } else {
+            document.getElementById('subtab-groups-create').classList.add('hidden');
+        }
+
+        // Hide all tabs
+        document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+        document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+
+        // Show active tab
+        const activeContent = document.getElementById("tab-content-" + tabId);
+        const activeBtn = document.getElementById("tab-btn-" + tabId);
+        if (activeContent) activeContent.classList.remove("hidden");
+        if (activeBtn) activeBtn.classList.add("active");
+    }
+
+    // ----------------------------------------------------
+    // COLOR PICKER BINDINGS
+    // ----------------------------------------------------
+    function setupColorPickers() {
+        const colorInput = document.querySelector('input[name="color"]');
+        const colorDisplay = document.getElementById('color-hex-display');
+        if (colorInput && colorDisplay) {
+            colorDisplay.value = colorInput.value;
+            colorInput.addEventListener('input', (e) => {
+                colorDisplay.value = e.target.value;
+            });
+        }
+
+        const editColorInput = document.getElementById('edit-role-color');
+        const editColorDisplay = document.getElementById('edit-color-hex-display');
+        if (editColorInput && editColorDisplay) {
+            editColorInput.addEventListener('input', (e) => {
+                editColorDisplay.value = e.target.value;
+            });
+        }
     }
 
     function updateColorPicker(val) {
-        if (val.startsWith('#') && val.length === 7) {
+        const colorInput = document.querySelector('input[name="color"]');
+        if (val.startsWith('#') && val.length === 7 && colorInput) {
             colorInput.value = val;
         }
     }
 
-    const editColorInput = document.getElementById('edit-role-color');
-    const editColorDisplay = document.getElementById('edit-color-hex-display');
-    if (editColorInput && editColorDisplay) {
-        editColorInput.addEventListener('input', (e) => {
-            editColorDisplay.value = e.target.value;
-        });
-    }
-
     function updateEditColorPicker(val) {
-        if (val.startsWith('#') && val.length === 7) {
+        const editColorInput = document.getElementById('edit-role-color');
+        if (val.startsWith('#') && val.length === 7 && editColorInput) {
             editColorInput.value = val;
         }
     }
 
-    // Modal Control
+    // ----------------------------------------------------
+    // AUTO MATCHING PREVIEW LOGIC
+    // ----------------------------------------------------
+    function testAutoMatchRules(pattern, outputElementId) {
+        const output = document.getElementById(outputElementId);
+        if (!output) return;
+
+        if (!pattern || !pattern.trim()) {
+            output.innerHTML = '<span class="text-xs text-text-secondary italic">Keine Muster eingegeben</span>';
+            return;
+        }
+
+        const words = pattern.split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+        const matched = allRoles.filter(role => {
+            if (role.is_default) return false;
+            return words.some(word => role.name.toLowerCase().includes(word));
+        });
+
+        if (matched.length === 0) {
+            output.innerHTML = '<span class="text-xs text-red-400/90 italic">Keine Rollen entsprechen diesem Muster</span>';
+            return;
+        }
+
+        output.innerHTML = matched.map(role => `
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-white/5 border border-white/10 mr-1 mb-1" style="color: ${role.color};">
+                <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${role.color};"></span>
+                ${role.name}
+            </span>
+        `).join('');
+    }
+
+    function testAllActiveGroupsRules() {
+        Object.keys(roleGroups).forEach(gid => {
+            const group = roleGroups[gid];
+            const outputId = `live-matches-${gid}`;
+            const output = document.getElementById(outputId);
+            if (!output) return;
+
+            // Combine manual and auto match
+            const words = (group.auto_match_pattern || '').split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+            
+            const matched = allRoles.filter(role => {
+                if (role.is_default) return false;
+                // Manual check
+                const isManual = group.role_ids.includes(role.id.toString());
+                // Auto check
+                const isAuto = words.some(word => role.name.toLowerCase().includes(word));
+                return isManual || isAuto;
+            });
+
+            if (matched.length === 0) {
+                output.innerHTML = '<span class="text-[10px] text-text-secondary italic">Keine Rollen in dieser Gruppe</span>';
+                return;
+            }
+
+            output.innerHTML = matched.map(role => `
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/5 border border-white/10 mr-1 mb-1" style="color: ${role.color};">
+                    <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${role.color};"></span>
+                    ${role.name}
+                </span>
+            `).join('');
+        });
+    }
+
+    // ----------------------------------------------------
+    // BUILDER WORKSPACE (DRAG & DROP)
+    // ----------------------------------------------------
+    let builderUngroupedSortable, builderGroupSortables = [];
+
+    function initBuilderWorkspace() {
+        const ungroupedListEl = document.getElementById("builder-ungrouped-list");
+        const groupsContainerEl = document.getElementById("builder-groups-container");
+        if (!ungroupedListEl || !groupsContainerEl) return;
+
+        // Clean containers
+        ungroupedListEl.innerHTML = '';
+        groupsContainerEl.innerHTML = '';
+
+        // Determine which roles are currently assigned to groups (either manually or via rule match)
+        const groupedRoleIds = new Set();
+        Object.keys(roleGroups).forEach(gid => {
+            const group = roleGroups[gid];
+            const words = (group.auto_match_pattern || '').split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+            
+            allRoles.forEach(role => {
+                const isManual = group.role_ids.includes(role.id.toString());
+                const isAuto = words.some(word => role.name.toLowerCase().includes(word));
+                if (isManual || isAuto) {
+                    groupedRoleIds.add(role.id.toString());
+                }
+            });
+        });
+
+        // 1. Render Ungrouped Column
+        allRoles.forEach(role => {
+            if (role.is_default || !role.is_manageable) return;
+            if (groupedRoleIds.has(role.id.toString())) return;
+
+            const card = createRoleDraggableCard(role);
+            ungroupedListEl.appendChild(card);
+        });
+
+        // 2. Render Groups Dropzones
+        Object.keys(roleGroups).forEach(gid => {
+            const group = roleGroups[gid];
+            
+            // Render the dropzone card
+            const groupEl = document.createElement("div");
+            groupEl.className = "bg-card-dark border border-white/10 p-4 rounded-3xl flex flex-col gap-3 shrink-0";
+            
+            // Get separator role name
+            const sepRole = allRoles.find(r => r.id.toString() === group.separator_role_id.toString());
+            const sepName = sepRole ? sepRole.name : 'Keine Überschrift';
+
+            groupEl.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex flex-col min-w-0">
+                        <span class="text-white font-bold text-sm truncate">${group.name}</span>
+                        <span class="text-[10px] text-primary truncate">Trenner: ${sepName}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <!-- Add Mobile Quick Assign dropdown -->
+                        <div class="relative inline-block md:hidden">
+                            <select onchange="quickMoveRole(this, '${gid}')" class="form-select py-1 px-2 text-[10px] w-28 bg-white/5 border-white/15 rounded-lg text-white">
+                                <option value="" disabled selected>Hinzufügen...</option>
+                                ${allRoles.filter(r => r.is_manageable && !r.is_default && !groupedRoleIds.has(r.id.toString())).map(r => `
+                                    <option value="${r.id}">${r.name}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <button onclick="openEditGroupModal('${gid}')" class="w-7 h-7 rounded-full hover:bg-white/10 text-text-secondary hover:text-white transition-colors flex items-center justify-center">
+                            <span class="material-symbols-outlined text-sm">edit</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="group-roles-list flex flex-wrap gap-1.5 min-h-[70px] p-2 bg-black/25 rounded-2xl border border-dashed border-white/10" data-group-id="${gid}">
+                    <!-- Group manual roles -->
+                </div>
+            `;
+            groupsContainerEl.appendChild(groupEl);
+
+            // Populate group manually assigned roles
+            const groupRolesListEl = groupEl.querySelector(".group-roles-list");
+            allRoles.forEach(role => {
+                if (group.role_ids.includes(role.id.toString())) {
+                    const card = createRoleDraggableCard(role, true);
+                    groupRolesListEl.appendChild(card);
+                }
+            });
+        });
+
+        // 3. Initialize SortableJS
+        builderUngroupedSortable = new Sortable(ungroupedListEl, {
+            group: 'builder-roles',
+            animation: 200,
+            ghostClass: 'opacity-40',
+            dragClass: 'scale-95',
+            onEnd: handleDragEnd
+        });
+
+        document.querySelectorAll(".group-roles-list").forEach(el => {
+            const s = new Sortable(el, {
+                group: 'builder-roles',
+                animation: 200,
+                ghostClass: 'opacity-40',
+                dragClass: 'scale-95',
+                onEnd: handleDragEnd
+            });
+            builderGroupSortables.push(s);
+        });
+    }
+
+    function createRoleDraggableCard(role, inGroup = false) {
+        const card = document.createElement("div");
+        card.className = "role-drag-card flex items-center gap-2 p-2 bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl cursor-grab active:cursor-grabbing transition-all select-none text-xs w-full";
+        card.setAttribute("data-role-id", role.id);
+        
+        card.innerHTML = `
+            <span class="material-symbols-outlined text-text-secondary/50 text-sm drag-handle">drag_indicator</span>
+            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${role.color};"></span>
+            <span class="text-white/90 font-bold truncate flex-1">${role.name}</span>
+            ${inGroup ? `
+                <button onclick="removeRoleFromGroupUI('${role.id}')" class="text-text-secondary hover:text-red-400 p-0.5 rounded transition-colors" title="Zuweisung entfernen">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+            ` : ''}
+        `;
+        return card;
+    }
+
+    function handleDragEnd() {
+        // Collect new states
+        updateStateFromUI();
+        updateLivePreview();
+        testAllActiveGroupsRules();
+    }
+
+    function updateStateFromUI() {
+        // Reset manual role assignments
+        Object.keys(roleGroups).forEach(gid => {
+            roleGroups[gid].role_ids = [];
+        });
+
+        // Collect role_ids from each group dropzone
+        document.querySelectorAll(".group-roles-list").forEach(listEl => {
+            const gid = listEl.getAttribute("data-group-id");
+            if (gid && roleGroups[gid]) {
+                const cards = listEl.querySelectorAll("[data-role-id]");
+                cards.forEach(card => {
+                    const rid = card.getAttribute("data-role-id");
+                    roleGroups[gid].role_ids.push(rid.toString());
+                });
+            }
+        });
+    }
+
+    function removeRoleFromGroupUI(roleId) {
+        // Find role card
+        const card = document.querySelector(`.group-roles-list [data-role-id="${roleId}"]`);
+        if (card) {
+            // Remove close button
+            const closeBtn = card.querySelector('button');
+            if (closeBtn) closeBtn.remove();
+            
+            // Add to ungrouped
+            const ungroupedList = document.getElementById("builder-ungrouped-list");
+            if (ungroupedList) {
+                // Re-create card for ungrouped
+                const role = allRoles.find(r => r.id === roleId);
+                if (role) {
+                    const newCard = createRoleDraggableCard(role, false);
+                    ungroupedList.appendChild(newCard);
+                }
+            }
+            card.remove();
+            handleDragEnd();
+        }
+    }
+
+    function quickMoveRole(selectEl, groupId) {
+        const roleId = selectEl.value;
+        if (!roleId || !roleGroups[groupId]) return;
+
+        // Add to state
+        if (!roleGroups[groupId].role_ids.includes(roleId.toString())) {
+            roleGroups[groupId].role_ids.push(roleId.toString());
+        }
+
+        // Re-init workspace
+        initBuilderWorkspace();
+        handleDragEnd();
+        selectEl.value = ""; // reset
+    }
+
+    function filterBuilderRoles(query) {
+        const q = query.toLowerCase().trim();
+        document.querySelectorAll("#builder-ungrouped-list [data-role-id]").forEach(card => {
+            const roleId = card.getAttribute("data-role-id");
+            const role = allRoles.find(r => r.id === roleId);
+            if (role) {
+                if (role.name.toLowerCase().includes(q)) {
+                    card.classList.remove("hidden");
+                } else {
+                    card.classList.add("hidden");
+                }
+            }
+        });
+    }
+
+    // ----------------------------------------------------
+    // HIERARCHY WORKSPACE (DRAG & DROP SORT)
+    // ----------------------------------------------------
+    let hierarchySortable;
+
+    function initHierarchyWorkspace() {
+        const listEl = document.getElementById("hierarchy-draggable-list");
+        if (!listEl) return;
+
+        listEl.innerHTML = '';
+
+        // Render only manageable roles
+        allRoles.forEach(role => {
+            if (!role.is_manageable || role.is_default) return;
+
+            const item = document.createElement("div");
+            item.className = "flex items-center gap-3 p-3 bg-white/5 border border-white/10 hover:border-primary/20 rounded-2xl cursor-grab active:cursor-grabbing transition-all";
+            item.setAttribute("data-role-id", role.id);
+            
+            item.innerHTML = `
+                <span class="material-symbols-outlined text-text-secondary/50 drag-handle select-none">drag_indicator</span>
+                <span class="w-3.5 h-3.5 rounded-full shrink-0" style="background-color: ${role.color};"></span>
+                <span class="text-white font-bold text-sm truncate flex-1">${role.name}</span>
+                
+                <!-- Quick Mobile Move Arrows -->
+                <div class="flex items-center gap-1.5 shrink-0 select-none">
+                    <button onclick="moveRoleItem('${role.id}', 'up')" class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white flex items-center justify-center">
+                        <span class="material-symbols-outlined text-sm">arrow_upward</span>
+                    </button>
+                    <button onclick="moveRoleItem('${role.id}', 'down')" class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white flex items-center justify-center">
+                        <span class="material-symbols-outlined text-sm">arrow_downward</span>
+                    </button>
+                </div>
+            `;
+            listEl.appendChild(item);
+        });
+
+        // Initialize Sortable
+        hierarchySortable = new Sortable(listEl, {
+            animation: 200,
+            ghostClass: 'opacity-40',
+            dragClass: 'scale-[0.98]',
+            handle: '.drag-handle',
+            onEnd: () => {
+                updateRolesDatabaseOrderFromHierarchyUI();
+                updateLivePreview();
+            }
+        });
+    }
+
+    function moveRoleItem(roleId, direction) {
+        const listEl = document.getElementById("hierarchy-draggable-list");
+        const items = Array.from(listEl.querySelectorAll("[data-role-id]"));
+        const idx = items.findIndex(el => el.getAttribute("data-role-id") === roleId.toString());
+        if (idx === -1) return;
+
+        if (direction === 'up' && idx > 0) {
+            listEl.insertBefore(items[idx], items[idx - 1]);
+        } else if (direction === 'down' && idx < items.length - 1) {
+            listEl.insertBefore(items[idx], items[idx + 2] || null);
+        }
+
+        updateRolesDatabaseOrderFromHierarchyUI();
+        updateLivePreview();
+    }
+
+    function updateRolesDatabaseOrderFromHierarchyUI() {
+        const listEl = document.getElementById("hierarchy-draggable-list");
+        const cards = listEl.querySelectorAll("[data-role-id]");
+        const newOrderIds = Array.from(cards).map(c => c.getAttribute("data-role-id").toString());
+
+        // Re-sort allRoles list in place to match new order
+        const manageableRoles = allRoles.filter(r => r.is_manageable && !r.is_default);
+        const unmanageableRoles = allRoles.filter(r => !r.is_manageable || r.is_default);
+
+        // Sort manageable roles to match newOrderIds
+        manageableRoles.sort((a, b) => {
+            const idxA = newOrderIds.indexOf(a.id.toString());
+            const idxB = newOrderIds.indexOf(b.id.toString());
+            return idxA - idxB;
+        });
+
+        // Recombine allRoles
+        // Maintain unmanageable on top or bottom
+        const finalRoles = [];
+        allRoles.forEach(r => {
+            if (!r.is_manageable && !r.is_default) {
+                finalRoles.push(r);
+            }
+        });
+        
+        finalRoles.push(...manageableRoles);
+        
+        allRoles.forEach(r => {
+            if (r.is_default) {
+                finalRoles.push(r);
+            }
+        });
+
+        // Overwrite allRoles content
+        allRoles.length = 0;
+        allRoles.push(...finalRoles);
+    }
+
+    // ----------------------------------------------------
+    // LIVE PREVIEWS CONTROLLER (DISCORD SIDEBAR / PROFILE)
+    // ----------------------------------------------------
+    function setPreviewType(type) {
+        activePreviewType = type;
+        const btnSidebar = document.getElementById("preview-btn-sidebar");
+        const btnProfile = document.getElementById("preview-btn-profile");
+        const boxSidebar = document.getElementById("preview-container-sidebar");
+        const boxProfile = document.getElementById("preview-container-profile");
+
+        if (type === 'sidebar') {
+            btnSidebar.className = "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-primary text-on-primary";
+            btnProfile.className = "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all text-text-secondary hover:text-white";
+            boxSidebar.classList.remove("hidden");
+            boxProfile.classList.add("hidden");
+        } else {
+            btnProfile.className = "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-primary text-on-primary";
+            btnSidebar.className = "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all text-text-secondary hover:text-white";
+            boxProfile.classList.remove("hidden");
+            boxSidebar.classList.add("hidden");
+        }
+    }
+
+    function renderProfilePreviewCheckboxes() {
+        const container = document.getElementById("profile-select-checkboxes");
+        if (!container) return;
+
+        container.innerHTML = '';
+        
+        allRoles.forEach(role => {
+            if (role.is_default) return;
+            const checked = selectedPreviewRoleIds.has(role.id.toString()) ? 'checked' : '';
+            
+            const label = document.createElement("label");
+            label.className = "flex items-center gap-3 cursor-pointer p-1.5 hover:bg-white/5 rounded-lg transition-colors";
+            label.innerHTML = `
+                <input type="checkbox" class="preview-role-checkbox sr-only" data-id="${role.id}" ${checked} onchange="toggleProfileRole('${role.id}', this.checked)">
+                <!-- Custom Checkbox Indicator -->
+                <div class="w-4 h-4 rounded border border-white/20 flex items-center justify-center bg-white/5 shrink-0 select-indicator transition-all">
+                    <span class="material-symbols-outlined text-[9px] hidden font-black text-on-primary">check</span>
+                </div>
+                <!-- Role Pill Info -->
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${role.color};"></span>
+                    <span class="text-xs text-white/90 truncate max-w-[150px]">${role.name}</span>
+                </div>
+            `;
+            container.appendChild(label);
+
+            // Sync visual state of checkboxes
+            const indicator = label.querySelector(".select-indicator");
+            const icon = indicator.querySelector(".material-symbols-outlined");
+            if (selectedPreviewRoleIds.has(role.id.toString())) {
+                indicator.classList.add("border-primary", "bg-primary-container");
+                icon.classList.remove("hidden");
+            }
+        });
+    }
+
+    function toggleProfileRole(roleId, isChecked) {
+        if (isChecked) {
+            selectedPreviewRoleIds.add(roleId.toString());
+        } else {
+            selectedPreviewRoleIds.delete(roleId.toString());
+        }
+        
+        // Sync visual checkboxes
+        document.querySelectorAll(`.preview-role-checkbox[data-id="${roleId}"]`).forEach(cb => {
+            cb.checked = isChecked;
+            const label = cb.parentElement;
+            const indicator = label.querySelector(".select-indicator");
+            const icon = indicator.querySelector(".material-symbols-outlined");
+            if (isChecked) {
+                indicator.classList.add("border-primary", "bg-primary-container");
+                icon.classList.remove("hidden");
+            } else {
+                indicator.classList.remove("border-primary", "bg-primary-container");
+                icon.classList.add("hidden");
+            }
+        });
+
+        updateLivePreview();
+    }
+
+    function updateLivePreview() {
+        // ----------------------------------------------------
+        // 1. UPDATE DISCORD SIDEBAR PREVIEW
+        // ----------------------------------------------------
+        const sidebarContainer = document.getElementById("discord-members-list-preview");
+        if (sidebarContainer) {
+            sidebarContainer.innerHTML = '';
+
+            // Map roles to groups
+            const roleToGroupId = {};
+            const groupedRoleIds = new Set();
+
+            Object.keys(roleGroups).forEach(gid => {
+                const group = roleGroups[gid];
+                const words = (group.auto_match_pattern || '').split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+                
+                allRoles.forEach(r => {
+                    if (r.id === group.separator_role_id.toString()) return;
+                    
+                    const isManual = group.role_ids.includes(r.id.toString());
+                    const isAuto = words.some(word => r.name.toLowerCase().includes(word));
+                    if (isManual || isAuto) {
+                        roleToGroupId[r.id.toString()] = gid;
+                        groupedRoleIds.add(r.id.toString());
+                    }
+                });
+            });
+
+            // Reconstruct rendering hierarchy matching actual Discord Sidebar structure
+            allRoles.forEach(role => {
+                if (role.is_default) return;
+
+                // If this is a separator role, check if it has a group associated
+                const associatedGroupGid = Object.keys(roleGroups).find(gid => roleGroups[gid].separator_role_id.toString() === role.id.toString());
+                
+                if (associatedGroupGid) {
+                    const group = roleGroups[associatedGroupGid];
+                    // Find all roles belonging to this group
+                    const groupRoles = allRoles.filter(r => roleToGroupId[r.id.toString()] === associatedGroupGid);
+                    
+                    if (groupRoles.length > 0) {
+                        // Render Category Header
+                        const header = document.createElement("div");
+                        header.className = "text-[9px] font-black uppercase text-[#949ba4] tracking-widest mt-1 shrink-0 select-none";
+                        // Strip decorations from separator name for display
+                        let cleanName = role.name.replace(/───/g, '').replace(/\u2800/g, '').trim();
+                        header.innerText = cleanName || group.name;
+                        sidebarContainer.appendChild(header);
+
+                        // Render one mock member under this category for each role
+                        groupRoles.forEach(grole => {
+                            const member = document.createElement("div");
+                            member.className = "flex items-center gap-2 px-1 py-0.5 rounded hover:bg-white/5 cursor-pointer shrink-0";
+                            member.innerHTML = `
+                                <div class="w-4 h-4 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[8px] font-bold text-gray-400 shrink-0 select-none">
+                                    M
+                                </div>
+                                <span class="text-xs truncate font-bold" style="color: Grole.color; color: ${grole.color};">${grole.name}_User</span>
+                            `;
+                            sidebarContainer.appendChild(member);
+                        });
+                    }
+                } else if (!groupedRoleIds.has(role.id.toString()) && !role.is_separator) {
+                    // Render ungrouped roles as standalone category headers or members
+                    const member = document.createElement("div");
+                    member.className = "flex items-center gap-2 px-1 py-0.5 rounded hover:bg-white/5 cursor-pointer shrink-0";
+                    member.innerHTML = `
+                        <div class="w-4 h-4 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[8px] font-bold text-gray-400 shrink-0 select-none">
+                            U
+                        </div>
+                        <span class="text-xs truncate font-bold" style="color: ${role.color};">${role.name}_User</span>
+                    `;
+                    sidebarContainer.appendChild(member);
+                }
+            });
+        }
+
+        // ----------------------------------------------------
+        // 2. UPDATE PROFILE CARD PREVIEW
+        // ----------------------------------------------------
+        const profileContainer = document.getElementById("discord-profile-roles-preview");
+        if (profileContainer) {
+            profileContainer.innerHTML = '';
+            let selectedAny = false;
+
+            allRoles.forEach(role => {
+                if (selectedPreviewRoleIds.has(role.id.toString()) && !role.is_default) {
+                    selectedAny = true;
+                    const pill = document.createElement("div");
+                    pill.className = "flex items-center gap-1.5 bg-[#2b2d31] border border-white/5 rounded px-2 py-0.5 max-w-full text-xs shrink-0 select-none";
+                    pill.innerHTML = `
+                        <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${role.color};"></span>
+                        <span class="text-[#dbdee1] font-medium truncate">${role.name}</span>
+                    `;
+                    profileContainer.appendChild(pill);
+                }
+            });
+
+            if (!selectedAny) {
+                profileContainer.innerHTML = '<span class="text-xs text-text-secondary italic p-1">Keine Rollen ausgewählt</span>';
+            }
+        }
+    }
+
+    // ----------------------------------------------------
+    // BULK LAYOUT / CONFIGURATION SAVE API
+    // ----------------------------------------------------
+    async function saveLayout() {
+        const payload = {
+            action: 'save_layout',
+            // Send role hierarchy positions from top to bottom
+            role_positions: allRoles.map(r => r.id),
+            // Send group assignments mapping
+            groups: {}
+        };
+
+        Object.keys(roleGroups).forEach(gid => {
+            payload.groups[gid] = roleGroups[gid].role_ids;
+        });
+
+        // Display loading spinner
+        const pageContent = document.getElementById("page-content");
+        const blockOverlay = document.createElement("div");
+        blockOverlay.className = "fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm";
+        blockOverlay.innerHTML = `
+            <div class="bg-card-dark p-6 rounded-3xl border border-white/10 flex flex-col items-center gap-4 text-center shadow-2xl">
+                <span class="material-symbols-outlined text-4xl text-primary animate-spin">sync</span>
+                <span class="text-white font-bold text-sm">Layout & Gruppen werden gespeichert...</span>
+            </div>
+        `;
+        document.body.appendChild(blockOverlay);
+
+        try {
+            const response = await fetch(window.location.href, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            blockOverlay.remove();
+            
+            if (data.success) {
+                showToast(data.message, 'success');
+                // Refresh local templates after short delay to sync all
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        } catch (e) {
+            blockOverlay.remove();
+            showToast("Verbindungsfehler beim Speichern des Layouts.", 'danger');
+        }
+    }
+
+    // ----------------------------------------------------
+    // CLASSIC TABLE FILTER
+    // ----------------------------------------------------
+    function filterTableRoles(val) {
+        const q = val.toLowerCase().trim();
+        document.querySelectorAll("#classic-roles-table tbody .table-row-item").forEach(row => {
+            const name = row.getAttribute("data-role-name") || row.innerText.toLowerCase();
+            if (name.includes(q)) {
+                row.classList.remove("hidden");
+            } else {
+                row.classList.add("hidden");
+            }
+        });
+    }
+
+    function toggleGroup(groupId) {
+        const rows = document.querySelectorAll('.group-row-' + groupId);
+        const icon = document.getElementById('group-icon-' + groupId);
+        let isCollapsed = false;
+        rows.forEach(row => {
+            if (row.classList.contains('hidden')) {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+                isCollapsed = true;
+            }
+        });
+        if (icon) {
+            icon.innerText = isCollapsed ? 'chevron_right' : 'expand_more';
+        }
+    }
+
+    // ----------------------------------------------------
+    // MODAL: EDIT ROLE (ORIGINAL IMPLEMENTATION)
+    // ----------------------------------------------------
     function openEditModal(id, name, color, hoist, mentionable, isSep) {
         const modal = document.getElementById('edit-role-modal');
         const modalContent = modal.querySelector('.transform');
         
         document.getElementById('edit-role-id').value = id;
         
-        // Remove helper lines from editing name if it was a separator
         let displayName = name;
         if (isSep) {
             displayName = name.replace(/───/g, '').replace(/\u2800/g, '').trim();
@@ -426,6 +1590,8 @@
         
         document.getElementById('edit-role-name').value = displayName;
         
+        const editColorInput = document.getElementById('edit-role-color');
+        const editColorDisplay = document.getElementById('edit-color-hex-display');
         editColorInput.value = color;
         editColorDisplay.value = color;
         
@@ -451,10 +1617,6 @@
         }, 300);
     }
 
-    function toggleSeparatorHint(checked) {
-        // Automatically set the default hoist to false or true if needed
-    }
-
     // Support toggle switch styling classes automatically
     document.querySelectorAll('input[type="checkbox"].sr-only:not(.preview-role-checkbox)').forEach(cb => {
         const div = cb.nextElementSibling;
@@ -473,72 +1635,81 @@
         }
     });
 
-    // Discord Profile Preview Binding
-    function updateProfilePreview() {
-        const container = document.getElementById('preview-roles-container');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        const checkboxes = document.querySelectorAll('.preview-role-checkbox');
-        let selectedAny = false;
-        
-        checkboxes.forEach(cb => {
-            if (cb.checked) {
-                selectedAny = true;
-                const roleName = cb.getAttribute('data-name');
-                const roleColor = cb.getAttribute('data-color');
-                
-                // Create Discord style role pill
-                const pill = document.createElement('div');
-                pill.className = 'flex items-center gap-1.5 bg-[#2b2d31] border border-white/5 rounded px-2 py-0.5 max-w-full text-xs';
-                
-                const dot = document.createElement('span');
-                dot.className = 'w-3.5 h-3.5 rounded-full shrink-0';
-                dot.style.backgroundColor = roleColor;
-                
-                const text = document.createElement('span');
-                text.className = 'text-[#dbdee1] font-medium truncate';
-                text.innerText = roleName;
-                
-                pill.appendChild(dot);
-                pill.appendChild(text);
-                container.appendChild(pill);
-            }
+    // ----------------------------------------------------
+    // MODAL: EDIT ROLLEN-GRUPPE (CUSTOM ADJUSTMENTS)
+    // ----------------------------------------------------
+    function openEditGroupModal(groupId) {
+        const group = roleGroups[groupId];
+        if (!group) return;
+
+        document.getElementById("edit-group-id").value = groupId;
+        document.getElementById("edit-group-name").value = group.name;
+        document.getElementById("edit-group-separator").value = group.separator_role_id;
+        document.getElementById("edit-group-pattern").value = group.auto_match_pattern || '';
+
+        // Test auto match preview immediately
+        testAutoMatchRules(group.auto_match_pattern || '', 'edit-group-match-preview');
+
+        // Populate manual role checkboxes inside the modal
+        const checkboxesContainer = document.getElementById("edit-group-roles-checkboxes");
+        checkboxesContainer.innerHTML = '';
+
+        allRoles.forEach(role => {
+            if (role.is_default || role.is_separator) return;
+            const checked = group.role_ids.includes(role.id.toString()) ? 'checked' : '';
+            
+            const label = document.createElement("label");
+            label.className = "flex items-center gap-3 cursor-pointer p-1.5 hover:bg-white/5 rounded-lg transition-colors";
+            label.innerHTML = `
+                <input type="checkbox" name="role_ids" value="${role.id}" ${checked} class="edit-group-checkbox sr-only">
+                <div class="w-4 h-4 rounded border border-white/20 flex items-center justify-center bg-white/5 shrink-0 select-indicator transition-all">
+                    <span class="material-symbols-outlined text-[9px] hidden font-black text-on-primary">check</span>
+                </div>
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${role.color};"></span>
+                    <span class="text-xs text-white/90 truncate">${role.name}</span>
+                </div>
+            `;
+            checkboxesContainer.appendChild(label);
+
+            // Bind checkbox events
+            const cb = label.querySelector("input");
+            const indicator = label.querySelector(".select-indicator");
+            const icon = indicator.querySelector(".material-symbols-outlined");
+
+            const syncState = () => {
+                if (cb.checked) {
+                    indicator.classList.add("border-primary", "bg-primary-container");
+                    icon.classList.remove("hidden");
+                } else {
+                    indicator.classList.remove("border-primary", "bg-primary-container");
+                    icon.classList.add("hidden");
+                }
+            };
+
+            cb.addEventListener("change", syncState);
+            syncState(); // init
         });
-        
-        if (!selectedAny) {
-            const placeholder = document.createElement('span');
-            placeholder.className = 'text-xs text-text-secondary italic p-1';
-            placeholder.innerText = 'Keine Rollen ausgewählt';
-            container.appendChild(placeholder);
-        }
+
+        // Open Modal
+        const modal = document.getElementById("edit-group-modal");
+        const modalContent = modal.querySelector(".transform");
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modalContent.classList.remove('scale-95');
+        }, 10);
     }
 
-    document.querySelectorAll('.preview-role-checkbox').forEach(cb => {
-        cb.addEventListener('change', () => {
-            const indicator = cb.parentElement.querySelector('.select-indicator');
-            const checkIcon = indicator.querySelector('.material-symbols-outlined');
-            if (cb.checked) {
-                indicator.classList.add('border-primary', 'bg-primary-container');
-                checkIcon.classList.remove('hidden');
-            } else {
-                indicator.classList.remove('border-primary', 'bg-primary-container');
-                checkIcon.classList.add('hidden');
-            }
-            updateProfilePreview();
-        });
-        
-        // Initial setup
-        const indicator = cb.parentElement.querySelector('.select-indicator');
-        const checkIcon = indicator.querySelector('.material-symbols-outlined');
-        if (cb.checked) {
-            indicator.classList.add('border-primary', 'bg-primary-container');
-            checkIcon.classList.remove('hidden');
-        }
-    });
-
-    updateProfilePreview();
+    function closeEditGroupModal() {
+        const modal = document.getElementById("edit-group-modal");
+        const modalContent = modal.querySelector(".transform");
+        modal.classList.add('opacity-0');
+        modalContent.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
 </script>
 
 {% endblock %}

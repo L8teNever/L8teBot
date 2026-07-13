@@ -467,8 +467,8 @@ class TicketSystemCog(commands.Cog, name="Ticket-System"):
                 if bearbeiter_id:
                     wrapped_cog = self.bot.get_cog("Wrapped")
                     if wrapped_cog:
-                         # Synchroner Aufruf, da Methode nicht async ist (Datenbank-Sim via JSON)
-                         wrapped_cog.register_ticket_processed(interaction.guild.id, bearbeiter_id)
+                        # Synchroner Aufruf, da Methode nicht async ist (Datenbank-Sim via JSON)
+                        wrapped_cog.register_ticket_processed(interaction.guild.id, bearbeiter_id)
 
             if str(ticket_id) in tickets:
                 del tickets[str(ticket_id)]

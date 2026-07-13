@@ -526,7 +526,7 @@ def manage_roles(guild_id):
         return redirect(url_for('dashboard'))
         
     if request.method == 'POST':
-        action = request.form.get('action')
+        action = request.json.get('action') if (request.is_json and request.json) else request.form.get('action')
         future = None
         
         if action == 'create':
@@ -663,15 +663,187 @@ def manage_roles(guild_id):
                     
             future = asyncio.run_coroutine_threadsafe(mass_assign_task(), bot.loop)
             
+        elif action == 'create_group':
+            group_name = request.form.get('group_name')
+            separator_role_id = request.form.get('separator_role_id')
+            auto_match_pattern = request.form.get('auto_match_pattern', '')
+            selected_role_ids = request.form.getlist('role_ids')
+            
+            import random
+            group_id = str(random.randint(100000, 999999))
+            
+            guild_config = bot.data.get_server_config(guild_id)
+            if 'role_groups' not in guild_config:
+                guild_config['role_groups'] = {}
+                
+            guild_config['role_groups'][group_id] = {
+                'name': group_name,
+                'separator_role_id': int(separator_role_id) if separator_role_id else None,
+                'role_ids': [int(rid) for rid in selected_role_ids if rid],
+                'auto_match_pattern': auto_match_pattern.strip()
+            }
+            bot.data.save_server_config(guild_id, guild_config)
+            flash(f"Rollen-Gruppe '{group_name}' erfolgreich erstellt.", "success")
+            return redirect(url_for('manage_roles', guild_id=guild_id))
+            
+        elif action == 'edit_group':
+            group_id = request.form.get('group_id')
+            group_name = request.form.get('group_name')
+            separator_role_id = request.form.get('separator_role_id')
+            auto_match_pattern = request.form.get('auto_match_pattern', '')
+            selected_role_ids = request.form.getlist('role_ids')
+            
+            guild_config = bot.data.get_server_config(guild_id)
+            if 'role_groups' not in guild_config:
+                guild_config['role_groups'] = {}
+                
+            if group_id in guild_config['role_groups']:
+                guild_config['role_groups'][group_id].update({
+                    'name': group_name,
+                    'separator_role_id': int(separator_role_id) if separator_role_id else None,
+                    'role_ids': [int(rid) for rid in selected_role_ids if rid],
+                    'auto_match_pattern': auto_match_pattern.strip()
+                })
+                bot.data.save_server_config(guild_id, guild_config)
+                flash(f"Rollen-Gruppe '{group_name}' erfolgreich aktualisiert.", "success")
+            else:
+                flash("Gruppe nicht gefunden.", "danger")
+            return redirect(url_for('manage_roles', guild_id=guild_id))
+            
+        elif action == 'delete_group':
+            group_id = request.form.get('group_id')
+            guild_config = bot.data.get_server_config(guild_id)
+            if 'role_groups' in guild_config and group_id in guild_config['role_groups']:
+                deleted_name = guild_config['role_groups'][group_id]['name']
+                del guild_config['role_groups'][group_id]
+                bot.data.save_server_config(guild_id, guild_config)
+                flash(f"Rollen-Gruppe '{deleted_name}' erfolgreich gelöscht.", "success")
+            return redirect(url_for('manage_roles', guild_id=guild_id))
+            
+        elif action == 'save_layout':
+            data = request.json if (request.is_json and request.json) else json.loads(request.form.get('data', '{}'))
+            new_positions_list = data.get('role_positions', [])
+            groups_data = data.get('groups', {})
+            
+            guild_config = bot.data.get_server_config(guild_id)
+            if 'role_groups' not in guild_config:
+                guild_config['role_groups'] = {}
+                
+            for gid, role_ids in groups_data.items():
+                if gid in guild_config['role_groups']:
+                    guild_config['role_groups'][gid]['role_ids'] = [int(rid) for rid in role_ids]
+            
+            bot.data.save_server_config(guild_id, guild_config)
+            
+            if new_positions_list:
+                async def update_positions_task():
+                    try:
+                        manageable_roles = [r for r in guild.roles if r < guild.me.top_role and not r.is_default()]
+                        new_pos_ids = [int(rid) for rid in new_positions_list]
+                        manageable_pos_ids = [r.id for r in manageable_roles]
+                        
+                        to_sort_ids = [rid for rid in new_pos_ids if rid in manageable_pos_ids]
+                        
+                        if not to_sort_ids:
+                            return True, "Gruppen-Zuweisungen wurden gespeichert."
+                            
+                        current_positions = sorted([r.position for r in manageable_roles if r.id in to_sort_ids])
+                        to_sort_ids.reverse() # bottom to top
+                        
+                        positions = {}
+                        for i, rid in enumerate(to_sort_ids):
+                            role = guild.get_role(rid)
+                            if role:
+                                if i < len(current_positions):
+                                    positions[role] = current_positions[i]
+                                    
+                        if positions:
+                            await guild.edit_role_positions(positions, reason="Rollen-Reihenfolge aktualisiert über Web-Dashboard")
+                            
+                        return True, "Gruppen und Rollen-Reihenfolge erfolgreich aktualisiert."
+                    except Exception as e:
+                        return False, f"Fehler beim Aktualisieren der Positionen: {str(e)}"
+                        
+                future = asyncio.run_coroutine_threadsafe(update_positions_task(), bot.loop)
+                success, msg = future.result()
+                return jsonify({'success': success, 'message': msg})
+                
+            return jsonify({'success': True, 'message': 'Gruppen-Zuweisungen wurden erfolgreich gespeichert.'})
+            
         if future:
             success, message = future.result()
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
                 return jsonify({'success': success, 'message': message})
             flash(message, 'success' if success else 'danger')
         return redirect(url_for('manage_roles', guild_id=guild_id))
         
     roles = sorted(guild.roles, key=lambda r: r.position, reverse=True)
-    return render_template('roles.html', guild=guild, roles=roles, admin_guilds=get_admin_guilds())
+    
+    guild_config = bot.data.get_server_config(guild_id)
+    groups = guild_config.get('role_groups', {})
+    
+    sep_to_group = {}
+    for gid, ginfo in groups.items():
+        sep_id = ginfo.get('separator_role_id')
+        if sep_id:
+            sep_to_group[int(sep_id)] = ginfo
+            
+    grouped_role_ids = set()
+    role_to_group_id = {}
+    
+    for r in roles:
+        for gid, ginfo in groups.items():
+            if r.id == int(ginfo.get('separator_role_id', 0)):
+                continue
+            is_match = r.id in [int(rid) for rid in ginfo.get('role_ids', [])]
+            patterns = [p.strip().lower() for p in ginfo.get('auto_match_pattern', '').split(',') if p.strip()]
+            for p in patterns:
+                if p in r.name.lower():
+                    is_match = True
+                    break
+            if is_match:
+                role_to_group_id[r.id] = gid
+                grouped_role_ids.add(r.id)
+                break
+                
+    roles_by_group = {gid: [] for gid in groups}
+    for r in roles:
+        gid = role_to_group_id.get(r.id)
+        if gid:
+            roles_by_group[gid].append(r)
+            
+    for gid in roles_by_group:
+        roles_by_group[gid].sort(key=lambda x: x.position, reverse=True)
+        
+    grouped_roles = []
+    for r in roles:
+        if r.id in grouped_role_ids:
+            sep_id = int(groups[role_to_group_id[r.id]].get('separator_role_id', 0))
+            if any(x.id == sep_id for x in roles):
+                continue
+                
+        grouped_roles.append({
+            'role': r,
+            'is_grouped': False,
+            'group_id': None
+        })
+        
+        if r.id in sep_to_group:
+            gid = None
+            for gkey, gval in groups.items():
+                if gval.get('separator_role_id') == r.id:
+                    gid = gkey
+                    break
+            if gid and roles_by_group.get(gid):
+                for gr in roles_by_group[gid]:
+                    grouped_roles.append({
+                        'role': gr,
+                        'is_grouped': True,
+                        'group_id': gid,
+                        'group_name': groups[gid]['name']
+                    })
+                    
+    return render_template('roles.html', guild=guild, roles=roles, grouped_roles=grouped_roles, role_groups=groups, admin_guilds=get_admin_guilds())
 
 
 
