@@ -5,6 +5,20 @@
 <!-- Include SortableJS for desktop and mobile touch drag & drop -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
+<style>
+    /* Styling for SortableJS dragging placeholders */
+    .sortable-ghost {
+        opacity: 0.35;
+        border: 2px dashed #3b82f6 !important; /* fallback to primary blue */
+        background: rgba(59, 130, 246, 0.08) !important;
+    }
+    .sortable-chosen {
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+        transform: scale(0.98) rotate(-1deg);
+        border-color: #3b82f6 !important;
+    }
+</style>
+
 <!-- Header -->
 <header class="flex flex-wrap justify-between items-end gap-4 pb-4 border-b border-[#2e3e5e]">
     <div class="flex flex-col gap-2">
@@ -12,6 +26,18 @@
         <p class="text-text-secondary text-base font-normal">Organisiere, gruppiere und strukturiere die Rollen für deinen Discord-Server.</p>
     </div>
 </header>
+
+<!-- Unsaved Changes Warning Banner -->
+<div id="unsaved-warning-banner" class="hidden my-4 p-3 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-center justify-between gap-3 text-amber-200">
+    <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-amber-500 animate-bounce">warning</span>
+        <span class="text-xs font-bold">Ungespeicherte Änderungen! Klicke auf "Speichern" oder nutze den Button rechts, um die Konfiguration dauerhaft in Discord zu sichern.</span>
+    </div>
+    <button onclick="saveLayout()" class="btn bg-amber-500 hover:bg-amber-600 text-black text-xs font-black py-1 px-3 rounded-xl flex items-center gap-1.5 shrink-0 transition-colors shadow">
+        <span class="material-symbols-outlined text-xs">save</span>
+        Jetzt speichern
+    </button>
+</div>
 
 <!-- Tab Navigation -->
 <div class="flex flex-wrap gap-2 border-b border-white/5 pb-3 mb-6">
@@ -53,22 +79,53 @@
                     </h3>
                     <p class="text-xs text-text-secondary">Verschiebe Rollen aus der ungruppierten Liste links in die Gruppenkarten rechts, um sie zuzuweisen. Touch- und handyfreundlich!</p>
                 </div>
-                <button onclick="saveLayout()" class="btn bg-primary text-on-primary font-bold shadow-lg flex items-center gap-2">
+                <button id="save-layout-btn-builder" onclick="saveLayout()" class="btn bg-primary text-on-primary font-bold shadow-lg flex items-center gap-2">
                     <span class="material-symbols-outlined">save</span>
                     Layout speichern
                 </button>
             </div>
 
+            <!-- Bulk Action Bar -->
+            <div id="bulk-action-bar" class="hidden p-3 bg-card-dark border border-[#3b82f6]/20 rounded-3xl items-center justify-between gap-3 animate-fade-in">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary animate-pulse">checklist</span>
+                    <span class="text-xs font-bold text-white"><span id="bulk-select-count" class="text-primary text-sm font-black">0</span> Rollen ausgewählt</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <select id="bulk-target-group" class="form-select py-1 px-2 text-xs w-44 bg-white/5 border-white/15 rounded-lg text-white">
+                        <!-- options populated in JS -->
+                    </select>
+                    <button onclick="applyBulkMove()" class="btn bg-primary text-on-primary text-xs font-bold py-1 px-3 rounded-lg flex items-center gap-1.5 transition-colors">
+                        <span class="material-symbols-outlined text-xs">done</span>
+                        Zuweisen
+                    </button>
+                    <button onclick="cancelBulkSelect()" class="btn bg-white/5 text-white border border-white/10 text-xs py-1 px-3 rounded-lg hover:bg-white/10 transition-colors">
+                        Abbrechen
+                    </button>
+                </div>
+            </div>
+
             <!-- Workspace Columns -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Ungrouped list container -->
-                <div class="flex flex-col gap-4 bg-background-dark p-4 rounded-3xl border border-white/5 h-[650px]">
+                <div class="flex flex-col gap-4 bg-background-dark p-4 rounded-3xl border border-white/5 h-[450px] md:h-[650px]">
                     <div class="flex items-center justify-between shrink-0">
-                        <span class="text-sm font-bold text-white flex items-center gap-2">
-                            <span class="material-symbols-outlined text-text-secondary">category</span>
-                            Ungruppierte Rollen
-                        </span>
-                        <input type="text" id="builder-search" placeholder="Suchen..." class="form-input text-xs py-1.5 px-3 w-40" oninput="filterBuilderRoles(this.value)">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-white flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-text-secondary">category</span>
+                                Ungruppierte Rollen
+                            </span>
+                            <button onclick="toggleBulkSelectMode()" id="bulk-select-toggle-btn" class="text-[10px] font-semibold px-2 py-0.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all flex items-center gap-1 shrink-0" title="Mehrere Rollen markieren und zuweisen">
+                                <span class="material-symbols-outlined text-xs">checklist</span>
+                                Mehrfachauswahl
+                            </button>
+                        </div>
+                        <div class="relative flex items-center">
+                            <input type="text" id="builder-search" placeholder="Suchen..." class="form-input text-xs py-1.5 pl-3 pr-8 w-40" oninput="filterBuilderRoles(this.value)">
+                            <button onclick="clearBuilderSearch()" id="builder-search-clear" class="hidden absolute right-2 text-text-secondary hover:text-white transition-colors" title="Suche löschen">
+                                <span class="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
                     </div>
                     <div id="builder-ungrouped-list" class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 p-2 bg-black/20 rounded-2xl border border-dashed border-white/10" data-group-id="ungrouped">
                         <!-- Dynamic ungrouped roles go here -->
@@ -76,15 +133,15 @@
                 </div>
 
                 <!-- Group dropzones column -->
-                <div id="builder-groups-container" class="flex flex-col gap-4 overflow-y-auto custom-scrollbar h-[650px] pr-1">
+                <div id="builder-groups-container" class="flex flex-col gap-4 overflow-y-auto custom-scrollbar h-[450px] md:h-[650px] pr-1">
                     <!-- Dynamic group dropzones will be injected here -->
                 </div>
             </div>
         </div>
 
         <!-- Right: Real-time Discord Previews (1 Column) -->
-        <div class="xl:col-span-1 flex flex-col gap-6">
-            <div class="bg-card-dark border border-white/10 p-4 rounded-3xl flex flex-col gap-4 sticky top-6">
+        <div class="xl:col-span-1 flex flex-col gap-6" id="desktop-preview-container">
+            <div id="live-preview-widget-wrapper" class="bg-card-dark border border-white/10 p-4 rounded-3xl flex flex-col gap-4 sticky top-6">
                 <div class="flex justify-between items-center border-b border-white/5 pb-2 shrink-0">
                     <span class="text-white font-bold text-sm flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">visibility</span>
@@ -163,6 +220,33 @@
     </div>
 </div>
 
+<!-- Floating Preview Button for Mobile (only visible on builder and hierarchy tabs on mobile) -->
+<div id="mobile-preview-fab-wrapper" class="xl:hidden">
+    <button onclick="toggleMobilePreviewModal(true)" class="fixed bottom-6 right-6 z-40 bg-primary text-on-primary w-14 h-14 rounded-full shadow-2xl flex items-center justify-center border border-white/10 hover:scale-105 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-2xl">visibility</span>
+    </button>
+</div>
+
+<!-- Mobile Preview Modal -->
+<div id="mobile-preview-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex-col justify-end p-4 xl:hidden" onclick="if(event.target === this) toggleMobilePreviewModal(false);">
+    <div class="bg-card-dark rounded-t-3xl border border-white/10 p-5 flex flex-col gap-4 max-h-[85vh] w-full" onclick="event.stopPropagation();">
+        <div class="flex justify-between items-center pb-2 border-b border-white/5">
+            <span class="text-white font-bold text-sm flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">visibility</span>
+                Discord Live-Vorschau
+            </span>
+            <button onclick="toggleMobilePreviewModal(false)" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-text-secondary hover:text-white transition-colors">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        
+        <div id="mobile-preview-content" class="overflow-y-auto custom-scrollbar flex-1 pr-1 flex flex-col gap-4">
+            <!-- Live preview wrapper element will be moved here dynamically via JS -->
+        </div>
+    </div>
+</div>
+
+
 <!-- ============================================== -->
 <!-- TAB: ROLE HIERARCHY DRAGGER                    -->
 <!-- ============================================== -->
@@ -178,7 +262,7 @@
                     </h3>
                     <p class="text-xs text-text-secondary">Verschiebe verschiebbare Rollen nach oben oder unten, um die Discord-Hierarchie zu verändern. Oben ist die höchste Rolle.</p>
                 </div>
-                <button onclick="saveLayout()" class="btn bg-primary text-on-primary font-bold shadow-lg flex items-center gap-2">
+                <button id="save-layout-btn-hierarchy" onclick="saveLayout()" class="btn bg-primary text-on-primary font-bold shadow-lg flex items-center gap-2">
                     <span class="material-symbols-outlined">save</span>
                     Reihenfolge speichern
                 </button>
@@ -280,7 +364,12 @@
                 Server-Rollen (Tabelle)
             </h2>
             <div class="flex items-center gap-3">
-                <input type="text" id="table-search" placeholder="Rollen durchsuchen..." class="form-input text-xs py-1.5 px-3 w-48" oninput="filterTableRoles(this.value)">
+                <div class="relative flex items-center">
+                    <input type="text" id="table-search" placeholder="Rollen durchsuchen..." class="form-input text-xs py-1.5 pl-3 pr-8 w-48" oninput="filterTableRoles(this.value)">
+                    <button onclick="clearTableSearch()" id="table-search-clear" class="hidden absolute right-2 text-text-secondary hover:text-white transition-colors" title="Suche löschen">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                    </button>
+                </div>
                 <span class="text-xs font-semibold px-3 py-1 rounded-full bg-white/5 border border-white/10 text-text-secondary">
                     Bot-Rolle: {{ guild.me.top_role.name }}
                 </span>
@@ -298,6 +387,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr id="table-search-no-results" class="hidden">
+                        <td colspan="4" class="p-8 text-center text-sm text-text-secondary/60 italic">
+                            Keine passenden Rollen gefunden.
+                        </td>
+                    </tr>
                     {% for item in grouped_roles %}
                         {% set role = item.role %}
                         {% set is_grouped = item.is_grouped %}
@@ -850,6 +944,32 @@
     // Active Preview Type ('sidebar' | 'profile')
     let activePreviewType = 'sidebar';
 
+    // Unsaved changes tracking state
+    let hasUnsavedChanges = false;
+
+    function setUnsavedChanges(unsaved) {
+        hasUnsavedChanges = unsaved;
+        const banner = document.getElementById("unsaved-warning-banner");
+        const builderSaveBtn = document.getElementById("save-layout-btn-builder");
+        const hierarchySaveBtn = document.getElementById("save-layout-btn-hierarchy");
+
+        if (unsaved) {
+            if (banner) banner.classList.remove("hidden");
+            [builderSaveBtn, hierarchySaveBtn].forEach(btn => {
+                if (btn) {
+                    btn.className = "btn bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-lg flex items-center gap-2 animate-pulse";
+                }
+            });
+        } else {
+            if (banner) banner.classList.add("hidden");
+            [builderSaveBtn, hierarchySaveBtn].forEach(btn => {
+                if (btn) {
+                    btn.className = "btn bg-primary text-on-primary font-bold shadow-lg flex items-center gap-2";
+                }
+            });
+        }
+    }
+
     // ----------------------------------------------------
     // INITIALIZATION & TAB SWITCHER
     // ----------------------------------------------------
@@ -869,6 +989,15 @@
 
         // Sync preview mockup
         updateLivePreview();
+
+        // Warning when leaving with unsaved changes
+        window.addEventListener("beforeunload", (e) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = "Du hast ungespeicherte Änderungen! Möchtest du die Seite wirklich verlassen?";
+                return e.returnValue;
+            }
+        });
     });
 
     function switchTab(tabId) {
@@ -889,7 +1018,59 @@
         const activeBtn = document.getElementById("tab-btn-" + tabId);
         if (activeContent) activeContent.classList.remove("hidden");
         if (activeBtn) activeBtn.classList.add("active");
+
+        // Sync Mobile Preview FAB visibility
+        const fabWrapper = document.getElementById("mobile-preview-fab-wrapper");
+        if (fabWrapper) {
+            if (tabId === 'builder' || tabId === 'hierarchy') {
+                fabWrapper.classList.remove('hidden');
+            } else {
+                fabWrapper.classList.add('hidden');
+                const modal = document.getElementById("mobile-preview-modal");
+                if (modal && !modal.classList.contains("hidden")) {
+                    toggleMobilePreviewModal(false);
+                }
+            }
+        }
     }
+
+    function toggleMobilePreviewModal(show) {
+        const modal = document.getElementById("mobile-preview-modal");
+        const mobileContent = document.getElementById("mobile-preview-content");
+        const desktopContainer = document.getElementById("desktop-preview-container");
+        const previewBox = document.getElementById("live-preview-widget-wrapper");
+        
+        if (!modal || !mobileContent || !desktopContainer || !previewBox) return;
+
+        if (show) {
+            mobileContent.appendChild(previewBox);
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+            setTimeout(() => {
+                modal.classList.remove("opacity-0");
+                modal.classList.add("opacity-100");
+                modal.firstElementChild.classList.remove("translate-y-full");
+            }, 10);
+        } else {
+            modal.classList.remove("opacity-100");
+            modal.classList.add("opacity-0");
+            modal.firstElementChild.classList.add("translate-y-full");
+            setTimeout(() => {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+                desktopContainer.appendChild(previewBox);
+            }, 300);
+        }
+    }
+
+    window.addEventListener("resize", () => {
+        if (window.innerWidth >= 1280) { // xl breakpoint
+            const modal = document.getElementById("mobile-preview-modal");
+            if (modal && !modal.classList.contains("hidden")) {
+                toggleMobilePreviewModal(false);
+            }
+        }
+    });
 
     // ----------------------------------------------------
     // COLOR PICKER BINDINGS
@@ -1029,6 +1210,14 @@
             ungroupedListEl.appendChild(card);
         });
 
+        // Add placeholder if empty
+        if (ungroupedListEl.children.length === 0) {
+            const placeholder = document.createElement("div");
+            placeholder.className = "text-xs text-text-secondary/50 text-center py-10 italic w-full";
+            placeholder.innerText = "Alle Rollen sind zugeordnet!";
+            ungroupedListEl.appendChild(placeholder);
+        }
+
         // 2. Render Groups Dropzones
         Object.keys(roleGroups).forEach(gid => {
             const group = roleGroups[gid];
@@ -1057,6 +1246,9 @@
                                 `).join('')}
                             </select>
                         </div>
+                        <button onclick="clearGroupRoles('${gid}')" class="w-7 h-7 rounded-full hover:bg-red-500/10 text-text-secondary hover:text-red-400 transition-colors flex items-center justify-center" title="Alle Rollen dieser Gruppe entgruppieren">
+                            <span class="material-symbols-outlined text-sm">playlist_remove</span>
+                        </button>
                         <button onclick="openEditGroupModal('${gid}')" class="w-7 h-7 rounded-full hover:bg-white/10 text-text-secondary hover:text-white transition-colors flex items-center justify-center">
                             <span class="material-symbols-outlined text-sm">edit</span>
                         </button>
@@ -1076,6 +1268,14 @@
                     groupRolesListEl.appendChild(card);
                 }
             });
+
+            // Add placeholder if group is empty
+            if (group.role_ids.length === 0) {
+                const placeholder = document.createElement("div");
+                placeholder.className = "text-[10px] text-text-secondary/40 text-center py-4 flex-1 flex items-center justify-center border border-dashed border-white/5 rounded-xl select-none pointer-events-none";
+                placeholder.innerText = "Rollen hier ablegen...";
+                groupRolesListEl.appendChild(placeholder);
+            }
         });
 
         // 3. Initialize SortableJS
@@ -1104,12 +1304,45 @@
         card.className = "role-drag-card flex items-center gap-2 p-2 bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl cursor-grab active:cursor-grabbing transition-all select-none text-xs w-full";
         card.setAttribute("data-role-id", role.id);
         
+        // Add card click listener for bulk select
+        card.addEventListener("click", (e) => {
+            if (isBulkSelectActive && !inGroup) {
+                handleCardClick(card, role.id);
+            }
+        });
+        
+        // Generate group select options for mobile
+        let optionsHtml = `<option value="" disabled selected>Verschieben...</option>`;
+        optionsHtml += `<option value="ungrouped" ${!inGroup ? 'disabled' : ''}>Ungruppiert</option>`;
+        Object.keys(roleGroups).forEach(gid => {
+            const group = roleGroups[gid];
+            const isCurrent = inGroup && group.role_ids.includes(role.id.toString());
+            optionsHtml += `<option value="${gid}" ${isCurrent ? 'selected disabled' : ''}>${group.name}</option>`;
+        });
+
+        // Check if role is currently selected in bulk mode
+        const isBulkSelected = !inGroup && selectedBulkRoleIds.has(role.id.toString());
+        if (isBulkSelected) {
+            card.classList.add("border-primary", "bg-primary/10");
+        }
+
         card.innerHTML = `
+            <div class="bulk-checkbox-indicator ${isBulkSelected ? '' : 'hidden'} w-4 h-4 rounded border border-primary bg-primary-container flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-[9px] font-black text-on-primary">check</span>
+            </div>
             <span class="material-symbols-outlined text-text-secondary/50 text-sm drag-handle">drag_indicator</span>
             <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${role.color};"></span>
             <span class="text-white/90 font-bold truncate flex-1">${role.name}</span>
+            
+            <!-- Quick Mobile Selector Dropdown -->
+            <div class="md:hidden relative shrink-0" onclick="event.stopPropagation()">
+                <select onchange="moveRoleViaDropdown('${role.id}', this.value)" class="bg-white/10 border border-white/15 text-[10px] rounded px-1 py-0.5 text-white max-w-[90px] outline-none">
+                    ${optionsHtml}
+                </select>
+            </div>
+
             ${inGroup ? `
-                <button onclick="removeRoleFromGroupUI('${role.id}')" class="text-text-secondary hover:text-red-400 p-0.5 rounded transition-colors" title="Zuweisung entfernen">
+                <button onclick="removeRoleFromGroupUI('${role.id}'); event.stopPropagation();" class="text-text-secondary hover:text-red-400 p-0.5 rounded transition-colors hidden md:block" title="Zuweisung entfernen">
                     <span class="material-symbols-outlined text-sm">close</span>
                 </button>
             ` : ''}
@@ -1117,11 +1350,196 @@
         return card;
     }
 
+    function moveRoleViaDropdown(roleId, targetGroupId) {
+        // Remove from any existing manual groups
+        Object.keys(roleGroups).forEach(gid => {
+            roleGroups[gid].role_ids = roleGroups[gid].role_ids.filter(id => id.toString() !== roleId.toString());
+        });
+        
+        // Add to target group if not ungrouped
+        if (targetGroupId !== 'ungrouped' && roleGroups[targetGroupId]) {
+            if (!roleGroups[targetGroupId].role_ids.includes(roleId.toString())) {
+                roleGroups[targetGroupId].role_ids.push(roleId.toString());
+            }
+        }
+        
+        // Refresh workspace and preview
+        initBuilderWorkspace();
+        handleDragEnd();
+    }
+
+    let isBulkSelectActive = false;
+    let selectedBulkRoleIds = new Set();
+
+    function toggleBulkSelectMode() {
+        isBulkSelectActive = !isBulkSelectActive;
+        const btn = document.getElementById("bulk-select-toggle-btn");
+        const bar = document.getElementById("bulk-action-bar");
+        
+        if (isBulkSelectActive) {
+            selectedBulkRoleIds.clear();
+            if (btn) btn.className = "text-[10px] font-semibold px-2 py-0.5 bg-primary/20 border border-primary rounded-lg text-primary transition-all flex items-center gap-1 shrink-0";
+            if (bar) {
+                bar.classList.remove("hidden");
+                bar.classList.add("flex");
+                
+                // Populate group select options
+                const select = document.getElementById("bulk-target-group");
+                if (select) {
+                    let optionsHtml = `<option value="" disabled selected>Zielgruppe wählen...</option>`;
+                    Object.keys(roleGroups).forEach(gid => {
+                        optionsHtml += `<option value="${gid}">${roleGroups[gid].name}</option>`;
+                    });
+                    select.innerHTML = optionsHtml;
+                }
+            }
+            document.getElementById("bulk-select-count").innerText = "0";
+            
+            // Disable SortableJS dragging when in selection mode
+            if (builderUngroupedSortable) {
+                builderUngroupedSortable.option("disabled", true);
+            }
+            // Add a visual indicator to all cards in ungrouped list that they are clickable
+            document.querySelectorAll("#builder-ungrouped-list .role-drag-card").forEach(card => {
+                card.classList.remove("cursor-grab", "active:cursor-grabbing");
+                card.classList.add("cursor-pointer");
+                const dragHandle = card.querySelector(".drag-handle");
+                if (dragHandle) dragHandle.classList.add("hidden");
+            });
+        } else {
+            if (btn) btn.className = "text-[10px] font-semibold px-2 py-0.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all flex items-center gap-1 shrink-0";
+            if (bar) {
+                bar.classList.add("hidden");
+                bar.classList.remove("flex");
+            }
+            
+            // Enable SortableJS dragging again
+            if (builderUngroupedSortable) {
+                builderUngroupedSortable.option("disabled", false);
+            }
+            
+            // Remove selection styles
+            document.querySelectorAll("#builder-ungrouped-list .role-drag-card").forEach(card => {
+                card.classList.remove("border-primary", "bg-primary/10", "cursor-pointer");
+                card.classList.add("cursor-grab", "active:cursor-grabbing");
+                const chk = card.querySelector(".bulk-checkbox-indicator");
+                if (chk) chk.classList.add("hidden");
+                const dragHandle = card.querySelector(".drag-handle");
+                if (dragHandle) dragHandle.classList.remove("hidden");
+            });
+            selectedBulkRoleIds.clear();
+        }
+    }
+
+    function handleCardClick(cardEl, roleId) {
+        if (!isBulkSelectActive) return;
+        
+        const roleIdStr = roleId.toString();
+        if (selectedBulkRoleIds.has(roleIdStr)) {
+            selectedBulkRoleIds.delete(roleIdStr);
+            cardEl.classList.remove("border-primary", "bg-primary/10");
+            const chk = cardEl.querySelector(".bulk-checkbox-indicator");
+            if (chk) chk.classList.add("hidden");
+        } else {
+            selectedBulkRoleIds.add(roleIdStr);
+            cardEl.classList.add("border-primary", "bg-primary/10");
+            const chk = cardEl.querySelector(".bulk-checkbox-indicator");
+            if (chk) chk.classList.remove("hidden");
+        }
+        
+        document.getElementById("bulk-select-count").innerText = selectedBulkRoleIds.size;
+    }
+
+    function applyBulkMove() {
+        const select = document.getElementById("bulk-target-group");
+        if (!select || !select.value) {
+            showToast("Bitte wähle eine Zielgruppe aus.", "warning");
+            return;
+        }
+        const targetGroupId = select.value;
+        if (selectedBulkRoleIds.size === 0) {
+            showToast("Keine Rollen ausgewählt.", "warning");
+            return;
+        }
+        
+        // Add selected roles to group
+        selectedBulkRoleIds.forEach(roleId => {
+            if (!roleGroups[targetGroupId].role_ids.includes(roleId.toString())) {
+                roleGroups[targetGroupId].role_ids.push(roleId.toString());
+            }
+        });
+        
+        // Deactivate bulk select
+        toggleBulkSelectMode();
+        
+        // Re-init workspace & save states
+        initBuilderWorkspace();
+        handleDragEnd();
+        setUnsavedChanges(true);
+        showToast("Rollen erfolgreich zugewiesen.", "success");
+    }
+
+    function cancelBulkSelect() {
+        toggleBulkSelectMode();
+    }
+
+    function autoArrangeRolesByGroups() {
+        // Map roles to groups
+        const roleToGroupId = {};
+        const groupMembers = {}; // gid -> list of role objects
+
+        Object.keys(roleGroups).forEach(gid => {
+            const group = roleGroups[gid];
+            groupMembers[gid] = [];
+            const words = (group.auto_match_pattern || '').split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+            
+            allRoles.forEach(r => {
+                if (r.id === group.separator_role_id.toString()) return;
+                
+                const isManual = group.role_ids.includes(r.id.toString());
+                const isAuto = words.some(word => r.name.toLowerCase().includes(word));
+                if (isManual || isAuto) {
+                    roleToGroupId[r.id.toString()] = gid;
+                }
+            });
+        });
+
+        // Separate all roles into grouped roles and other roles
+        const otherRoles = [];
+        allRoles.forEach(role => {
+            const gid = roleToGroupId[role.id.toString()];
+            if (gid) {
+                groupMembers[gid].push(role);
+            } else {
+                otherRoles.push(role);
+            }
+        });
+
+        // Reconstruct allRoles list: place group roles directly after their group's separator role
+        const newRoles = [];
+        otherRoles.forEach(role => {
+            newRoles.push(role);
+            
+            // Check if this role is a separator for a group
+            const associatedGid = Object.keys(roleGroups).find(gid => roleGroups[gid].separator_role_id.toString() === role.id.toString());
+            if (associatedGid && groupMembers[associatedGid]) {
+                newRoles.push(...groupMembers[associatedGid]);
+            }
+        });
+
+        // Update allRoles with the auto-arranged order
+        allRoles.length = 0;
+        allRoles.push(...newRoles);
+    }
+
     function handleDragEnd() {
         // Collect new states
         updateStateFromUI();
+        autoArrangeRolesByGroups(); // Auto arrange roles directly under group separators
+        initHierarchyWorkspace();  // Sync hierarchy tab DOM to show updated automatic order
         updateLivePreview();
         testAllActiveGroupsRules();
+        setUnsavedChanges(true);
     }
 
     function updateStateFromUI() {
@@ -1183,17 +1601,61 @@
 
     function filterBuilderRoles(query) {
         const q = query.toLowerCase().trim();
+        
+        // Show/hide clear search icon
+        const clearBtn = document.getElementById("builder-search-clear");
+        if (clearBtn) {
+            if (q.length > 0) clearBtn.classList.remove("hidden");
+            else clearBtn.classList.add("hidden");
+        }
+
+        let visibleCount = 0;
         document.querySelectorAll("#builder-ungrouped-list [data-role-id]").forEach(card => {
             const roleId = card.getAttribute("data-role-id");
             const role = allRoles.find(r => r.id === roleId);
             if (role) {
                 if (role.name.toLowerCase().includes(q)) {
                     card.classList.remove("hidden");
+                    visibleCount++;
                 } else {
                     card.classList.add("hidden");
                 }
             }
         });
+
+        // Toggle search empty state placeholder
+        let noResultsEl = document.getElementById("builder-search-no-results");
+        if (visibleCount === 0 && q.length > 0) {
+            if (!noResultsEl) {
+                noResultsEl = document.createElement("div");
+                noResultsEl.id = "builder-search-no-results";
+                noResultsEl.className = "text-xs text-text-secondary/50 text-center py-10 italic w-full";
+                noResultsEl.innerText = "Keine passenden Rollen gefunden.";
+                document.getElementById("builder-ungrouped-list").appendChild(noResultsEl);
+            }
+        } else {
+            if (noResultsEl) noResultsEl.remove();
+        }
+    }
+
+    function clearBuilderSearch() {
+        const searchInput = document.getElementById("builder-search");
+        if (searchInput) {
+            searchInput.value = "";
+            filterBuilderRoles("");
+        }
+    }
+
+    function clearGroupRoles(groupId) {
+        if (!roleGroups[groupId]) return;
+        
+        // Ask for confirmation to prevent accidental clear
+        if (confirm(`Möchtest du alle manuellen Zuweisungen aus der Gruppe "${roleGroups[groupId].name}" entfernen?`)) {
+            roleGroups[groupId].role_ids = [];
+            initBuilderWorkspace();
+            handleDragEnd();
+            setUnsavedChanges(true);
+        }
     }
 
     // ----------------------------------------------------
@@ -1242,6 +1704,7 @@
             onEnd: () => {
                 updateRolesDatabaseOrderFromHierarchyUI();
                 updateLivePreview();
+                setUnsavedChanges(true);
             }
         });
     }
@@ -1260,6 +1723,7 @@
 
         updateRolesDatabaseOrderFromHierarchyUI();
         updateLivePreview();
+        setUnsavedChanges(true);
     }
 
     function updateRolesDatabaseOrderFromHierarchyUI() {
@@ -1531,6 +1995,7 @@
             
             if (data.success) {
                 showToast(data.message, 'success');
+                setUnsavedChanges(false);
                 // Refresh local templates after short delay to sync all
                 setTimeout(() => window.location.reload(), 1500);
             } else {
@@ -1547,14 +2012,42 @@
     // ----------------------------------------------------
     function filterTableRoles(val) {
         const q = val.toLowerCase().trim();
+        
+        // Show/hide clear search icon
+        const clearBtn = document.getElementById("table-search-clear");
+        if (clearBtn) {
+            if (q.length > 0) clearBtn.classList.remove("hidden");
+            else clearBtn.classList.add("hidden");
+        }
+
+        let visibleCount = 0;
         document.querySelectorAll("#classic-roles-table tbody .table-row-item").forEach(row => {
             const name = row.getAttribute("data-role-name") || row.innerText.toLowerCase();
             if (name.includes(q)) {
                 row.classList.remove("hidden");
+                visibleCount++;
             } else {
                 row.classList.add("hidden");
             }
         });
+
+        // Toggle table search no-results row
+        const noResultsRow = document.getElementById("table-search-no-results");
+        if (noResultsRow) {
+            if (visibleCount === 0 && q.length > 0) {
+                noResultsRow.classList.remove("hidden");
+            } else {
+                noResultsRow.classList.add("hidden");
+            }
+        }
+    }
+
+    function clearTableSearch() {
+        const searchInput = document.getElementById("table-search");
+        if (searchInput) {
+            searchInput.value = "";
+            filterTableRoles("");
+        }
     }
 
     function toggleGroup(groupId) {
