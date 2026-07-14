@@ -539,7 +539,7 @@ def manage_roles(guild_id):
             async def create_task():
                 name_val = name
                 if is_separator:
-                    name_val = f"─── {name.strip('─').strip()} ───" + " \u2800" * 15
+                    name_val = f"─── {name.strip('─').strip()} ───" + " \u2800" * 30
                 color = discord.Color(int(color_hex.lstrip('#'), 16)) if color_hex else discord.Color.default()
                 try:
                     await guild.create_role(name=name_val, color=color, hoist=hoist, mentionable=mentionable, reason="Erstellt über Web-Dashboard")
@@ -566,7 +566,7 @@ def manage_roles(guild_id):
                 
                 name_val = name
                 if is_separator:
-                    name_val = f"─── {name.strip('─').strip()} ───" + " \u2800" * 15
+                    name_val = f"─── {name.strip('─').strip()} ───" + " \u2800" * 30
                 color = discord.Color(int(color_hex.lstrip('#'), 16)) if color_hex else discord.Color.default()
                 try:
                     await role.edit(name=name_val, color=color, hoist=hoist, mentionable=mentionable, reason="Bearbeitet über Web-Dashboard")
@@ -776,6 +776,26 @@ def manage_roles(guild_id):
                 return jsonify({'success': success, 'message': message})
             flash(message, 'success' if success else 'danger')
         return redirect(url_for('manage_roles', guild_id=guild_id))
+        
+    # Auto-migrate existing separator roles to the new wider format
+    async def migrate_separators():
+        for r in guild.roles:
+            is_sep = '───' in r.name or '\u2800' in r.name or '▬' in r.name
+            if is_sep and r < guild.me.top_role and not r.is_default():
+                # Extract clean name
+                clean = r.name.replace('───', '').replace('▬', '').replace('\u2800', '').strip()
+                # 30 braille blanks for wide layout on Discord mobile/desktop
+                new_name = f"─── {clean} ───" + " \u2800" * 30
+                if r.name != new_name:
+                    try:
+                        await r.edit(name=new_name, reason="Automatisches Upgrade der Trennrolle auf breites Format")
+                    except Exception as e:
+                        print(f"Failed to migrate role {r.name}: {e}")
+
+    try:
+        asyncio.run_coroutine_threadsafe(migrate_separators(), bot.loop).result()
+    except Exception as e:
+        print(f"Error during separator migration: {e}")
         
     roles = sorted(guild.roles, key=lambda r: r.position, reverse=True)
     
