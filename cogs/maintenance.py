@@ -45,11 +45,9 @@ class Maintenance(commands.Cog):
 
     async def cog_load(self):
         self.activity_loop.start()
-        self.backup_loop.start()
 
     async def cog_unload(self):
         self.activity_loop.cancel()
-        self.backup_loop.cancel()
 
     @tasks.loop(minutes=30)
     async def activity_loop(self):
@@ -81,36 +79,6 @@ class Maintenance(commands.Cog):
     @activity_loop.before_loop
     async def before_activity_loop(self):
         await self.bot.wait_until_ready()
-
-    @tasks.loop(hours=6)
-    async def backup_loop(self):
-        try:
-            print("\n🔄 Starte automatisches Backup...")
-            backup_script = os.path.join(BASE_DIR, 'auto_backup.py')
-            
-            if os.path.exists(backup_script):
-                # Führe das Backup-Skript aus
-                result = subprocess.run(
-                    [sys.executable, backup_script],
-                    cwd=BASE_DIR,
-                    capture_output=True,
-                    text=True
-                )
-                
-                if result.returncode == 0:
-                    print("✅ Automatisches Backup erfolgreich")
-                else:
-                    print(f"⚠️  Backup mit Fehlern: {result.stderr}")
-            else:
-                print("⚠️  Backup-Skript nicht gefunden")
-            
-        except Exception as e:
-            print(f"❌ Fehler beim automatischen Backup: {e}")
-
-    @backup_loop.before_loop
-    async def before_backup_loop(self):
-        await self.bot.wait_until_ready()
-        await asyncio.sleep(300) # Warte 5 Minuten nach Start
 
 async def setup(bot):
     await bot.add_cog(Maintenance(bot))

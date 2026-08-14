@@ -353,7 +353,7 @@ class DashboardCog(commands.Cog, name="Dashboard"):
                 forum_channel = await guild.create_forum(
                     name="📌-dashboard",
                     topic="🔒 Internes Moderations-Dashboard. Nur für Moderatoren sichtbar.",
-                    permission_overwrites=overwrites,
+                    overwrites=overwrites,
                     reason="Dashboard Modul aktiviert"
                 )
                 config['forum_channel_id'] = forum_channel.id

@@ -85,7 +85,7 @@ class GuardActionView(discord.ui.View):
             await interaction.response.send_message(f"Ein Fehler ist aufgetreten: {e}", ephemeral=True)
 
     @discord.ui.button(label="Timeout (10m)", style=discord.ButtonStyle.secondary, custom_id="persistent:guard:timeout")
-    async def timeout(self, interaction: Interaction, button: discord.ui.Button):
+    async def timeout_member(self, interaction: Interaction, button: discord.ui.Button):
         target_member = await self._get_target_member(interaction)
         if not target_member:
             await interaction.response.send_message("Das Mitglied wurde nicht mehr auf dem Server gefunden.", ephemeral=True)
