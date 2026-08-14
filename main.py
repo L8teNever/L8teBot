@@ -2092,7 +2092,9 @@ def manage_dashboard_cog(guild_id):
             log_channel_id = int(log_channel_id_str) if log_channel_id_str and log_channel_id_str.isdigit() else None
             category_id_str = request.form.get('category_id')
             category_id = int(category_id_str) if category_id_str and category_id_str.isdigit() else None
-            future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, mod_role_ids, log_channel_id, category_id), bot.loop)
+            streamer_role_id_str = request.form.get('streamer_role_id')
+            streamer_role_id = int(streamer_role_id_str) if streamer_role_id_str and streamer_role_id_str.isdigit() else None
+            future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, mod_role_ids, log_channel_id, category_id, streamer_role_id), bot.loop)
 
         if future:
             success, message = future.result()

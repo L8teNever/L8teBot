@@ -257,6 +257,247 @@ class DashboardBanView(discord.ui.View):
         self.add_item(DashboardIdBanButton(cog_instance))
 
 
+# --- STREAMER MANAGEMENT VIEWS & MODALS ---
+
+class DashboardTwitchAddModal(discord.ui.Modal):
+    def __init__(self, cog_instance: Optional[commands.Cog] = None):
+        super().__init__(title="Twitch-Streamer zum Feed hinzufügen")
+        self.cog = cog_instance
+
+        self.twitch_user_input = discord.ui.TextInput(
+            label="Twitch Benutzername / URL",
+            style=TextStyle.short,
+            placeholder="z.B. montanablack oder twitch.tv/trymacs",
+            required=True,
+            max_length=100
+        )
+        self.add_item(self.twitch_user_input)
+
+        self.event_mode_input = discord.ui.TextInput(
+            label="Modus (channel_only, event_only, both)",
+            style=TextStyle.short,
+            placeholder="channel_only",
+            default="channel_only",
+            required=False,
+            max_length=20
+        )
+        self.add_item(self.event_mode_input)
+
+    async def on_submit(self, interaction: Interaction):
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message("❌ Server nicht gefunden.", ephemeral=True)
+            return
+
+        if not interaction.user.guild_permissions.ban_members and not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Du hast keine Berechtigung für die Streamer-Verwaltung.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        twitch_user = self.twitch_user_input.value.strip()
+        event_mode = self.event_mode_input.value.strip().lower() or "channel_only"
+
+        twitch_cog = interaction.client.get_cog("Twitch-Live-Alert")
+        if not twitch_cog:
+            await interaction.followup.send("❌ Twitch-Live-Alert Modul ist auf dem Bot nicht geladen.", ephemeral=True)
+            return
+
+        dash_config = interaction.client.data.get_guild_data(guild.id, "dashboard_config")
+        streamer_role_id = dash_config.get('streamer_role_id')
+
+        success, msg = await twitch_cog.web_set_config(guild.id, twitch_user, streamer_role_id, event_mode)
+        await interaction.followup.send(msg, ephemeral=True)
+
+        if success and self.cog and hasattr(self.cog, 'setup_dashboard_forum'):
+            await self.cog.setup_dashboard_forum(guild)
+
+
+class DashboardTwitchRemoveSelect(discord.ui.Select):
+    def __init__(self, registered_streamers: dict, cog_instance: Optional[commands.Cog] = None):
+        options = []
+        for s_key, s_data in registered_streamers.items():
+            name = s_data.get('display_name') or s_data.get('twitch_user') or s_key
+            options.append(discord.SelectOption(
+                label=name[:25],
+                value=s_key,
+                description=f"twitch.tv/{s_key}"[:50],
+                emoji="📺"
+            ))
+
+        if not options:
+            options.append(discord.SelectOption(label="Keine Streamer vorhanden", value="none"))
+
+        super().__init__(
+            placeholder="🗑️ Twitch-Streamer zum Entfernen auswählen...",
+            min_values=1,
+            max_values=1,
+            options=options,
+            custom_id="dashboard_twitch_remove_select"
+        )
+        self.cog = cog_instance
+
+    async def callback(self, interaction: Interaction):
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message("❌ Server nicht gefunden.", ephemeral=True)
+            return
+
+        if not interaction.user.guild_permissions.ban_members and not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Du hast keine Berechtigung.", ephemeral=True)
+            return
+
+        if self.values[0] == "none":
+            await interaction.response.send_message("Keine gültige Auswahl.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        s_key = self.values[0]
+
+        twitch_cog = interaction.client.get_cog("Twitch-Live-Alert")
+        if not twitch_cog:
+            await interaction.followup.send("❌ Twitch-Live-Alert Modul ist nicht geladen.", ephemeral=True)
+            return
+
+        success, msg = await twitch_cog.web_remove_streamer(guild.id, s_key)
+        await interaction.followup.send(msg, ephemeral=True)
+
+        if success and self.cog and hasattr(self.cog, 'setup_dashboard_forum'):
+            await self.cog.setup_dashboard_forum(guild)
+
+
+class DashboardTwitchRemoveView(discord.ui.View):
+    def __init__(self, registered_streamers: dict, cog_instance: Optional[commands.Cog] = None):
+        super().__init__(timeout=60)
+        self.add_item(DashboardTwitchRemoveSelect(registered_streamers, cog_instance))
+
+
+class StreamerRoleUserSelect(discord.ui.UserSelect):
+    def __init__(self, cog_instance: Optional[commands.Cog] = None):
+        super().__init__(
+            placeholder="👥 Mitglied(er) für Streamer-Rolle auswählen...",
+            min_values=1,
+            max_values=10,
+            custom_id="dashboard_streamer_role_user_select"
+        )
+        self.cog = cog_instance
+
+    async def callback(self, interaction: Interaction):
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message("❌ Server nicht gefunden.", ephemeral=True)
+            return
+
+        if not interaction.user.guild_permissions.ban_members and not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Keine Berechtigung für die Streamer-Rollen-Verwaltung.", ephemeral=True)
+            return
+
+        dash_config = interaction.client.data.get_guild_data(guild.id, "dashboard_config")
+        streamer_role_id = dash_config.get('streamer_role_id')
+        if not streamer_role_id:
+            await interaction.response.send_message(
+                "❌ **Keine Streamer-Rolle konfiguriert.** Bitte wähle zuerst im Web-Dashboard unter *Dashboard-Modul* eine Streamer-Rolle aus.",
+                ephemeral=True
+            )
+            return
+
+        streamer_role = guild.get_role(streamer_role_id)
+        if not streamer_role:
+            await interaction.response.send_message("❌ Die konfigurierte Streamer-Rolle wurde auf dem Server nicht gefunden.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        added = []
+        removed = []
+        failed = []
+
+        for val in self.values:
+            member = None
+            if isinstance(val, discord.Member):
+                member = val
+            elif hasattr(val, 'id'):
+                member = guild.get_member(val.id)
+
+            if not member:
+                continue
+
+            try:
+                if streamer_role in member.roles:
+                    await member.remove_roles(streamer_role, reason="Streamer-Rolle via Dashboard entfernt")
+                    removed.append(member.display_name)
+                else:
+                    await member.add_roles(streamer_role, reason="Streamer-Rolle via Dashboard vergeben")
+                    added.append(member.display_name)
+            except discord.Forbidden:
+                failed.append(f"{member.display_name} (Keine Rechte)")
+            except Exception as e:
+                failed.append(f"{member.display_name} ({e})")
+
+        msg_parts = []
+        if added:
+            msg_parts.append(f"✅ Rolle {streamer_role.mention} vergeben an: **{', '.join(added)}**")
+        if removed:
+            msg_parts.append(f"🗑️ Rolle {streamer_role.mention} entfernt von: **{', '.join(removed)}**")
+        if failed:
+            msg_parts.append(f"⚠️ Fehlgeschlagen für: {', '.join(failed)}")
+
+        await interaction.followup.send("\n".join(msg_parts) if msg_parts else "Keine Änderungen durchgeführt.", ephemeral=True)
+
+        if (added or removed) and self.cog and hasattr(self.cog, 'setup_dashboard_forum'):
+            await self.cog.setup_dashboard_forum(guild)
+
+
+class DashboardTwitchAddButton(discord.ui.Button):
+    def __init__(self, cog_instance: Optional[commands.Cog] = None):
+        super().__init__(
+            label="➕ Streamer hinzufügen",
+            style=ButtonStyle.success,
+            emoji="📺",
+            custom_id="dashboard_twitch_add_btn"
+        )
+        self.cog = cog_instance
+
+    async def callback(self, interaction: Interaction):
+        await interaction.response.send_modal(DashboardTwitchAddModal(self.cog))
+
+
+class DashboardTwitchRemoveButton(discord.ui.Button):
+    def __init__(self, cog_instance: Optional[commands.Cog] = None):
+        super().__init__(
+            label="🗑️ Streamer entfernen",
+            style=ButtonStyle.danger,
+            emoji="🗑️",
+            custom_id="dashboard_twitch_remove_btn"
+        )
+        self.cog = cog_instance
+
+    async def callback(self, interaction: Interaction):
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message("❌ Server nicht gefunden.", ephemeral=True)
+            return
+
+        twitch_config = interaction.client.data.get_guild_data(guild.id, "twitch_alerts")
+        registered_streamers = twitch_config.get("streamers", {})
+
+        if not registered_streamers:
+            await interaction.response.send_message("❌ Keine Twitch-Streamer im Feed registriert.", ephemeral=True)
+            return
+
+        view = DashboardTwitchRemoveView(registered_streamers, self.cog)
+        await interaction.response.send_message("Wähle einen Streamer aus, der aus dem Feed entfernt werden soll:", view=view, ephemeral=True)
+
+
+class DashboardStreamerManagementView(discord.ui.View):
+    def __init__(self, cog_instance: Optional[commands.Cog] = None):
+        super().__init__(timeout=None)
+        self.cog = cog_instance
+        self.add_item(StreamerRoleUserSelect(cog_instance))
+        self.add_item(DashboardTwitchAddButton(cog_instance))
+        self.add_item(DashboardTwitchRemoveButton(cog_instance))
+
+
 # --- COG IMPLEMENTATION ---
 
 class DashboardCog(commands.Cog, name="Dashboard"):
@@ -267,7 +508,8 @@ class DashboardCog(commands.Cog, name="Dashboard"):
     async def restore_persistent_views(self):
         await self.bot.wait_until_ready()
         self.bot.add_view(DashboardBanView(self))
-        logger.info("Persistent DashboardBanView registered.")
+        self.bot.add_view(DashboardStreamerManagementView(self))
+        logger.info("Persistent Dashboard views registered.")
 
     def _get_config(self, guild_id: int) -> dict:
         return self.bot.data.get_guild_data(guild_id, "dashboard_config")
@@ -448,6 +690,10 @@ class DashboardCog(commands.Cog, name="Dashboard"):
                         config['ban_message_id'] = new_msg.id
 
             self._save_config(guild.id, config)
+
+            # Streamer Management Thread im Forum einrichten / aktualisieren
+            await self.setup_streamer_management_thread(guild, forum_channel)
+
             return True, f"Dashboard-Forum ({forum_channel.mention}) erfolgreich erstellt/aktualisiert!"
 
         except discord.Forbidden:
@@ -455,6 +701,85 @@ class DashboardCog(commands.Cog, name="Dashboard"):
         except Exception as e:
             logger.error(f"Fehler bei setup_dashboard_forum: {e}")
             return False, f"Fehler beim Erstellen des Dashboards: {e}"
+
+    async def setup_streamer_management_thread(self, guild: discord.Guild, forum_channel: ForumChannel):
+        """Erstellt oder aktualisiert den Streamer & Twitch-Feed Management Post im Dashboard Forum."""
+        try:
+            config = self._get_config(guild.id)
+            streamer_role_id = config.get('streamer_role_id')
+            streamer_role = guild.get_role(streamer_role_id) if streamer_role_id else None
+
+            # Streamer mit Rolle
+            role_text = streamer_role.mention if streamer_role else "*Keine Streamer-Rolle konfiguriert*"
+            members_with_role = [m for m in guild.members if streamer_role and streamer_role in m.roles]
+            if members_with_role:
+                member_names = [f"• {m.mention} (`{m.display_name}`)" for m in members_with_role[:20]]
+                if len(members_with_role) > 20:
+                    member_names.append(f"*... und {len(members_with_role) - 20} weitere*")
+                members_text = "\n".join(member_names)
+            else:
+                members_text = "Keine Mitglieder haben aktuell die Streamer-Rolle."
+
+            # Registrierte Twitch-Alert Streamer
+            twitch_config = self.bot.data.get_guild_data(guild.id, "twitch_alerts")
+            registered_streamers = twitch_config.get("streamers", {})
+            if registered_streamers:
+                streamer_list = []
+                for s_key, s_data in registered_streamers.items():
+                    name = s_data.get('display_name') or s_data.get('twitch_user') or s_key
+                    is_live = s_data.get('is_live', False)
+                    status_str = "🔴 LIVE" if is_live else "⚫ OFFLINE"
+                    streamer_list.append(f"• **{name}** (`{s_key}`) – {status_str}")
+                twitch_text = "\n".join(streamer_list)
+            else:
+                twitch_text = "Keine Twitch-Streamer im Live-Alert Feed eingerichtet."
+
+            embed = Embed(
+                title="📺 Streamer & Twitch-Feed Management",
+                description=(
+                    "Verwalte hier die **Streamer-Rolle** deiner Server-Mitglieder und die **Twitch-Live-Alerts**.\n\n"
+                    "👥 **Streamer-Rollen-Verwaltung:**\n"
+                    "Wähle Mitglieder aus dem **Dropdown-Menü** unten, um ihnen die Streamer-Rolle zu geben oder zu entziehen.\n\n"
+                    "📡 **Twitch-Feed Steuerung:**\n"
+                    "Nutze die Buttons **➕ Streamer hinzufügen** oder **🗑️ Streamer entfernen**, um Twitch-Accounts direkt im Live-Alert zu verwalten."
+                ),
+                color=Color.purple()
+            )
+            embed.add_field(name=f"🎥 Streamer-Rolle ({role_text})", value=members_text, inline=False)
+            embed.add_field(name="📡 Twitch Live-Feed Streamer", value=twitch_text, inline=False)
+            embed.set_footer(text="L8teBot Streamer Management • Nur für Moderatoren")
+
+            thread_id = config.get('streamer_thread_id')
+            streamer_thread = None
+            if thread_id:
+                streamer_thread = forum_channel.get_thread(thread_id)
+
+            if not streamer_thread:
+                thread_with_msg = await forum_channel.create_thread(
+                    name="📺 Streamer-Management",
+                    embed=embed,
+                    view=DashboardStreamerManagementView(self)
+                )
+                streamer_thread = thread_with_msg.thread
+                config['streamer_thread_id'] = streamer_thread.id
+                config['streamer_message_id'] = thread_with_msg.message.id
+                try:
+                    await streamer_thread.edit(pinned=True, reason="Streamer Management Post gepinnt")
+                except Exception:
+                    pass
+            else:
+                msg_id = config.get('streamer_message_id')
+                if msg_id:
+                    try:
+                        msg = await streamer_thread.fetch_message(msg_id)
+                        await msg.edit(embed=embed, view=DashboardStreamerManagementView(self))
+                    except Exception:
+                        new_msg = await streamer_thread.send(embed=embed, view=DashboardStreamerManagementView(self))
+                        config['streamer_message_id'] = new_msg.id
+
+            self._save_config(guild.id, config)
+        except Exception as e:
+            logger.error(f"Fehler bei setup_streamer_management_thread: {e}")
 
     # --- Slash Commands ---
     @app_commands.command(name="dashboard_setup", description="Erstellt oder aktualisiert das Moderations-Dashboard Forum.")
@@ -484,12 +809,14 @@ class DashboardCog(commands.Cog, name="Dashboard"):
                         config['forum_channel_id'] = None
                         config['ban_thread_id'] = None
                         config['ban_message_id'] = None
+                        config['streamer_thread_id'] = None
+                        config['streamer_message_id'] = None
                         self._save_config(guild_id, config)
                     except Exception:
                         pass
         return True, "Dashboard Modul deaktiviert."
 
-    async def web_set_config(self, guild_id: int, mod_role_ids: list, log_channel_id: Optional[int], category_id: Optional[int] = None) -> tuple[bool, str]:
+    async def web_set_config(self, guild_id: int, mod_role_ids: list, log_channel_id: Optional[int], category_id: Optional[int] = None, streamer_role_id: Optional[int] = None) -> tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
         if not guild:
             return False, "Server nicht gefunden."
@@ -498,6 +825,7 @@ class DashboardCog(commands.Cog, name="Dashboard"):
         config['mod_role_ids'] = mod_role_ids
         config['log_channel_id'] = log_channel_id
         config['category_id'] = category_id
+        config['streamer_role_id'] = streamer_role_id
         self._save_config(guild_id, config)
 
         await self.setup_dashboard_forum(guild)

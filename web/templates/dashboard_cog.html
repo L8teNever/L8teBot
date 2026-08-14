@@ -113,7 +113,24 @@
                             {% endif %}
                         {% endfor %}
                     </select>
-                    <p class="text-text-secondary text-xs mt-2">💡 Halte Ctrl/Cmd um mehrere Rollen auszuwählen</p>
+                    <p class="text-text-secondary text-xs mt-2">💡 Halte Ctrl/Cmd um mehere Rollen auszuwählen</p>
+                </div>
+
+                <!-- 3. STREAMER ROLE -->
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2 font-semibold">🎥 Streamer-Rolle</label>
+                    <p class="text-text-secondary text-xs mb-3">Wähle die Streamer-Rolle aus, die im Streamer & Twitch-Feed Management Post verwaltet werden soll</p>
+                    <select name="streamer_role_id"
+                        class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                        <option value="">Keine Streamer-Rolle ausgewählt</option>
+                        {% for role in guild.roles|sort(attribute='position', reverse=True) %}
+                            {% if not role.is_default() %}
+                            <option value="{{ role.id }}" {% if role.id == config.get('streamer_role_id') %}selected{% endif %}>
+                                @{{ role.name }}
+                            </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
                 </div>
 
                 <!-- 2. CENTRAL LOGGING INFORMATION -->
