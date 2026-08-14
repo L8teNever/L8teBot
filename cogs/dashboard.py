@@ -517,8 +517,6 @@ class DashboardStreamerManagementView(discord.ui.View):
         super().__init__(timeout=None)
         self.cog = cog_instance
         self.add_item(StreamerRoleUserSelect(cog_instance, default_users=default_users))
-        self.add_item(DashboardTwitchAddButton(cog_instance))
-        self.add_item(DashboardTwitchRemoveButton(cog_instance))
 
 
 # --- COG IMPLEMENTATION ---
@@ -760,11 +758,10 @@ class DashboardCog(commands.Cog, name="Dashboard"):
             embed = Embed(
                 title="📺 Streamer & Twitch-Feed Management",
                 description=(
-                    "Verwalte hier die **Streamer-Rolle** deiner Server-Mitglieder und die **Twitch-Live-Alerts**.\n\n"
+                    "Verwalte hier die **Streamer-Rolle** deiner Server-Mitglieder.\n\n"
                     "👥 **Streamer-Rollen-Verwaltung:**\n"
-                    "Wähle Mitglieder aus dem **Dropdown-Menü** unten, um ihnen die Streamer-Rolle zu geben oder zu entziehen.\n\n"
-                    "📡 **Twitch-Feed Steuerung:**\n"
-                    "Nutze die Buttons **➕ Streamer hinzufügen** oder **🗑️ Streamer entfernen**, um Twitch-Accounts direkt im Live-Alert zu verwalten."
+                    "Nutze das **Dropdown-Menü** unten, um Mitgliedern die Streamer-Rolle zuzuweisen oder zu entziehen.\n"
+                    "*(Mitglieder mit Haken besitzen aktuell die Rolle. Durch Auswählen / Abwählen wird die Rolle vergeben oder entfernt.)*"
                 ),
                 color=Color.purple()
             )
