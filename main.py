@@ -1421,21 +1421,28 @@ def manage_backup(guild_id):
         backup_time = request.form.get('backup_time', '03:00')
         frequency_days = int(request.form.get('backup_frequency_days', 1))
 
-        # Aktualisiere Konfiguration
-        backup_config['enabled'] = True
-        backup_config['destination_type'] = destination_type
-        backup_config['use_dashboard_forum'] = use_dashboard_forum
-        backup_config['channel_id'] = channel_id
-        backup_config['backup_time'] = backup_time
-        backup_config['backup_frequency_days'] = frequency_days
+        config_data = {
+            'enabled': True,
+            'destination_type': destination_type,
+            'use_dashboard_forum': use_dashboard_forum,
+            'channel_id': channel_id,
+            'backup_time': backup_time,
+            'backup_frequency_days': frequency_days
+        }
 
-        # Speichere
-        bot.data.save_guild_data(guild_id, "backup", backup_config)
+        cog = bot.get_cog('Backup')
+        if cog and hasattr(cog, 'web_set_config'):
+            future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, config_data), bot.loop)
+            success, msg = future.result()
+        else:
+            backup_config.update(config_data)
+            bot.data.save_guild_data(guild_id, "backup", backup_config)
+            msg = "Backup-Einstellungen erfolgreich gespeichert."
+            success = True
 
-        msg = "Backup-Einstellungen erfolgreich gespeichert."
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': True, 'message': msg})
-        flash(msg, "success")
+            return jsonify({'success': success, 'message': msg})
+        flash(msg, "success" if success else "danger")
         return redirect(url_for('manage_backup', guild_id=guild_id))
 
     return render_template('backup.html',

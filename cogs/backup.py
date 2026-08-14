@@ -196,8 +196,10 @@ class BackupCog(commands.Cog, name="Backup"):
 
             if use_dashboard:
                 channel = await self._get_or_create_dashboard_backup_thread(guild, config)
-
-            if not channel:
+                if not channel:
+                    print(f"[Backup] Konnte Dashboard Backup Thread für Guild {guild.id} nicht abrufen/erstellen.")
+                    return
+            else:
                 channel_id = config.get('channel_id')
                 if channel_id:
                     channel = guild.get_channel(channel_id)
@@ -384,13 +386,25 @@ class BackupCog(commands.Cog, name="Backup"):
         await self._perform_backup(ctx.guild, backup_config)
         await ctx.send("✅ **Backup abgeschlossen!** Prüfe den Backup-Kanal.")
 
-    @manual_backup.error
-    async def manual_backup_error(self, ctx, error):
-        """Error-Handler für den Backup-Befehl."""
-        if isinstance(error, commands.MissingPermissions):
-            await ctx.send("❌ Du benötigst Administrator-Rechte, um diesen Befehl zu nutzen.")
-        else:
-            await ctx.send(f"❌ Fehler: {str(error)}")
+    async def web_set_config(self, guild_id: int, config_data: dict) -> tuple[bool, str]:
+        """Speichert die Backup-Konfiguration und richtet ggf. das Dashboard-Forum-Post ein."""
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            return False, "Server nicht gefunden."
+
+        backup_config = self._get_backup_config(guild_id)
+        backup_config.update(config_data)
+        self._save_backup_config(guild_id, backup_config)
+
+        msg = "Backup-Einstellungen erfolgreich gespeichert."
+        if config_data.get('use_dashboard_forum'):
+            thread = await self._get_or_create_dashboard_backup_thread(guild, backup_config)
+            if thread:
+                msg = "Backup-Einstellungen gespeichert & '💾 Server-Backups' Post im Dashboard-Forum eingerichtet!"
+            else:
+                msg = "Backup-Einstellungen gespeichert. Hinweis: Dashboard-Forum konnte noch nicht erstellt werden (bitte Dashboard-Modul prüfen)."
+
+        return True, msg
 
 
 async def setup(bot):
