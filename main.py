@@ -1384,6 +1384,8 @@ def manage_backup(guild_id):
     # Lade oder erstelle Backup-Konfiguration
     backup_config = bot.data.get_guild_data(guild_id, "backup")
     backup_config.setdefault('enabled', False)
+    backup_config.setdefault('destination_type', 'channel')
+    backup_config.setdefault('use_dashboard_forum', False)
     backup_config.setdefault('channel_id', None)
     backup_config.setdefault('backup_time', '03:00')
     backup_config.setdefault('backup_frequency_days', 1)
@@ -1392,14 +1394,15 @@ def manage_backup(guild_id):
         action = request.form.get('action')
         
         if action == 'trigger_manual':
-            if not backup_config.get('channel_id'):
-                msg = "Bitte konfiguriere zuerst einen Backup-Kanal!"
+            use_dash = backup_config.get('use_dashboard_forum') or backup_config.get('destination_type') == 'dashboard_forum'
+            if not backup_config.get('channel_id') and not use_dash:
+                msg = "Bitte konfiguriere zuerst ein Backup-Ziel (Kanal oder Dashboard-Forum)!"
                 success = False
             else:
                 cog = bot.get_cog('Backup')
                 if cog:
                     asyncio.run_coroutine_threadsafe(cog._perform_backup(guild, backup_config), bot.loop)
-                    msg = "Manuelles Backup wird erstellt und in den Kanal gesendet."
+                    msg = "Manuelles Backup wird erstellt und in das gewählte Ziel gesendet."
                     success = True
                 else:
                     msg = "Backup-Modul konnte nicht geladen werden."
@@ -1411,13 +1414,17 @@ def manage_backup(guild_id):
             return redirect(url_for('manage_backup', guild_id=guild_id))
 
         # Default: Hole Form-Daten für Konfiguration
+        destination_type = request.form.get('destination_type', 'channel')
+        use_dashboard_forum = (destination_type == 'dashboard_forum')
         channel_id_str = request.form.get('channel_id')
-        channel_id = int(channel_id_str) if channel_id_str else None
+        channel_id = int(channel_id_str) if channel_id_str and channel_id_str.isdigit() else None
         backup_time = request.form.get('backup_time', '03:00')
         frequency_days = int(request.form.get('backup_frequency_days', 1))
 
         # Aktualisiere Konfiguration
         backup_config['enabled'] = True
+        backup_config['destination_type'] = destination_type
+        backup_config['use_dashboard_forum'] = use_dashboard_forum
         backup_config['channel_id'] = channel_id
         backup_config['backup_time'] = backup_time
         backup_config['backup_frequency_days'] = frequency_days
@@ -2000,8 +2007,10 @@ def manage_logging(guild_id):
             return redirect(url_for('manage_logging', guild_id=guild_id))
 
         # Extract form data
+        destination_type = request.form.get('destination_type', 'channel')
+        use_dashboard_forum = (destination_type == 'dashboard_forum')
         log_channel_id_str = request.form.get('log_channel_id')
-        log_channel_id = int(log_channel_id_str) if log_channel_id_str else None
+        log_channel_id = int(log_channel_id_str) if log_channel_id_str and log_channel_id_str.isdigit() else None
 
         enabled_events = request.form.getlist('enabled_events')
 
@@ -2022,6 +2031,8 @@ def manage_logging(guild_id):
         # Call cog method
         future = asyncio.run_coroutine_threadsafe(
             cog.web_set_config(guild_id, {
+                'destination_type': destination_type,
+                'use_dashboard_forum': use_dashboard_forum,
                 'log_channel_id': log_channel_id,
                 'enabled_events': enabled_events,
                 'ignored_channels': ignored_channels,

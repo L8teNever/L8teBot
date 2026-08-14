@@ -53,8 +53,30 @@
         <form action="{{ url_for('manage_backup', guild_id=guild.id) }}" method="post"
             class="space-y-4">
 
-            <!-- Channel Selection -->
+            <!-- Backup Target Selection -->
             <div>
+                <label class="block text-text-secondary text-sm mb-2">Backup-Ziel</label>
+                <p class="text-text-secondary text-xs mb-2">Wo sollen Server-Backups gespeichert werden?</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <label class="flex items-center gap-3 p-4 rounded-lg bg-background-dark border border-[#2e3e5e] cursor-pointer hover:border-primary transition-colors">
+                        <input type="radio" name="destination_type" value="channel" {% if config.get('destination_type', 'channel') == 'channel' and not config.get('use_dashboard_forum') %}checked{% endif %} class="accent-primary" onchange="toggleBackupTargetUI()">
+                        <div>
+                            <p class="text-white font-medium">📍 Standard Text-Kanal</p>
+                            <p class="text-xs text-text-secondary">Sendet Backups in einen ausgewählten Server-Kanal</p>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 p-4 rounded-lg bg-background-dark border border-[#2e3e5e] cursor-pointer hover:border-primary transition-colors">
+                        <input type="radio" name="destination_type" value="dashboard_forum" {% if config.get('destination_type') == 'dashboard_forum' or config.get('use_dashboard_forum') %}checked{% endif %} class="accent-primary" onchange="toggleBackupTargetUI()">
+                        <div>
+                            <p class="text-white font-medium">📌 Dashboard-Forum</p>
+                            <p class="text-xs text-text-secondary">Erstellt einen Post '💾 Server-Backups' im Mod-Dashboard</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Channel Selection -->
+            <div id="channel_select_wrapper" {% if config.get('destination_type') == 'dashboard_forum' or config.get('use_dashboard_forum') %}style="display:none;"{% endif %}>
                 <label class="block text-text-secondary text-sm mb-2">Backup-Kanal</label>
                 <p class="text-text-secondary text-xs mb-2">Kanal, in den Backups gesendet werden</p>
                 <select name="channel_id"
@@ -66,6 +88,19 @@
                     </option>
                     {% endfor %}
                 </select>
+            </div>
+
+            <!-- Dashboard Forum Info Wrapper -->
+            <div id="dashboard_info_wrapper" {% if not (config.get('destination_type') == 'dashboard_forum' or config.get('use_dashboard_forum')) %}style="display:none;"{% endif %} class="rounded-lg p-4 bg-blue-500/10 border border-blue-500/30">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-400">forum</span>
+                    <div>
+                        <p class="text-white text-sm font-medium">📌 Moderator Dashboard-Forum aktiv</p>
+                        <p class="text-blue-200 text-xs mt-1">
+                            Backups werden direkt in einen geschützten Post (<code class="bg-black/30 px-1 rounded">💾 Server-Backups</code>) im Dashboard-Forum (<code class="bg-black/30 px-1 rounded">📌-dashboard</code>) gepostet. Der Post wird automatisch erstellt und bleibt auch nach Bot-Neustarts gespeichert.
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <!-- Time Selection -->
@@ -198,5 +233,22 @@
     </div>
 </div>
 {% endif %}
+
+<script>
+function toggleBackupTargetUI() {
+    const destType = document.querySelector('input[name="destination_type"]:checked')?.value;
+    const channelWrapper = document.getElementById('channel_select_wrapper');
+    const dashWrapper = document.getElementById('dashboard_info_wrapper');
+    if (channelWrapper && dashWrapper) {
+        if (destType === 'dashboard_forum') {
+            channelWrapper.style.display = 'none';
+            dashWrapper.style.display = 'block';
+        } else {
+            channelWrapper.style.display = 'block';
+            dashWrapper.style.display = 'none';
+        }
+    }
+}
+</script>
 
 {% endblock %}

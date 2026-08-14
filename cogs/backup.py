@@ -106,21 +106,104 @@ class BackupCog(commands.Cog, name="Backup"):
 
     # --- Backup Execution ---
 
+    async def _get_or_create_dashboard_backup_thread(self, guild: discord.Guild, config: dict) -> Optional[discord.Thread]:
+        """
+        Sucht oder erstellt einen dedizierten Backup-Post (Thread) im Moderator-Dashboard Forum.
+        Speichert die Thread-ID in der Config für dauerhafte Persistenz auch nach Neustarts.
+        """
+        try:
+            dash_config = self.bot.data.get_guild_data(guild.id, "dashboard_config")
+            forum_channel_id = dash_config.get('forum_channel_id')
+
+            if not forum_channel_id:
+                dash_cog = self.bot.get_cog("Dashboard")
+                if dash_cog and hasattr(dash_cog, 'setup_dashboard_forum'):
+                    await dash_cog.setup_dashboard_forum(guild)
+                    dash_config = self.bot.data.get_guild_data(guild.id, "dashboard_config")
+                    forum_channel_id = dash_config.get('forum_channel_id')
+
+            if not forum_channel_id:
+                print(f"[Backup] Dashboard Forum Kanal nicht gefunden für Guild {guild.id}")
+                return None
+
+            forum_channel = guild.get_channel(forum_channel_id)
+            if not forum_channel or not isinstance(forum_channel, discord.ForumChannel):
+                try:
+                    forum_channel = await self.bot.fetch_channel(forum_channel_id)
+                except Exception:
+                    return None
+
+            if not isinstance(forum_channel, discord.ForumChannel):
+                return None
+
+            # Überprüfe, ob bereits eine bekannte Thread ID in den Configs existiert
+            thread_id = config.get('dashboard_backup_thread_id')
+            thread = None
+
+            if thread_id:
+                thread = forum_channel.get_thread(thread_id)
+                if not thread:
+                    try:
+                        fetched = await self.bot.fetch_channel(thread_id)
+                        if isinstance(fetched, discord.Thread):
+                            thread = fetched
+                    except Exception:
+                        thread = None
+
+            # Falls kein Thread existiert oder gelöscht wurde -> neuen Backup Post/Thread erstellen
+            if not thread:
+                embed_intro = discord.Embed(
+                    title="💾 Server-Backup Archiv",
+                    description=(
+                        "In diesem Post/Thread werden alle automatischen und manuellen Server-Backups als ZIP-Dateien archiviert.\n\n"
+                        "💡 *Dieser Post wird automatisch vom L8teBot Backup-Modul verwaltet und bleibt auch nach Neustarts erhalten.*"
+                    ),
+                    color=discord.Color.blue(),
+                    timestamp=datetime.datetime.now(GERMAN_TZ)
+                )
+                embed_intro.set_footer(text="L8teBot Backup-System • Nur für Moderatoren")
+
+                thread_with_msg = await forum_channel.create_thread(
+                    name="💾 Server-Backups",
+                    embed=embed_intro
+                )
+                thread = thread_with_msg.thread
+                config['dashboard_backup_thread_id'] = thread.id
+                self._save_backup_config(guild.id, config)
+
+                try:
+                    await thread.edit(pinned=True, reason="Backup Thread im Dashboard gepinnt")
+                except Exception:
+                    pass
+
+            return thread
+        except Exception as e:
+            print(f"[Backup] Fehler in _get_or_create_dashboard_backup_thread: {e}")
+            return None
+
     async def _perform_backup(self, guild: discord.Guild, config: dict):
         """
         Führt ein Backup für einen Server durch.
 
         1. Erstellt ZIP-Datei der Server-Daten
         2. Prüft Dateigröße
-        3. Sendet ZIP zu Discord-Channel
+        3. Sendet ZIP zu Discord-Channel oder Dashboard-Forum-Post
         4. Aktualisiert last_backup_timestamp
         """
         try:
-            channel_id = config.get('channel_id')
-            channel = guild.get_channel(channel_id)
+            use_dashboard = config.get('use_dashboard_forum', False) or (config.get('destination_type') == 'dashboard_forum')
+            channel = None
 
-            if not channel or not isinstance(channel, discord.TextChannel):
-                print(f"[Backup] Ungültiger Kanal für Guild {guild.id}")
+            if use_dashboard:
+                channel = await self._get_or_create_dashboard_backup_thread(guild, config)
+
+            if not channel:
+                channel_id = config.get('channel_id')
+                if channel_id:
+                    channel = guild.get_channel(channel_id)
+
+            if not channel:
+                print(f"[Backup] Ungültiges Backup-Ziel für Guild {guild.id}")
                 return
 
             # Erstelle Backup-ZIP
@@ -129,7 +212,7 @@ class BackupCog(commands.Cog, name="Backup"):
             if not backup_file_path:
                 try:
                     await channel.send("❌ **Backup fehlgeschlagen**: Konnte ZIP-Datei nicht erstellen.")
-                except discord.Forbidden:
+                except (discord.Forbidden, AttributeError):
                     pass
                 return
 
@@ -190,7 +273,7 @@ class BackupCog(commands.Cog, name="Backup"):
                         await channel.send(embed=embed, file=discord_file)
                         
             except discord.Forbidden:
-                print(f"[Backup] Keine Berechtigung, in Kanal {channel_id} zu schreiben")
+                print(f"[Backup] Keine Berechtigung, in Ziel-Kanal/Thread {channel.id} zu schreiben")
             except discord.HTTPException as e:
                 print(f"[Backup] HTTP-Fehler beim Upload: {e}")
             finally:
@@ -287,10 +370,12 @@ class BackupCog(commands.Cog, name="Backup"):
             )
             return
 
-        if not backup_config.get('channel_id'):
+        use_dashboard = backup_config.get('use_dashboard_forum', False) or (backup_config.get('destination_type') == 'dashboard_forum')
+
+        if not backup_config.get('channel_id') and not use_dashboard:
             await ctx.send(
-                "❌ **Kein Backup-Kanal konfiguriert**\n"
-                "Bitte konfiguriere das Modul im Web-Dashboard."
+                "❌ **Kein Backup-Ziel konfiguriert**\n"
+                "Bitte wähle einen Backup-Kanal oder das Dashboard-Forum im Web-Dashboard aus."
             )
             return
 

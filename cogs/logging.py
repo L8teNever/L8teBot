@@ -37,18 +37,100 @@ class LoggingCog(commands.Cog, name="Logging"):
 
         return True
 
-    async def _send_log_embed(self, guild_id: int, embed: Embed) -> None:
-        """Send a log embed to the configured log channel."""
-        config = self.bot.data.get_guild_data(guild_id, "logging")
-        log_channel_id = config.get("log_channel_id")
+    async def _get_or_create_dashboard_log_thread(self, guild: discord.Guild, config: dict) -> Optional[discord.Thread]:
+        """
+        Sucht oder erstellt einen dedizierten Audit-Log Post (Thread) im Moderator-Dashboard Forum.
+        Speichert die Thread-ID in der Config für dauerhafte Persistenz auch nach Bot-Neustarts.
+        """
+        try:
+            dash_config = self.bot.data.get_guild_data(guild.id, "dashboard_config")
+            forum_channel_id = dash_config.get('forum_channel_id')
 
-        if not log_channel_id:
+            if not forum_channel_id:
+                dash_cog = self.bot.get_cog("Dashboard")
+                if dash_cog and hasattr(dash_cog, 'setup_dashboard_forum'):
+                    await dash_cog.setup_dashboard_forum(guild)
+                    dash_config = self.bot.data.get_guild_data(guild.id, "dashboard_config")
+                    forum_channel_id = dash_config.get('forum_channel_id')
+
+            if not forum_channel_id:
+                print(f"[Logging] Dashboard Forum Kanal nicht gefunden für Guild {guild.id}")
+                return None
+
+            forum_channel = guild.get_channel(forum_channel_id)
+            if not forum_channel or not isinstance(forum_channel, discord.ForumChannel):
+                try:
+                    forum_channel = await self.bot.fetch_channel(forum_channel_id)
+                except Exception:
+                    return None
+
+            if not isinstance(forum_channel, discord.ForumChannel):
+                return None
+
+            thread_id = config.get('dashboard_log_thread_id')
+            thread = None
+
+            if thread_id:
+                thread = forum_channel.get_thread(thread_id)
+                if not thread:
+                    try:
+                        fetched = await self.bot.fetch_channel(thread_id)
+                        if isinstance(fetched, discord.Thread):
+                            thread = fetched
+                    except Exception:
+                        thread = None
+
+            if not thread:
+                embed_intro = Embed(
+                    title="📜 Server Audit-Logs",
+                    description=(
+                        "In diesem Post/Thread werden alle protokollierten Server-Ereignisse (Audit-Logs) in Echtzeit gesendet.\n\n"
+                        "💡 *Dieser Post wird automatisch vom L8teBot Logging-Modul verwaltet und bleibt auch nach Neustarts erhalten.*"
+                    ),
+                    color=Color.blue(),
+                    timestamp=datetime.utcnow()
+                )
+                embed_intro.set_footer(text="L8teBot Logging-System • Nur für Moderatoren")
+
+                thread_with_msg = await forum_channel.create_thread(
+                    name="📜 Audit-Logs",
+                    embed=embed_intro
+                )
+                thread = thread_with_msg.thread
+                config['dashboard_log_thread_id'] = thread.id
+                self.bot.data.save_guild_data(guild.id, "logging", config)
+
+                try:
+                    await thread.edit(pinned=True, reason="Logging Thread im Dashboard gepinnt")
+                except Exception:
+                    pass
+
+            return thread
+        except Exception as e:
+            print(f"[Logging] Fehler in _get_or_create_dashboard_log_thread: {e}")
+            return None
+
+    async def _send_log_embed(self, guild_id: int, embed: Embed) -> None:
+        """Send a log embed to the configured log channel or Dashboard Forum post."""
+        config = self.bot.data.get_guild_data(guild_id, "logging")
+        use_dashboard = config.get('use_dashboard_forum', False) or (config.get('destination_type') == 'dashboard_forum')
+        channel = None
+
+        if use_dashboard:
+            guild = self.bot.get_guild(guild_id)
+            if guild:
+                channel = await self._get_or_create_dashboard_log_thread(guild, config)
+
+        if not channel:
+            log_channel_id = config.get("log_channel_id")
+            if log_channel_id:
+                channel = self.bot.get_channel(log_channel_id)
+
+        if not channel:
             return
 
         try:
-            channel = self.bot.get_channel(log_channel_id)
-            if channel and isinstance(channel, discord.TextChannel):
-                await channel.send(embed=embed)
+            await channel.send(embed=embed)
         except (discord.Forbidden, discord.HTTPException):
             pass
 
@@ -897,15 +979,20 @@ class LoggingCog(commands.Cog, name="Logging"):
             if not guild:
                 return False, "Server nicht gefunden."
 
-            # Validate log channel
+            destination_type = config_data.get('destination_type', 'channel')
+            use_dashboard_forum = (destination_type == 'dashboard_forum') or config_data.get('use_dashboard_forum', False)
+
+            # Validate log channel if channel option is selected
             log_channel_id = config_data.get('log_channel_id')
-            if log_channel_id:
+            if destination_type == 'channel' and log_channel_id:
                 channel = guild.get_channel(log_channel_id)
                 if not channel or not isinstance(channel, discord.TextChannel):
                     return False, "Log-Kanal ungültig."
 
             # Save configuration
             config = self.bot.data.get_guild_data(guild_id, "logging")
+            config['destination_type'] = destination_type
+            config['use_dashboard_forum'] = use_dashboard_forum
             config['log_channel_id'] = log_channel_id
             config['enabled_events'] = config_data.get('enabled_events', [])
             config['ignored_channels'] = config_data.get('ignored_channels', [])

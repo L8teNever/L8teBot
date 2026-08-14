@@ -101,19 +101,24 @@
                     <p class="text-text-secondary text-xs mt-2">💡 Halte Ctrl/Cmd um mehrere Rollen auszuwählen</p>
                 </div>
 
-                <!-- 2. LOG CHANNEL -->
-                <div>
-                    <label class="block text-text-secondary text-sm mb-2 font-semibold">📍 Dashboard Log-Kanal (Optional)</label>
-                    <p class="text-text-secondary text-xs mb-3">Kanal für Bann-Protokolle, die über das Dashboard ausgeführt werden</p>
-                    <select name="log_channel_id"
-                        class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
-                        <option value="">Standard-Server-Log verwenden</option>
-                        {% for channel in guild.text_channels|sort(attribute='position') %}
-                        <option value="{{ channel.id }}" {% if channel.id == config.get('log_channel_id') %}selected{% endif %}>
-                            #{{ channel.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
+                <!-- 2. CENTRAL LOGGING INFORMATION -->
+                <div class="p-4 bg-background-dark rounded-lg border border-[#2e3e5e]">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-blue-400">description</span>
+                            <div>
+                                <h3 class="text-white text-sm font-semibold">Protokollierung & Audit-Logs</h3>
+                                <p class="text-text-secondary text-xs mt-0.5">
+                                    Alle Dashboard-Aktionen & Banns werden automatisch über das zentrale <strong>Server-Logging Modul</strong> protokolliert.
+                                </p>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('manage_logging', guild_id=guild.id) }}"
+                           class="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-xs font-semibold rounded border border-blue-500/30 transition-colors flex items-center gap-1 shrink-0">
+                           <span class="material-symbols-outlined text-sm">settings</span>
+                           Logging-Ziel anpassen
+                        </a>
+                    </div>
                 </div>
 
                 <!-- SAVE BUTTON -->
