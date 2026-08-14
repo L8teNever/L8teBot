@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from discord import app_commands, Embed, Color, TextStyle, Interaction, ButtonStyle, ForumChannel
+from discord import app_commands, Embed, Color, TextStyle, Interaction, ButtonStyle, ForumChannel, CategoryChannel
 import logging
 from datetime import datetime
 from typing import Optional
