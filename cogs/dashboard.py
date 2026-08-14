@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands, Embed, Color, TextStyle, Interaction, ButtonStyle, ForumChannel, CategoryChannel
 import logging
 from datetime import datetime
@@ -519,17 +519,62 @@ class DashboardStreamerManagementView(discord.ui.View):
         self.add_item(StreamerRoleUserSelect(cog_instance, default_users=default_users))
 
 
+class DashboardStatsRefreshButton(discord.ui.Button):
+    def __init__(self, cog_instance: Optional[commands.Cog] = None):
+        super().__init__(
+            label="🔄 Statistiken aktualisieren",
+            style=ButtonStyle.primary,
+            emoji="📊",
+            custom_id="dashboard_stats_refresh_btn"
+        )
+        self.cog = cog_instance
+
+    async def callback(self, interaction: Interaction):
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message("❌ Server nicht gefunden.", ephemeral=True)
+            return
+
+        if not interaction.user.guild_permissions.ban_members and not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ Keine Berechtigung für die Statistik-Aktualisierung.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        config = interaction.client.data.get_guild_data(guild.id, "dashboard_config")
+        forum_id = config.get('forum_channel_id')
+        forum_channel = guild.get_channel(forum_id) if forum_id else None
+
+        if forum_channel and isinstance(forum_channel, ForumChannel) and self.cog and hasattr(self.cog, 'setup_stats_thread'):
+            await self.cog.setup_stats_thread(guild, forum_channel)
+            await interaction.followup.send("✅ **Server-Statistiken wurden erfolgreich aktualisiert!**", ephemeral=True)
+        else:
+            await interaction.followup.send("❌ Statistik-Post konnte nicht aktualisiert werden.", ephemeral=True)
+
+
+class DashboardStatsView(discord.ui.View):
+    def __init__(self, cog_instance: Optional[commands.Cog] = None):
+        super().__init__(timeout=None)
+        self.cog = cog_instance
+        self.add_item(DashboardStatsRefreshButton(cog_instance))
+
+
 # --- COG IMPLEMENTATION ---
 
 class DashboardCog(commands.Cog, name="Dashboard"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.bot.loop.create_task(self.restore_persistent_views())
+        self.auto_refresh_stats.start()
+
+    def cog_unload(self):
+        self.auto_refresh_stats.cancel()
 
     async def restore_persistent_views(self):
         await self.bot.wait_until_ready()
         self.bot.add_view(DashboardBanView(self))
         self.bot.add_view(DashboardStreamerManagementView(self))
+        self.bot.add_view(DashboardStatsView(self))
         logger.info("Persistent Dashboard views registered.")
 
     def _get_config(self, guild_id: int) -> dict:
@@ -715,6 +760,9 @@ class DashboardCog(commands.Cog, name="Dashboard"):
             # Streamer Management Thread im Forum einrichten / aktualisieren
             await self.setup_streamer_management_thread(guild, forum_channel)
 
+            # Server-Statistiken Thread im Forum einrichten / aktualisieren
+            await self.setup_stats_thread(guild, forum_channel)
+
             return True, f"Dashboard-Forum ({forum_channel.mention}) erfolgreich erstellt/aktualisiert!"
 
         except discord.Forbidden:
@@ -803,6 +851,149 @@ class DashboardCog(commands.Cog, name="Dashboard"):
         except Exception as e:
             logger.error(f"Fehler bei setup_streamer_management_thread: {e}")
 
+    async def setup_stats_thread(self, guild: discord.Guild, forum_channel: ForumChannel):
+        """Erstellt oder aktualisiert den Server-Statistiken Post im Dashboard Forum."""
+        try:
+            config = self._get_config(guild.id)
+
+            # 1. Mitglieder-Statistiken
+            total_members = guild.member_count or len(guild.members)
+            humans = len([m for m in guild.members if not m.bot])
+            bots = len([m for m in guild.members if m.bot])
+            online_members = len([m for m in guild.members if m.status != discord.Status.offline])
+
+            # 2. Nachrichten-Statistiken aus monthly_stats
+            now = datetime.now()
+            current_month = now.strftime('%Y-%m')
+            monthly_stats = self.bot.data.get_guild_data(guild.id, "monthly_stats")
+            month_data = monthly_stats.get(current_month, {})
+
+            total_month_messages = sum(u.get('total_messages', 0) for u in month_data.values() if isinstance(u, dict))
+            active_chatters = len(month_data)
+            days_passed = max(now.day, 1)
+            avg_msgs_per_day = round(total_month_messages / days_passed, 1)
+            avg_msgs_per_user = round(total_month_messages / max(active_chatters, 1), 1)
+
+            # Top Schreiber diesen Monat
+            top_chatter_text = "Keine Daten vorhanden"
+            if month_data:
+                sorted_users = sorted(
+                    [(u_id, u_info) for u_id, u_info in month_data.items() if isinstance(u_info, dict)],
+                    key=lambda x: x[1].get('total_messages', 0),
+                    reverse=True
+                )
+                top_entries = []
+                for idx, (u_id, u_info) in enumerate(sorted_users[:3], 1):
+                    member = guild.get_member(int(u_id)) if u_id.isdigit() else None
+                    m_name = member.display_name if member else f"User {u_id}"
+                    count = u_info.get('total_messages', 0)
+                    medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉"
+                    top_entries.append(f"{medal} **{m_name}**: {count:,} Nachrichten")
+                if top_entries:
+                    top_chatter_text = "\n".join(top_entries)
+
+            # 3. Server-Struktur & Info
+            text_channels = len(guild.text_channels)
+            voice_channels = len(guild.voice_channels)
+            categories = len(guild.categories)
+            roles_count = len(guild.roles)
+            boost_level = guild.premium_tier
+            boosters = guild.premium_subscription_count or 0
+            created_at = guild.created_at.strftime('%d.%m.%Y')
+
+            embed = Embed(
+                title="📊 Server-Statistiken & Aktivität",
+                description=(
+                    f"Live-Statistiken und Nachrichten-Auswertungen für **{guild.name}**.\n"
+                    "*(Klicke unten auf **🔄 Statistiken aktualisieren**, um die Daten manuell aufzufrischen.)*"
+                ),
+                color=Color.blue(),
+                timestamp=now
+            )
+
+            embed.add_field(
+                name="👥 Mitglieder & Status",
+                value=(
+                    f"• **Gesamtmitglieder:** `{total_members}`\n"
+                    f"• 👤 **Menschen:** `{humans}` | 🤖 **Bots:** `{bots}`\n"
+                    f"• 🟢 **Online/Aktiv:** `{online_members}`"
+                ),
+                inline=False
+            )
+
+            embed.add_field(
+                name=f"💬 Nachrichten ({current_month})",
+                value=(
+                    f"• **Nachrichten diesen Monat:** `{total_month_messages:,}`\n"
+                    f"• 📅 **Durchschnitt pro Tag:** `{avg_msgs_per_day:,}` Nachrichten/Tag\n"
+                    f"• ✍️ **Aktive Schreiber:** `{active_chatters}` User (Ø `{avg_msgs_per_user}` Msgs/User)\n\n"
+                    f"**Top-Schreiber:**\n{top_chatter_text}"
+                ),
+                inline=False
+            )
+
+            embed.add_field(
+                name="🏰 Server-Struktur & Boosts",
+                value=(
+                    f"• 📁 **Kategorien:** `{categories}` | 💬 **Textkanäle:** `{text_channels}` | 🔊 **Sprachkanäle:** `{voice_channels}`\n"
+                    f"• 🏷️ **Rollen:** `{roles_count}`\n"
+                    f"• 🚀 **Boost-Level:** `{boost_level}` (`{boosters}` Boosts)\n"
+                    f"• 📅 **Erstellt am:** `{created_at}`"
+                ),
+                inline=False
+            )
+
+            embed.set_footer(text=f"L8teBot Statistiken • Stand: {now.strftime('%H:%M:%S Uhr')}")
+
+            thread_id = config.get('stats_thread_id')
+            stats_thread = None
+            if thread_id:
+                stats_thread = forum_channel.get_thread(thread_id)
+
+            view = DashboardStatsView(self)
+
+            if not stats_thread:
+                thread_with_msg = await forum_channel.create_thread(
+                    name="📊 Server-Statistiken",
+                    embed=embed,
+                    view=view
+                )
+                stats_thread = thread_with_msg.thread
+                config['stats_thread_id'] = stats_thread.id
+                config['stats_message_id'] = thread_with_msg.message.id
+                try:
+                    await stats_thread.edit(pinned=True, reason="Statistik Post gepinnt")
+                except Exception:
+                    pass
+            else:
+                msg_id = config.get('stats_message_id')
+                if msg_id:
+                    try:
+                        msg = await stats_thread.fetch_message(msg_id)
+                        await msg.edit(embed=embed, view=view)
+                    except Exception:
+                        new_msg = await stats_thread.send(embed=embed, view=view)
+                        config['stats_message_id'] = new_msg.id
+
+            self._save_config(guild.id, config)
+        except Exception as e:
+            logger.error(f"Fehler bei setup_stats_thread: {e}")
+
+    @tasks.loop(minutes=30)
+    async def auto_refresh_stats(self):
+        """Aktualisiert alle 30 Minuten automatisch die Server-Statistiken im Forum."""
+        await self.bot.wait_until_ready()
+        for guild in self.bot.guilds:
+            try:
+                config = self._get_config(guild.id)
+                forum_id = config.get('forum_channel_id')
+                if forum_id:
+                    forum_channel = guild.get_channel(forum_id)
+                    if forum_channel and isinstance(forum_channel, ForumChannel):
+                        await self.setup_stats_thread(guild, forum_channel)
+            except Exception as e:
+                logger.error(f"Fehler bei auto_refresh_stats für Guild {guild.id}: {e}")
+
     # --- Slash Commands ---
     @app_commands.command(name="dashboard_setup", description="Erstellt oder aktualisiert das Moderations-Dashboard Forum.")
     @app_commands.checks.has_permissions(administrator=True)
@@ -833,6 +1024,8 @@ class DashboardCog(commands.Cog, name="Dashboard"):
                         config['ban_message_id'] = None
                         config['streamer_thread_id'] = None
                         config['streamer_message_id'] = None
+                        config['stats_thread_id'] = None
+                        config['stats_message_id'] = None
                         self._save_config(guild_id, config)
                     except Exception:
                         pass
