@@ -338,7 +338,7 @@ def import_legacy_data():
     return redirect(url_for('admin_maintenance'))
 
 
-MANAGEABLE_COGS = ["Geburtstage", "Zählen", "Level-System", "Moderation", "Twitch", "Twitch-Live-Alert", "Ticket-System", "Temp-Channel", "Twitch-Clips", "Streak", "Gatekeeper", "Guard", "Global-Ban", "Wrapped", "LFG", "Mitspieler-Suche", "Wordle", "Contexto", "Backup", "Onboarding", "Logging"]
+MANAGEABLE_COGS = ["Geburtstage", "Zählen", "Level-System", "Moderation", "Twitch", "Twitch-Live-Alert", "Ticket-System", "Temp-Channel", "Twitch-Clips", "Streak", "Gatekeeper", "Guard", "Global-Ban", "Wrapped", "LFG", "Mitspieler-Suche", "Wordle", "Contexto", "Backup", "Onboarding", "Logging", "Dashboard"]
 
 # (Existing get_admin_guilds and check_guild_permissions are slightly below)
 
@@ -881,12 +881,20 @@ def toggle_module(guild_id):
     if cog_name in MANAGEABLE_COGS:
         if is_enabled:
             if cog_name not in enabled_cogs: enabled_cogs.append(cog_name)
+            if cog_name == 'Dashboard':
+                dash_cog = bot.get_cog('Dashboard')
+                if dash_cog:
+                    asyncio.run_coroutine_threadsafe(dash_cog.web_on_enable(guild_id), bot.loop)
         else:
             if cog_name in enabled_cogs: enabled_cogs.remove(cog_name)
             if cog_name == 'Geburtstage':
                 bday_cog = bot.get_cog('Geburtstage')
                 if bday_cog:
                     asyncio.run_coroutine_threadsafe(bday_cog.web_cleanup(guild_id), bot.loop)
+            elif cog_name == 'Dashboard':
+                dash_cog = bot.get_cog('Dashboard')
+                if dash_cog:
+                    asyncio.run_coroutine_threadsafe(dash_cog.web_on_disable(guild_id), bot.loop)
         
         bot.data.save_server_config(guild_id, guild_config)
         msg = f"Modul '{cog_name}' wurde {'aktiviert' if is_enabled else 'deaktiviert'}."
@@ -2037,6 +2045,55 @@ def manage_logging(guild_id):
                          logging_is_enabled=is_enabled,
                          logging_config=logging_config)
 
+@app.route('/guild/<int:guild_id>/dashboard_cog', methods=['GET', 'POST'])
+@requires_authorization
+def manage_dashboard_cog(guild_id):
+    """Verwaltet die Dashboard-Einstellungen & Forum-Synchronisation."""
+    if not check_guild_permissions(guild_id):
+        flash("Du hast keine Berechtigung für diesen Server.", "danger")
+        return redirect(url_for('dashboard'))
+
+    guild = bot.get_guild(guild_id)
+    guild_config = bot.data.get_server_config(guild_id)
+    is_enabled = 'Dashboard' in guild_config.get('enabled_cogs', [])
+    cog = bot.get_cog('Dashboard')
+
+    if request.method == 'POST':
+        if not is_enabled or not cog:
+            flash("Das Dashboard-Modul ist nicht aktiv.", "danger")
+            return redirect(url_for('manage_dashboard_cog', guild_id=guild_id))
+
+        action = request.form.get('action')
+        future = None
+
+        if action == 'sync_forum':
+            future = asyncio.run_coroutine_threadsafe(cog.web_on_enable(guild_id), bot.loop)
+        elif action == 'set_config':
+            mod_role_ids = [int(rid) for rid in request.form.getlist('mod_role_ids') if rid.isdigit()]
+            log_channel_id_str = request.form.get('log_channel_id')
+            log_channel_id = int(log_channel_id_str) if log_channel_id_str and log_channel_id_str.isdigit() else None
+            future = asyncio.run_coroutine_threadsafe(cog.web_set_config(guild_id, mod_role_ids, log_channel_id), bot.loop)
+
+        if future:
+            success, message = future.result()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': success, 'message': message})
+            flash(message, 'success' if success else 'danger')
+
+        return redirect(url_for('manage_dashboard_cog', guild_id=guild_id))
+
+    dash_config = bot.data.get_guild_data(guild_id, "dashboard_config")
+    forum_channel = None
+    if dash_config.get('forum_channel_id') and guild:
+        forum_channel = guild.get_channel(int(dash_config.get('forum_channel_id')))
+
+    return render_template('dashboard_cog.html',
+                           guild=guild,
+                           config=dash_config,
+                           forum_channel=forum_channel,
+                           is_enabled=is_enabled,
+                           admin_guilds=get_admin_guilds())
+
 @app.route('/guild/<int:guild_id>/logs', methods=['GET'])
 @requires_authorization
 def view_logs(guild_id):
@@ -2419,7 +2476,7 @@ async def on_ready():
         'cogs.twitch_live_alert', 'cogs.temp_channel', 'cogs.twitch_clips', 'cogs.streak',
         'cogs.gatekeeper', 'cogs.guard', 'cogs.global_ban', 'cogs.maintenance', 'cogs.wrapped',
         'cogs.lfg', 'cogs.monthly_stats', 'cogs.leaderboard_display', 'cogs.wordle', 'cogs.contexto', 'cogs.info',
-        'cogs.twitch_chat_bot', 'cogs.backup', 'cogs.onboarding', 'cogs.logging'
+        'cogs.twitch_chat_bot', 'cogs.backup', 'cogs.onboarding', 'cogs.logging', 'cogs.dashboard'
     ]
     
     print(f" 📦 Lade {len(cogs_to_load)} Erweiterungen...")
