@@ -83,7 +83,22 @@
             <form action="{{ url_for('manage_dashboard_cog', guild_id=guild.id) }}" method="post" class="space-y-6">
                 <input type="hidden" name="action" value="set_config">
 
-                <!-- 1. MODERATOR ROLES -->
+                <!-- 1. CATEGORY SELECTION -->
+                <div>
+                    <label class="block text-text-secondary text-sm mb-2 font-semibold">📁 Forum-Kategorie (Optional)</label>
+                    <p class="text-text-secondary text-xs mb-3">Wähle die Kategorie, in der das Dashboard-Forum erstellt werden soll</p>
+                    <select name="category_id"
+                        class="form-select w-full rounded-lg bg-background-dark border border-[#2e3e5e] text-white">
+                        <option value="">Keine Kategorie (Haupt-Ebene)</option>
+                        {% for category in guild.categories|sort(attribute='position') %}
+                        <option value="{{ category.id }}" {% if category.id == config.get('category_id') %}selected{% endif %}>
+                            📁 {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 2. MODERATOR ROLES -->
                 <div>
                     <label class="block text-text-secondary text-sm mb-2 font-semibold">👥 Moderations-Rollen</label>
                     <p class="text-text-secondary text-xs mb-3">Wähle Rollen aus, die Zugriff auf das Dashboard-Forum erhalten sollen (Admins und Rollen mit Bann-Rechten haben automatisch Zugriff)</p>

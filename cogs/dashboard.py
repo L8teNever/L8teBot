@@ -318,10 +318,39 @@ class DashboardCog(commands.Cog, name="Dashboard"):
         try:
             config = self._get_config(guild.id)
             forum_channel_id = config.get('forum_channel_id')
-            forum_channel = None
+            category_id = config.get('category_id')
 
+            # Ziel-Kategorie ermitteln
+            target_category = None
+            if category_id:
+                cat = guild.get_channel(category_id)
+                if isinstance(cat, CategoryChannel):
+                    target_category = cat
+
+            # Alle bestehenden Dashboard-Foren auf dem Server suchen (nach Name "📌-dashboard" oder gespeicherter ID)
+            matching_forums = [
+                ch for ch in guild.forums
+                if ch.name == "📌-dashboard" or (forum_channel_id and ch.id == forum_channel_id)
+            ]
+
+            forum_channel = None
             if forum_channel_id:
                 forum_channel = guild.get_channel(forum_channel_id)
+                if not isinstance(forum_channel, ForumChannel):
+                    forum_channel = None
+
+            # Falls kein valides forum_channel bekannt ist, aber bereits Foren existieren, nimm das erste
+            if not forum_channel and matching_forums:
+                forum_channel = matching_forums[0]
+                config['forum_channel_id'] = forum_channel.id
+
+            # Bereinigungs-Logik: Lösche ALLE überflüssigen/doppelten Dashboard-Foren
+            for extra_forum in matching_forums:
+                if forum_channel and extra_forum.id != forum_channel.id:
+                    try:
+                        await extra_forum.delete(reason="Bereinigung doppelter Dashboard-Foren")
+                    except Exception:
+                        pass
 
             # Berechtigungs-Overwrites definieren (Standard: für @everyone gesperrt)
             overwrites = {
@@ -349,17 +378,30 @@ class DashboardCog(commands.Cog, name="Dashboard"):
                     )
 
             if not forum_channel or not isinstance(forum_channel, ForumChannel):
-                # Neues Forum erstellen
+                # Neues Forum erstellen (und sicherstellen, dass alte Reste gelöscht sind)
+                for old_f in matching_forums:
+                    try:
+                        await old_f.delete(reason="Ersetze altes Dashboard-Forum")
+                    except Exception:
+                        pass
+
                 forum_channel = await guild.create_forum(
                     name="📌-dashboard",
                     topic="🔒 Internes Moderations-Dashboard. Nur für Moderatoren sichtbar.",
                     overwrites=overwrites,
+                    category=target_category,
                     reason="Dashboard Modul aktiviert"
                 )
                 config['forum_channel_id'] = forum_channel.id
+                config['ban_thread_id'] = None
+                config['ban_message_id'] = None
             else:
-                # Berechtigungen auf existierendem Forum aktualisieren
-                await forum_channel.edit(overwrites=overwrites, reason="Dashboard Berechtigungen aktualisiert")
+                # Berechtigungen und Kategorie auf existierendem Forum aktualisieren
+                await forum_channel.edit(
+                    overwrites=overwrites,
+                    category=target_category,
+                    reason="Dashboard Berechtigungen/Kategorie aktualisiert"
+                )
 
             # Prüfen ob Bann-Post (Thread) existiert
             thread_id = config.get('ban_thread_id')
@@ -447,7 +489,7 @@ class DashboardCog(commands.Cog, name="Dashboard"):
                         pass
         return True, "Dashboard Modul deaktiviert."
 
-    async def web_set_config(self, guild_id: int, mod_role_ids: list, log_channel_id: Optional[int]) -> tuple[bool, str]:
+    async def web_set_config(self, guild_id: int, mod_role_ids: list, log_channel_id: Optional[int], category_id: Optional[int] = None) -> tuple[bool, str]:
         guild = self.bot.get_guild(guild_id)
         if not guild:
             return False, "Server nicht gefunden."
@@ -455,6 +497,7 @@ class DashboardCog(commands.Cog, name="Dashboard"):
         config = self._get_config(guild_id)
         config['mod_role_ids'] = mod_role_ids
         config['log_channel_id'] = log_channel_id
+        config['category_id'] = category_id
         self._save_config(guild_id, config)
 
         await self.setup_dashboard_forum(guild)
