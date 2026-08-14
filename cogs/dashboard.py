@@ -373,11 +373,13 @@ class DashboardTwitchRemoveView(discord.ui.View):
 
 
 class StreamerRoleUserSelect(discord.ui.UserSelect):
-    def __init__(self, cog_instance: Optional[commands.Cog] = None):
+    def __init__(self, cog_instance: Optional[commands.Cog] = None, default_users: Optional[list] = None):
+        default_vals = [discord.SelectDefaultValue.from_user(m) for m in (default_users or [])[:25]]
         super().__init__(
-            placeholder="👥 Mitglied(er) für Streamer-Rolle auswählen...",
-            min_values=1,
-            max_values=10,
+            placeholder="👥 Mitglieder mit Streamer-Rolle anpassen...",
+            min_values=0,
+            max_values=25,
+            default_values=default_vals if default_vals else None,
             custom_id="dashboard_streamer_role_user_select"
         )
         self.cog = cog_instance
@@ -408,31 +410,49 @@ class StreamerRoleUserSelect(discord.ui.UserSelect):
 
         await interaction.response.defer(ephemeral=True)
 
+        selected_user_ids = set()
+        for val in self.values:
+            if isinstance(val, (discord.User, discord.Member, discord.Object)):
+                selected_user_ids.add(val.id)
+            elif hasattr(val, 'id'):
+                selected_user_ids.add(val.id)
+
+        current_members = [m for m in guild.members if streamer_role in m.roles]
+        current_member_ids = {m.id for m in current_members}
+
         added = []
         removed = []
         failed = []
 
-        for val in self.values:
-            member = None
-            if isinstance(val, discord.Member):
-                member = val
-            elif hasattr(val, 'id'):
-                member = guild.get_member(val.id)
-
-            if not member:
-                continue
-
-            try:
-                if streamer_role in member.roles:
-                    await member.remove_roles(streamer_role, reason="Streamer-Rolle via Dashboard entfernt")
+        # 1. Rolle entfernen von Mitgliedern, die im Dropdown abgewählt wurden
+        for member in current_members:
+            if member.id not in selected_user_ids:
+                try:
+                    await member.remove_roles(streamer_role, reason="Streamer-Rolle via Dashboard abgewählt")
                     removed.append(member.display_name)
-                else:
-                    await member.add_roles(streamer_role, reason="Streamer-Rolle via Dashboard vergeben")
-                    added.append(member.display_name)
-            except discord.Forbidden:
-                failed.append(f"{member.display_name} (Keine Rechte)")
-            except Exception as e:
-                failed.append(f"{member.display_name} ({e})")
+                except discord.Forbidden:
+                    failed.append(f"{member.display_name} (Keine Rechte)")
+                except Exception as e:
+                    failed.append(f"{member.display_name} ({e})")
+
+        # 2. Rolle vergeben an neu ausgewählte Mitglieder
+        for user_id in selected_user_ids:
+            if user_id not in current_member_ids:
+                member = guild.get_member(user_id)
+                if not member:
+                    try:
+                        member = await guild.fetch_member(user_id)
+                    except Exception:
+                        member = None
+
+                if member:
+                    try:
+                        await member.add_roles(streamer_role, reason="Streamer-Rolle via Dashboard ausgewählt")
+                        added.append(member.display_name)
+                    except discord.Forbidden:
+                        failed.append(f"{member.display_name} (Keine Rechte)")
+                    except Exception as e:
+                        failed.append(f"{member.display_name} ({e})")
 
         msg_parts = []
         if added:
@@ -442,16 +462,19 @@ class StreamerRoleUserSelect(discord.ui.UserSelect):
         if failed:
             msg_parts.append(f"⚠️ Fehlgeschlagen für: {', '.join(failed)}")
 
-        await interaction.followup.send("\n".join(msg_parts) if msg_parts else "Keine Änderungen durchgeführt.", ephemeral=True)
+        if not msg_parts:
+            msg_parts.append("Keine Änderungen an den Streamer-Rollen vorgenommen.")
 
-        if (added or removed) and self.cog and hasattr(self.cog, 'setup_dashboard_forum'):
+        await interaction.followup.send("\n".join(msg_parts), ephemeral=True)
+
+        if self.cog and hasattr(self.cog, 'setup_dashboard_forum'):
             await self.cog.setup_dashboard_forum(guild)
 
 
 class DashboardTwitchAddButton(discord.ui.Button):
     def __init__(self, cog_instance: Optional[commands.Cog] = None):
         super().__init__(
-            label="➕ Streamer hinzufügen",
+            label="➕ Twitch-Account hinzufügen",
             style=ButtonStyle.success,
             emoji="📺",
             custom_id="dashboard_twitch_add_btn"
@@ -465,7 +488,7 @@ class DashboardTwitchAddButton(discord.ui.Button):
 class DashboardTwitchRemoveButton(discord.ui.Button):
     def __init__(self, cog_instance: Optional[commands.Cog] = None):
         super().__init__(
-            label="🗑️ Streamer entfernen",
+            label="🗑️ Twitch-Account entfernen",
             style=ButtonStyle.danger,
             emoji="🗑️",
             custom_id="dashboard_twitch_remove_btn"
@@ -490,10 +513,10 @@ class DashboardTwitchRemoveButton(discord.ui.Button):
 
 
 class DashboardStreamerManagementView(discord.ui.View):
-    def __init__(self, cog_instance: Optional[commands.Cog] = None):
+    def __init__(self, cog_instance: Optional[commands.Cog] = None, default_users: Optional[list] = None):
         super().__init__(timeout=None)
         self.cog = cog_instance
-        self.add_item(StreamerRoleUserSelect(cog_instance))
+        self.add_item(StreamerRoleUserSelect(cog_instance, default_users=default_users))
         self.add_item(DashboardTwitchAddButton(cog_instance))
         self.add_item(DashboardTwitchRemoveButton(cog_instance))
 
@@ -754,11 +777,13 @@ class DashboardCog(commands.Cog, name="Dashboard"):
             if thread_id:
                 streamer_thread = forum_channel.get_thread(thread_id)
 
+            view = DashboardStreamerManagementView(self, default_users=members_with_role)
+
             if not streamer_thread:
                 thread_with_msg = await forum_channel.create_thread(
                     name="📺 Streamer-Management",
                     embed=embed,
-                    view=DashboardStreamerManagementView(self)
+                    view=view
                 )
                 streamer_thread = thread_with_msg.thread
                 config['streamer_thread_id'] = streamer_thread.id
@@ -772,9 +797,9 @@ class DashboardCog(commands.Cog, name="Dashboard"):
                 if msg_id:
                     try:
                         msg = await streamer_thread.fetch_message(msg_id)
-                        await msg.edit(embed=embed, view=DashboardStreamerManagementView(self))
+                        await msg.edit(embed=embed, view=view)
                     except Exception:
-                        new_msg = await streamer_thread.send(embed=embed, view=DashboardStreamerManagementView(self))
+                        new_msg = await streamer_thread.send(embed=embed, view=view)
                         config['streamer_message_id'] = new_msg.id
 
             self._save_config(guild.id, config)
