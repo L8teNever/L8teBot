@@ -120,8 +120,10 @@ class LoggingCog(commands.Cog, name="Logging"):
             guild = self.bot.get_guild(guild_id)
             if guild:
                 channel = await self._get_or_create_dashboard_log_thread(guild, config)
-
-        if not channel:
+            if not channel:
+                print(f"[Logging] Konnte Dashboard Log Thread für Guild {guild_id} nicht abrufen/erstellen.")
+                return
+        else:
             log_channel_id = config.get("log_channel_id")
             if log_channel_id:
                 channel = self.bot.get_channel(log_channel_id)
@@ -1001,7 +1003,15 @@ class LoggingCog(commands.Cog, name="Logging"):
 
             self.bot.data.save_guild_data(guild_id, "logging", config)
 
-            return True, "Logging-Konfiguration gespeichert."
+            msg = "Logging-Konfiguration gespeichert."
+            if use_dashboard_forum:
+                thread = await self._get_or_create_dashboard_log_thread(guild, config)
+                if thread:
+                    msg = "Logging-Konfiguration gespeichert & Audit-Logs Post im Dashboard-Forum eingerichtet!"
+                else:
+                    msg = "Logging-Konfiguration gespeichert. Hinweis: Dashboard-Forum konnte noch nicht erstellt werden (bitte Dashboard-Modul prüfen)."
+
+            return True, msg
 
         except Exception as e:
             return False, f"Fehler beim Speichern: {str(e)}"
