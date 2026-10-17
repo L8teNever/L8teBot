@@ -22,3 +22,6 @@ secret.txt
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Beim Docker-Build geladen
+web/static/js/tailwind.js

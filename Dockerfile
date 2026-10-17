@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Tailwind (Play-Build) beim Build lokal ablegen, damit die Seite kein CDN braucht
+RUN python -c "import urllib.request as u; open('web/static/js/tailwind.js','wb').write(u.urlopen('https://cdn.tailwindcss.com?plugins=forms,container-queries').read())"
+
 # Create volume mount point
 VOLUME ["/app/data"]
 
