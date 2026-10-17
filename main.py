@@ -2510,6 +2510,10 @@ async def on_ready():
         except Exception as e:
             print(f"  [!] Fehler in '{cog}': {e}")
 
+    # Befehle explizit für Server- UND User-Installation freigeben, sonst erscheinen sie
+    # in Servern nicht (Discord vergibt sonst den Standard der App bei der ersten Registrierung)
+    bot.tree.allowed_installs = discord.app_commands.AppInstallationType(guild=True, user=True)
+
     # Synchronisiere die Slash-Befehle
     try:
         synced = await bot.tree.sync()
